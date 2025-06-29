@@ -141,6 +141,7 @@ export default function CompostConnect() {
     const getSession = async () => {
       const { data, error } = await supabase.auth.getSession()
       if (data?.session) setSession(data.session)
+      if (data?.session) router.push("/main")
     }
     getSession()
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -157,6 +158,7 @@ export default function CompostConnect() {
     const { error } = await supabase.auth.signUp({ email, password })
     if (error) setAuthError(error.message)
     setIsLoading(false)
+    if (!error) router.push("/main")
   }
 
   const handleSignIn = async () => {
@@ -165,6 +167,7 @@ export default function CompostConnect() {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) setAuthError(error.message)
     setIsLoading(false)
+    if (!error) router.push("/main")
   }
 
   const handleSignOut = async () => {
@@ -838,13 +841,13 @@ export default function CompostConnect() {
               <h3 className="text-lg font-bold text-green-800">Notifications</h3>
               <Button variant="ghost" size="sm" onClick={() => setShowNotifications(false)}>
                 Close
-              </Button>
+            </Button>
             </div>
             <div className="text-gray-600 text-center">No notifications yet</div>
           </div>
-        </div>
+            </div>
       )}
-    </div>
+            </div>
   )
 
   const renderGuidesScreen = () => (
@@ -865,8 +868,8 @@ export default function CompostConnect() {
           onLike={(id: string) => handleGuideLike(id)}
           onBack={() => setCurrentScreen("home")}
         />
-      </div>
-    </div>
+                  </div>
+                  </div>
   );
 
   const renderGuideDetailScreen = () => {

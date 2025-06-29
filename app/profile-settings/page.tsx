@@ -82,6 +82,11 @@ export default function ProfileSettings() {
     }
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/");
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 flex flex-col items-center justify-center">
       <div className="bg-white/80 backdrop-blur-sm border-b border-green-100 p-4 sticky top-0 z-10 w-full max-w-md mx-auto">
@@ -127,6 +132,7 @@ export default function ProfileSettings() {
             {error && <div className="text-red-600 text-sm">{error}</div>}
             {success && <div className="text-green-700 text-sm">{success}</div>}
             <Button type="submit" className="w-full" disabled={uploading}>Save Changes</Button>
+            <Button type="button" className="w-full bg-red-500 hover:bg-red-600 text-white mt-2" onClick={handleLogout}>Log Out</Button>
           </form>
         </CardContent>
       </Card>
