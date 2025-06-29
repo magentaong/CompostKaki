@@ -10,4 +10,15 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const { data, error } = await supabase.from('bins').select('*').eq('id', id).single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ bin: data })
-} 
+}
+
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  const { id } = params;
+  const { health_status } = await req.json();
+  const { error } = await supabase
+    .from('bins')
+    .update({ health_status })
+    .eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}

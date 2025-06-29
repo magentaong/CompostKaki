@@ -13,7 +13,7 @@ function getHealthColor(status: string) {
   switch (status) {
     case "Critical": return "bg-red-100 text-red-700";
     case "Healthy": return "bg-green-100 text-green-700";
-    case "Needs Help": return "bg-yellow-100 text-yellow-800";
+    case "Needs Attention": return "bg-yellow-100 text-yellow-800";
     default: return "bg-gray-100 text-gray-700";
   }
 }
@@ -27,6 +27,10 @@ export default function BinDetailPage() {
   const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // For editing health status
+  const [editingHealth, setEditingHealth] = useState(false);
+  const [newHealth, setNewHealth] = useState(bin?.health_status || "Healthy");
 
   // For share menu
   const [showShare, setShowShare] = useState(false);
@@ -57,6 +61,10 @@ export default function BinDetailPage() {
       .catch(e => setError(e.message || "Failed to load activities"))
       .finally(() => setLoading(false));
   }, [binId]);
+
+  useEffect(() => {
+    setNewHealth(bin?.health_status || "Healthy");
+  }, [bin]);
 
   // Share handlers
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
@@ -112,14 +120,6 @@ export default function BinDetailPage() {
             </div>
           </div>
 
-          {/* Compost Health Tag (floating, no container) */}
-          {bin?.health_status && (
-            <div className="flex justify-center mb-4">
-              <span className={`px-3 py-1 rounded-full font-semibold text-sm shadow-sm ${getHealthColor(bin.health_status)}`}>
-                Compost Health: {bin.health_status}
-              </span>
-            </div>
-          )}
 
           {/* Stat Tiles */}
           <div className="grid grid-cols-3 gap-3 mb-4">
@@ -133,6 +133,76 @@ export default function BinDetailPage() {
               </Card>
             ))}
           </div>
+          {/* Compost Health Tag (floating, no container) */}
+          {/* {bin?.health_status && (
+            <div className="flex justify-center mb-4">
+              <span className={`px-3 py-1 rounded-full font-semibold text-sm shadow-sm ${getHealthColor(bin.health_status)}`}>
+                Compost Health: {bin.health_status}
+              </span>
+            </div>
+          )} */}
+          {!editingHealth ? (
+            bin?.health_status && (
+              <div className="flex justify-center mb-4">
+                <span
+                  className={`px-3 py-1 rounded-full font-semibold text-sm shadow-sm cursor-pointer ${getHealthColor(bin.health_status)}`}
+                  onClick={() => setEditingHealth(true)}
+                  title="Click to edit health status"
+                >
+                  Compost Health: {bin.health_status}
+                </span>
+              </div>
+            )
+          ) : (
+            <div className="flex justify-center mb-4">
+              <select
+                className="px-3 py-1 rounded-full font-semibold text-sm shadow-sm border"
+                value={newHealth}
+                onChange={e => setNewHealth(e.target.value)}
+              >
+                <option value="Healthy">Healthy</option>
+                <option value="Needs Attention">Needs Attention</option>
+                <option value="Critical">Critical</option>
+              </select>
+              <Button
+                size="sm"
+                className="ml-2"
+                onClick={async () => {
+                  setEditingHealth(false);
+                  if (newHealth !== bin.health_status) {
+                    // Update health status in DB
+                    await fetch(`/api/bins/${binId}`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ health_status: newHealth }),
+                    });
+                    // Log activity
+                    await fetch(`/api/bins/logs`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        bin_id: binId,
+                        action: `Health status changed to ${newHealth}`,
+                        details: `Health status updated from ${bin.health_status} to ${newHealth}`,
+                      }),
+                    });
+                    // Refresh bin data
+                    setBin({ ...bin, health_status: newHealth });
+                  }
+                }}
+              >
+                Save
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="ml-1"
+                onClick={() => setEditingHealth(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="p-4 space-y-4">

@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     (isNaN(tempNum) || tempNum < 35 || tempNum > 65) ||
     (moisture && (moisture.toLowerCase() === 'dry' || moisture.toLowerCase() === 'wet'))
   ) {
-    health_status = 'Needs Help';
+    health_status = 'Needs Attention';
   }
   if (
     (isNaN(tempNum) || tempNum < 30 || tempNum > 70) &&
