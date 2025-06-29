@@ -84,24 +84,70 @@ export default function BinDetailPage() {
   const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`;
 
   // Stat tile helpers
+  const temp = bin?.latest_temperature;
+  const moisture = bin?.latest_moisture;
+
+  let tempColor = "bg-white border-green-700 text-green-900";
+  let tempWarning = "";
+  if (temp !== undefined && temp !== null) {
+    if (temp > 50) {
+      tempColor = "from-red-500 to-orange-500 text-white border-0";
+      tempWarning = "Too hot!";
+    } else if (temp < 27) {
+      tempColor = "from-red-500 to-orange-500 text-white border-0";
+      tempWarning = "Too cold!";
+    } else if (temp >= 45) {
+      tempColor = "from-yellow-300 to-yellow-100 text-yellow-900 border-0";
+      tempWarning = "Getting hot!";
+    }
+  }
+
+  let moistureColor = "bg-white border-green-700 text-green-900";
+  if (moisture === "Perfect") {
+    moistureColor = "bg-white border-green-700 text-green-900";
+  } else if (moisture === "Wet" || moisture === "Dry") {
+    moistureColor = "from-yellow-300 to-yellow-100 text-yellow-900 border-0";
+  } else if (moisture === "Very wet" || moisture === "Very dry") {
+    moistureColor = "from-red-500 to-orange-500 text-white border-0";
+  }
+
+  let moistureWarning = "";
+  if (moisture !== undefined && moisture !== null) {
+    const moistNum = Number(moisture);
+    if (moistNum < 40) {
+      moistureWarning = "Very dry";
+    } else if (moistNum < 60) {
+      moistureWarning = "Dry";
+    } else if (moistNum <= 80) {
+      moistureWarning = "Perfect";
+    } else if (moistNum <= 90) {
+      moistureWarning = "Wet";
+    } else {
+      moistureWarning = "Very wet";
+    }
+  }
+
   const statTiles = [
     {
       label: "Temperature",
-      value: bin?.latest_temperature !== undefined && bin?.latest_temperature !== null ? `${bin.latest_temperature}°C` : "New bin: temperature not taken",
-      icon: <Thermometer className="w-5 h-5" />, 
-      color: "from-orange-500 to-red-500",
+      value: temp !== undefined && temp !== null ? `${temp}°C` : "New bin: temperature not taken",
+      icon: <Thermometer className="w-5 h-5" />,
+      color: tempColor,
+      warning: tempWarning,
     },
     {
       label: "Moisture",
-      value: bin?.latest_moisture !== undefined && bin?.latest_moisture !== null ? String(bin.latest_moisture) : "New bin: moisture not taken",
-      icon: <Droplets className="w-5 h-5" />, 
-      color: "from-blue-500 to-cyan-500",
+      value: moisture !== undefined && moisture !== null ? String(moisture) : "New bin: moisture not taken",
+      icon: <Droplets className="w-5 h-5" />,
+      color: moistureColor,
+      warning: moistureWarning,
     },
     {
       label: "Flipping",
       value: bin?.latest_flips !== undefined && bin?.latest_flips !== null ? String(bin.latest_flips) : "New bin: not flipped yet",
-      icon: <RefreshCw className="w-5 h-5" />, 
-      color: "from-purple-500 to-fuchsia-500",
+      icon: <RefreshCw className="w-5 h-5" />,
+      color: "bg-white border-green-700 text-green-900",
+      warning: "",
     },
   ];
 
@@ -114,10 +160,11 @@ export default function BinDetailPage() {
             <Button variant="ghost" size="sm" onClick={() => router.push("/main")}> <ArrowLeft className="w-5 h-5" /> </Button>
             <div className="flex-1">
               <h2 className="text-xl font-bold text-green-800">{bin?.name || "Bin"}</h2>
-              <div className="flex items-center gap-1 text-sm text-green-600">
-                <Calendar className="w-3 h-3" />
-                {bin?.created_at ? new Date(bin.created_at).toLocaleDateString() : "-"}
-              </div>
+              {bin?.created_at && (
+                <div className="text-sm text-green-600 mt-1">
+                  Created on: {new Date(bin.created_at).toLocaleDateString('en-GB')}
+                </div>
+              )}
             </div>
             {bin?.qr_code && (
               <Button variant="ghost" size="sm" onClick={() => setShowQR(true)}>
@@ -172,7 +219,21 @@ export default function BinDetailPage() {
             <div className="mb-4 p-4 bg-green-50 rounded-xl text-green-700 text-center">You have joined this bin!</div>
           )}
 
-          {/* Compost Health Tag (floating, no container) */}
+          {/* Stat Tiles */}
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            {statTiles.map((tile, i) => (
+              <Card key={tile.label} className={`${tile.color} rounded-2xl border-2`}>
+                <CardContent className="p-3 text-center flex flex-col items-center justify-center">
+                  <div className="mb-1">{tile.icon}</div>
+                  <div className="text-lg font-bold leading-tight">{typeof tile.value === 'string' ? tile.value : String(tile.value)}</div>
+                  {tile.warning && <div className="text-xs font-semibold mt-1">{tile.warning}</div>}
+                  <div className="text-xs opacity-90 mt-1">{tile.label}</div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Compost Health Tag */}
           {bin?.health_status && (
             <div className="flex justify-center mb-4">
               <span className={`px-3 py-1 rounded-full font-semibold text-sm shadow-sm ${getHealthColor(bin.health_status)}`}>
@@ -180,19 +241,6 @@ export default function BinDetailPage() {
               </span>
             </div>
           )}
-
-          {/* Stat Tiles */}
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            {statTiles.map((tile, i) => (
-              <Card key={tile.label} className={`bg-gradient-to-br ${tile.color} text-white border-0`}>
-                <CardContent className="p-3 text-center flex flex-col items-center justify-center">
-                  <div className="mb-1">{tile.icon}</div>
-                  <div className="text-lg font-bold leading-tight">{typeof tile.value === 'string' ? tile.value : String(tile.value)}</div>
-                  <div className="text-xs opacity-90 mt-1">{tile.label}</div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
         </div>
 
         {/* QR Code Modal */}
@@ -245,31 +293,86 @@ export default function BinDetailPage() {
             <ScrollArea className="h-96">
               <div className="space-y-4">
                 {activities.length === 0 && !loading && <div>No activities yet.</div>}
-                {activities.map((entry: any) => (
-                  <Card key={entry.id} className="bg-white/80 backdrop-blur-sm border-green-100 hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <Avatar className="w-10 h-10 border-2 border-white shadow-sm">
-                          <AvatarImage src={entry.avatar || "/placeholder.svg"} />
-                          <AvatarFallback className="bg-green-100 text-green-700">
-                            {entry.user?.split(" ").map((n: string) => n[0]).join("") || "U"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start mb-2">
-                            <div>
-                              <h4 className="font-semibold text-green-800 text-sm">{entry.action || entry.content}</h4>
-                              <p className="text-xs text-gray-600">by {entry.user || "You"}</p>
+                {activities.map((entry: any) => {
+                  // Determine temperature and moisture display for activity card
+                  const temp = entry.temperature;
+                  const moist = entry.moisture;
+                  let tempStatus = '';
+                  let tempColor = 'text-green-800';
+                  if (temp !== undefined && temp !== null) {
+                    if (temp > 50) {
+                      tempStatus = 'Too hot!';
+                      tempColor = 'text-red-600 font-bold';
+                    } else if (temp < 27) {
+                      tempStatus = 'Too cold!';
+                      tempColor = 'text-red-600 font-bold';
+                    } else if (temp >= 45) {
+                      tempStatus = 'Getting hot!';
+                      tempColor = 'text-yellow-700 font-semibold';
+                    } else {
+                      tempStatus = 'Optimal';
+                    }
+                  }
+                  let moistStatus = '';
+                  let moistColor = 'text-green-800';
+                  if (moist !== undefined && moist !== null) {
+                    const moistNum = Number(moist);
+                    if (moistNum < 40) {
+                      moistStatus = 'Very dry';
+                      moistColor = 'text-red-600 font-bold';
+                    } else if (moistNum < 60) {
+                      moistStatus = 'Dry';
+                      moistColor = 'text-yellow-700 font-semibold';
+                    } else if (moistNum <= 80) {
+                      moistStatus = 'Perfect';
+                      moistColor = 'text-green-800';
+                    } else if (moistNum <= 90) {
+                      moistStatus = 'Wet';
+                      moistColor = 'text-blue-700 font-semibold';
+                    } else {
+                      moistStatus = 'Very wet';
+                      moistColor = 'text-blue-900 font-bold';
+                    }
+                  }
+                  return (
+                    <Card key={entry.id} className="bg-white border-green-100 shadow-none">
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-3">
+                          <Avatar className="w-10 h-10 border-2 border-white shadow-sm">
+                            <AvatarImage src={entry.avatar || "/placeholder.svg"} />
+                            <AvatarFallback className="bg-green-100 text-green-700">
+                              {entry.user?.split(" ").map((n: string) => n[0]).join("") || "U"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start mb-1">
+                              <div>
+                                <h4 className="font-semibold text-green-800 text-base mb-0.5">{entry.action || entry.content}</h4>
+                                <div className="text-sm text-gray-600 mb-1">by {entry.user || "Unknown"}</div>
+                              </div>
+                              <span className="text-xs text-gray-500 whitespace-nowrap">{new Date(entry.created_at).toLocaleString()}</span>
                             </div>
-                            <span className="text-xs text-gray-500">{new Date(entry.created_at).toLocaleString()}</span>
+                            <div className="text-gray-700 text-sm mb-2">{entry.details || entry.content}</div>
+                            <div className="flex gap-6 mt-2">
+                              {temp !== undefined && temp !== null && (
+                                <span className={`flex items-center gap-1 text-sm ${tempColor}`}>
+                                  <Thermometer className="w-4 h-4" />
+                                  {temp}°C {tempStatus && <span className="ml-1">{tempStatus}</span>}
+                                </span>
+                              )}
+                              {moist !== undefined && moist !== null && (
+                                <span className={`flex items-center gap-1 text-sm ${moistColor}`}>
+                                  <Droplets className="w-4 h-4" />
+                                  {moist} {moistStatus && <span className="ml-1">{moistStatus}</span>}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <p className="text-sm text-gray-700 mb-3">{entry.details || entry.content}</p>
-                          {/* TODO: Add more fields, images, likes, etc. */}
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             </ScrollArea>
           </div>

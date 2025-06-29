@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Camera, RefreshCw, Thermometer, Plus, Leaf } from "lucide-react";
 
-const MOISTURE_OPTIONS = ["Good", "Wet", "Dry"];
+const MOISTURE_OPTIONS = ["Very dry", "Dry", "Perfect", "Wet", "Very wet"];
 
 export default function LogActivityPage() {
   const router = useRouter();
