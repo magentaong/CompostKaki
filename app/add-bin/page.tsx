@@ -30,7 +30,6 @@ export default function AddBinPage() {
         .insert({
           name,
           location: name,
-          status: "Healthy",
           user_id: userId,
           contributors: 1,
           progress: 0,

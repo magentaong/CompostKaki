@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Share2, Thermometer, Droplets, RefreshCw, Users, Calendar, Plus, Clock, Filter, Send } from "lucide-react";
+import { ArrowLeft, Share2, Thermometer, Droplets, RefreshCw, Users, Calendar, Plus, Clock, Filter, Send, QrCode } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 
 function getHealthColor(status: string) {
   switch (status) {
@@ -30,6 +31,12 @@ export default function BinDetailPage() {
 
   // For share menu
   const [showShare, setShowShare] = useState(false);
+  const [showQR, setShowQR] = useState(false);
+
+  const [joinPrompt, setJoinPrompt] = useState(false);
+  const [joining, setJoining] = useState(false);
+  const [joined, setJoined] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!binId) return;
@@ -56,7 +63,19 @@ export default function BinDetailPage() {
       })
       .catch(e => setError(e.message || "Failed to load activities"))
       .finally(() => setLoading(false));
+    // Get current user
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUserId(data.user?.id || null);
+    });
   }, [binId]);
+
+  useEffect(() => {
+    if (bin && currentUserId && bin.user_id !== currentUserId && !(bin.contributors_list || []).includes(currentUserId)) {
+      setJoinPrompt(true);
+    } else {
+      setJoinPrompt(false);
+    }
+  }, [bin, currentUserId]);
 
   // Share handlers
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
@@ -100,6 +119,11 @@ export default function BinDetailPage() {
                 {bin?.created_at ? new Date(bin.created_at).toLocaleDateString() : "-"}
               </div>
             </div>
+            {bin?.qr_code && (
+              <Button variant="ghost" size="sm" onClick={() => setShowQR(true)}>
+                <QrCode className="w-5 h-5" />
+              </Button>
+            )}
             <div className="relative">
               <Button variant="ghost" size="sm" onClick={() => setShowShare(v => !v)}><Share2 className="w-4 h-4" /></Button>
               {showShare && (
@@ -111,6 +135,42 @@ export default function BinDetailPage() {
               )}
             </div>
           </div>
+
+          {/* Join Bin Prompt - moved up */}
+          {joinPrompt && !joined && (
+            <div className="mb-4 p-4 bg-green-100 rounded-xl flex flex-col items-center">
+              <div className="mb-2 text-green-800 font-semibold">Do you want to join this bin?</div>
+              <Button
+                disabled={joining}
+                onClick={async () => {
+                  setJoining(true);
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    const token = session?.access_token;
+                    await fetch('/api/bins/join', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                      },
+                      body: JSON.stringify({ binId })
+                    });
+                    setJoined(true);
+                    setJoinPrompt(false);
+                    window.location.reload();
+                  } catch (e) {
+                    setJoining(false);
+                  }
+                }}
+                className="mt-2"
+              >
+                {joining ? 'Joining...' : 'Join Bin'}
+              </Button>
+            </div>
+          )}
+          {joined && (
+            <div className="mb-4 p-4 bg-green-50 rounded-xl text-green-700 text-center">You have joined this bin!</div>
+          )}
 
           {/* Compost Health Tag (floating, no container) */}
           {bin?.health_status && (
@@ -134,6 +194,29 @@ export default function BinDetailPage() {
             ))}
           </div>
         </div>
+
+        {/* QR Code Modal */}
+        {showQR && bin?.qr_code && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white rounded-xl p-6 shadow-lg flex flex-col items-center relative">
+              <img src={bin.qr_code} alt="Bin QR Code" className="w-56 h-56 mb-4" id="bin-qr-img" />
+              <Button
+                variant="secondary"
+                size="sm"
+                className="mb-2"
+                onClick={() => {
+                  const link = document.createElement('a');
+                  link.href = bin.qr_code;
+                  link.download = 'bin-qr.png';
+                  link.click();
+                }}
+              >
+                Download QR Code
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowQR(false)} className="mt-2">Close</Button>
+            </div>
+          </div>
+        )}
 
         <div className="p-4 space-y-4">
           {/* Log New Activity Button */}
