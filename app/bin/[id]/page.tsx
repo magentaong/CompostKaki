@@ -68,19 +68,19 @@ export default function BinDetailPage() {
   const statTiles = [
     {
       label: "Temperature",
-      value: bin?.temperature !== undefined && bin?.temperature !== null ? `${bin.temperature}°C` : "New bin, temperature not taken",
+      value: bin?.latest_temperature !== undefined && bin?.latest_temperature !== null ? `${bin.latest_temperature}°C` : "New bin: temperature not taken",
       icon: <Thermometer className="w-5 h-5" />, 
       color: "from-orange-500 to-red-500",
     },
     {
       label: "Moisture",
-      value: bin?.moisture !== undefined && bin?.moisture !== null ? bin.moisture : "New bin, moisture not taken",
+      value: bin?.latest_moisture !== undefined && bin?.latest_moisture !== null ? String(bin.latest_moisture) : "New bin: moisture not taken",
       icon: <Droplets className="w-5 h-5" />, 
       color: "from-blue-500 to-cyan-500",
     },
     {
       label: "Flipping",
-      value: bin?.flips !== undefined && bin?.flips !== null ? `${bin.flips}` : "New bin, not flipped yet",
+      value: bin?.latest_flips !== undefined && bin?.latest_flips !== null ? String(bin.latest_flips) : "New bin: not flipped yet",
       icon: <RefreshCw className="w-5 h-5" />, 
       color: "from-purple-500 to-fuchsia-500",
     },
@@ -127,7 +127,7 @@ export default function BinDetailPage() {
               <Card key={tile.label} className={`bg-gradient-to-br ${tile.color} text-white border-0`}>
                 <CardContent className="p-3 text-center flex flex-col items-center justify-center">
                   <div className="mb-1">{tile.icon}</div>
-                  <div className="text-lg font-bold leading-tight">{tile.value.replace('New bin,', 'New bin:')}</div>
+                  <div className="text-lg font-bold leading-tight">{typeof tile.value === 'string' ? tile.value : String(tile.value)}</div>
                   <div className="text-xs opacity-90 mt-1">{tile.label}</div>
                 </CardContent>
               </Card>
