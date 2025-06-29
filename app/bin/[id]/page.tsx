@@ -1,4 +1,5 @@
 "use client";
+import React from "react";
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
@@ -111,21 +112,6 @@ export default function BinDetailPage() {
     moistureColor = "from-red-500 to-orange-500 text-white border-0";
   }
 
-  let moistureWarning = "";
-  if (moisture !== undefined && moisture !== null) {
-    const moistNum = Number(moisture);
-    if (moistNum < 40) {
-      moistureWarning = "Very dry";
-    } else if (moistNum < 60) {
-      moistureWarning = "Dry";
-    } else if (moistNum <= 80) {
-      moistureWarning = "Perfect";
-    } else if (moistNum <= 90) {
-      moistureWarning = "Wet";
-    } else {
-      moistureWarning = "Very wet";
-    }
-  }
 
   const statTiles = [
     {
@@ -140,7 +126,6 @@ export default function BinDetailPage() {
       value: moisture !== undefined && moisture !== null ? String(moisture) : "New bin: moisture not taken",
       icon: <Droplets className="w-5 h-5" />,
       color: moistureColor,
-      warning: moistureWarning,
     },
     {
       label: "Flipping",
@@ -220,14 +205,14 @@ export default function BinDetailPage() {
           )}
 
           {/* Stat Tiles */}
-          <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className="grid grid-cols-3 gap-2 mb-4">
             {statTiles.map((tile, i) => (
-              <Card key={tile.label} className={`${tile.color} rounded-2xl border-2`}>
-                <CardContent className="p-3 text-center flex flex-col items-center justify-center">
-                  <div className="mb-1">{tile.icon}</div>
-                  <div className="text-lg font-bold leading-tight">{typeof tile.value === 'string' ? tile.value : String(tile.value)}</div>
-                  {tile.warning && <div className="text-xs font-semibold mt-1">{tile.warning}</div>}
-                  <div className="text-xs opacity-90 mt-1">{tile.label}</div>
+              <Card key={tile.label} className={`${tile.color} rounded-xl border-2 p-0`}>
+                <CardContent className="p-2 text-center flex flex-col items-center justify-center">
+                  <div className="mb-0.5">{React.cloneElement(tile.icon, { className: "w-4 h-4" })}</div>
+                  <div className="text-base font-bold leading-tight">{typeof tile.value === 'string' ? tile.value : String(tile.value)}</div>
+                  {tile.warning && <div className="text-xs font-semibold mt-0.5">{tile.warning}</div>}
+                  <div className="text-xs opacity-90 mt-0.5">{tile.label}</div>
                 </CardContent>
               </Card>
             ))}
@@ -314,25 +299,16 @@ export default function BinDetailPage() {
                     }
                   }
                   let moistStatus = '';
-                  let moistColor = 'text-green-800';
-                  if (moist !== undefined && moist !== null) {
-                    const moistNum = Number(moist);
-                    if (moistNum < 40) {
-                      moistStatus = 'Very dry';
-                      moistColor = 'text-red-600 font-bold';
-                    } else if (moistNum < 60) {
-                      moistStatus = 'Dry';
-                      moistColor = 'text-yellow-700 font-semibold';
-                    } else if (moistNum <= 80) {
-                      moistStatus = 'Perfect';
-                      moistColor = 'text-green-800';
-                    } else if (moistNum <= 90) {
-                      moistStatus = 'Wet';
-                      moistColor = 'text-blue-700 font-semibold';
-                    } else {
-                      moistStatus = 'Very wet';
-                      moistColor = 'text-blue-900 font-bold';
-                    }
+                  let moistColor = "text-green-800";
+                  if (moist === "Perfect") {
+                    moistStatus = "Perfect";
+                    moistColor = "text-green-800";
+                  } else if (moist === "Wet" || moist === "Dry") {
+                    moistStatus = moist;
+                    moistColor = "text-yellow-700 font-semibold";
+                  } else if (moist === "Very wet" || moist === "Very dry") {
+                    moistStatus = moist;
+                    moistColor = "text-red-600 font-bold";
                   }
                   return (
                     <Card key={entry.id} className="bg-white border-green-100 shadow-none">
@@ -363,7 +339,7 @@ export default function BinDetailPage() {
                               {moist !== undefined && moist !== null && (
                                 <span className={`flex items-center gap-1 text-sm ${moistColor}`}>
                                   <Droplets className="w-4 h-4" />
-                                  {moist} {moistStatus && <span className="ml-1">{moistStatus}</span>}
+                                  {moistStatus === moist ? moist : `${moist} ${moistStatus && moistStatus}`}
                                 </span>
                               )}
                             </div>

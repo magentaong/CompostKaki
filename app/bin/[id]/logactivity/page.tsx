@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Camera, RefreshCw, Thermometer, Plus, Leaf } from "lucide-react";
 
-const MOISTURE_OPTIONS = ["Very dry", "Dry", "Perfect", "Wet", "Very wet"];
+const MOISTURE_OPTIONS = ["Very dry", "Dry", "Perfect", "Wet", "Very Wet"];
 
 export default function LogActivityPage() {
   const router = useRouter();
@@ -75,6 +75,27 @@ export default function LogActivityPage() {
       let updates: any = {};
       if (temperature) updates.latest_temperature = parseInt(temperature);
       if (moisture) updates.latest_moisture = moisture;
+
+      // Health status logic
+      let health_status = undefined;
+      const tempNum = temperature ? parseInt(temperature) : null;
+      if (
+        tempNum !== null && tempNum >= 27 && tempNum <= 45 && moisture === 'Perfect'
+      ) {
+        health_status = 'Healthy';
+      } else if (
+        (tempNum !== null && tempNum > 45 && tempNum <= 50) ||
+        moisture === 'Wet' || moisture === 'Dry'
+      ) {
+        health_status = 'Needs Help';
+      } else if (
+        (tempNum !== null && tempNum > 50) ||
+        moisture === 'Very wet' || moisture === 'Very dry'
+      ) {
+        health_status = 'Critical';
+      }
+      if (health_status) updates.health_status = health_status;
+
       if (type && type.toLowerCase().includes("turn")) {
         await supabase.rpc("increment_bin_flips", { bin_id_input: binId });
       }
