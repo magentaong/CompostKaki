@@ -89,6 +89,10 @@ export default function BinDetailPage() {
     }
   }, [bin, currentUserId]);
 
+  useEffect(() => {
+    setNewHealth(bin?.health_status || "Healthy");
+  }, [bin]);
+
   // Share handlers
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
   const shareText = bin ? `Check out our compost bin '${bin.name}' on CompostConnect!` : "Check out this compost bin!";
@@ -229,12 +233,75 @@ export default function BinDetailPage() {
             ))}
           </div>
 
-          {/* Compost Health Tag */}
-          {bin?.health_status && (
+          {/* Compost Health Button */}
+          {/* {bin?.health_status && (
             <div className="flex justify-center mb-4">
               <span className={`px-3 py-1 rounded-full font-semibold text-sm shadow-sm ${getHealthColor(bin.health_status)}`}>
                 Compost Health: {bin.health_status}
               </span>
+            </div>
+          )} */}
+
+          {!editingHealth ? (
+            bin?.health_status && (
+              <div className="flex justify-center mb-4">
+                <span
+                  className={`px-3 py-1 rounded-full font-semibold text-sm shadow-sm cursor-pointer ${getHealthColor(bin.health_status)}`}
+                  onClick={() => setEditingHealth(true)}
+                  title="Click to edit health status"
+                >
+                  Compost Health: {bin.health_status}
+                </span>
+              </div>
+            )
+          ) : (
+            <div className="flex justify-center mb-4">
+              <select
+                className="px-3 py-1 rounded-full font-semibold text-sm shadow-sm border"
+                value={newHealth}
+                onChange={e => setNewHealth(e.target.value)}
+              >
+                <option value="Healthy">Healthy</option>
+                <option value="Needs Attention">Needs Attention</option>
+                <option value="Critical">Critical</option>
+              </select>
+              <Button
+                size="sm"
+                className="ml-2"
+                onClick={async () => {
+                  setEditingHealth(false);
+                  if (newHealth !== bin.health_status) {
+                    // Update health status in DB
+                    await fetch(`/api/bins/${binId}`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ health_status: newHealth }),
+                    });
+                    // Log activity
+                    await fetch(`/api/bins/logs`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        bin_id: binId,
+                        action: `Health status changed to ${newHealth}`,
+                        details: `Health status updated from ${bin.health_status} to ${newHealth}`,
+                      }),
+                    });
+                    // Refresh bin data
+                    setBin({ ...bin, health_status: newHealth });
+                  }
+                }}
+              >
+                Save
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="ml-1"
+                onClick={() => setEditingHealth(false)}
+              >
+                Cancel
+              </Button>
             </div>
           )}
         </div>

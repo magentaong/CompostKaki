@@ -18,3 +18,14 @@ export async function GET(req: NextRequest, contextPromise: Promise<{ params: { 
   const contributors_list = contributors ? contributors.map((c: any) => c.user_id) : []
   return NextResponse.json({ bin: { ...data, contributors_list } })
 } 
+
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  const { id } = params;
+  const { health_status } = await req.json();
+  const { error } = await supabase
+    .from('bins')
+    .update({ health_status })
+    .eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}
