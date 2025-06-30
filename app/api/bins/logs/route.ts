@@ -92,7 +92,13 @@ export async function POST(req: NextRequest) {
   const latestTemperatureNum = typeof latestTemperature === "number" ? latestTemperature : null;
   const latestMoistureStr = typeof latestMoisture === "string" ? latestMoisture : null;
 
-  const { error: binUpdateError } = await supabase
+  // If type is 'Turn Pile', increment latest_flips
+  let binUpdateError = null;
+  if (type && type.toLowerCase().includes('turn')) {
+    const { error: flipError } = await supabase.rpc('increment_bin_flips', { bin_id_input: bin_id });
+    if (flipError) binUpdateError = flipError;
+  }
+  const { error: updateError } = await supabase
     .from('bins')
     .update({
       latest_temperature: latestTemperatureNum,
@@ -100,7 +106,7 @@ export async function POST(req: NextRequest) {
       health_status
     })
     .eq('id', bin_id);
-
+  if (updateError) binUpdateError = updateError;
   if (binUpdateError) {
     return NextResponse.json({ error: binUpdateError.message || String(binUpdateError) }, { status: 500 });
   }

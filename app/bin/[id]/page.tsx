@@ -271,14 +271,11 @@ export default function BinDetailPage() {
 
           {/* Activity Timeline */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center">
               <h3 className="font-bold text-green-800 flex items-center gap-2">
                 <Clock className="w-5 h-5" />
                 Activity Timeline
               </h3>
-              <Button variant="ghost" size="sm">
-                <Filter className="w-4 h-4" />
-              </Button>
             </div>
             {loading && <div>Loading...</div>}
             {error && <div className="text-red-600 text-sm">{error}</div>}
@@ -349,13 +346,14 @@ export default function BinDetailPage() {
                   }
                   return (
                     <div key={entry.id} className="flex items-stretch group w-full justify-center">
-                      <Card className={`w-full max-w-2xl mb-3 ml-0 ${isMostRecent ? 'shadow-lg ring-2 ring-green-200' : 'shadow'} bg-white rounded-xl transition-all duration-200`} style={{ minHeight: '70px' }}>
-                        <CardContent className="px-6 py-3 flex flex-col gap-0.5">
-                          <div className="flex justify-between items-start mb-0.5">
-                            <div className="flex items-center gap-2">
-                              <Avatar className="w-10 h-10 border-2 border-white shadow-sm">
+                      <Card className={`w-full max-w-2xl mb-2 ml-0 ${isMostRecent ? 'shadow-lg ring-2 ring-green-200' : 'shadow-sm'} bg-white rounded-lg transition-all duration-200`} style={{ minHeight: '56px' }}>
+                        <CardContent className="px-4 py-0.7 flex flex-col gap-0.5">
+                          {/* Top row: avatar, title, timestamp */}
+                          <div className="flex items-center justify-between mb-0.5">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="w-9 h-9 border border-white shadow-sm">
                                 <AvatarImage src={entry.avatar || "/placeholder.svg"} />
-                                <AvatarFallback className="bg-green-100 text-green-700">
+                                <AvatarFallback className="bg-green-100 text-green-700 text-base">
                                   {(() => {
                                     if (entry.user_id === currentUserId) return "Y";
                                     const fn = entry.profiles?.first_name || "";
@@ -365,27 +363,31 @@ export default function BinDetailPage() {
                                   })()}
                                 </AvatarFallback>
                               </Avatar>
-                              <div>
-                                <div className="flex items-center gap-1 font-bold text-green-800 text-base">
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-1 font-bold text-green-800 text-base leading-tight">
                                   <ActionIcon className="w-5 h-5 mr-1" style={{ color: iconColor }} />
                                   {entry.type || entry.action || entry.content}
                                 </div>
-                                <div className="text-xs text-gray-600 mt-0.5">
+                                <div className="text-xs text-gray-500 font-medium leading-tight">
                                   by {entry.user_id === currentUserId ? "You" : ((entry.profiles?.first_name || "") + (entry.profiles?.last_name ? " " + entry.profiles.last_name : "")).trim() || "Unnamed"}
                                 </div>
                               </div>
                             </div>
-                            <span className="text-xs text-gray-500 whitespace-nowrap mt-1">
+                            <span className="text-xs text-gray-400 whitespace-nowrap font-medium">
                               {mounted ? timeAgo : new Date(entry.created_at).toLocaleString()}
                             </span>
                           </div>
-                          <div className="flex items-center ml-12 gap-3">
-                            <div className="text-gray-700 text-sm mb-1">{entry.content}</div>
+                          {/* Content row */}
+                          <div className="flex items-center gap-2 ml-12 mt-0">
+                            <div className="text-gray-700 text-sm leading-tight">{entry.content}</div>
                             {imageUrl && (
-                              <img src={imageUrl} alt="Log image" className="w-12 h-12 object-cover rounded-md border ml-2" />
+                              <img src={imageUrl} alt="Log image" className="w-10 h-10 object-cover rounded-md border ml-2" />
                             )}
                           </div>
-                          <div className="flex gap-6 mt-1 ml-12">
+                          {/* Divider */}
+                          <div className="border-t border-green-100 my-0.5" />
+                          {/* Stats and actions row */}
+                          <div className="flex items-center gap-6 ml-11 mt-0.5 mb-0.5">
                             {temp !== undefined && temp !== null && (
                               <span className={`flex items-center gap-1 text-sm ${tempColor}`}>
                                 <Thermometer className="w-4 h-4" />
@@ -398,10 +400,9 @@ export default function BinDetailPage() {
                                 {moistStatus === moist ? moist : `${moist} ${moistStatus && moistStatus}`}
                               </span>
                             )}
-                          </div>
-                          <div className="flex justify-end mt-1">
+                            <div className="flex-1" />
                             <button
-                              className="text-green-700 hover:underline text-xs font-medium flex items-center gap-1"
+                              className="text-green-700 hover:underline text-xs font-medium flex items-center gap-1 ml-auto"
                               onClick={() => setOpenModalLogId(entry.id)}
                             >
                               View details

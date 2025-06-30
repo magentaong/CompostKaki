@@ -82,9 +82,6 @@ export default function LogActivityPage() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Failed to log activity");
-      if (type && type.toLowerCase().includes("turn")) {
-        await supabase.rpc("increment_bin_flips", { bin_id_input: binId });
-      }
       router.push(`/bin/${binId}`);
     } catch (err: any) {
       setError(err.message || "Failed to log activity");
