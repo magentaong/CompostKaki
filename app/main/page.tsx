@@ -42,12 +42,37 @@ export default function MainPage() {
         return;
       }
       // Fetch bins where user is the owner
-      const { data, error } = await supabase
+      const { data: ownedBins, error: ownedError } = await supabase
         .from("bins")
         .select("*")
         .eq("user_id", userId);
-      if (error) setError(error.message);
-      else setBins(data || []);
+
+      // Fetch bin memberships
+      const { data: memberRows, error: memberError } = await supabase
+        .from("bin_members")
+        .select("bin_id")
+        .eq("user_id", userId);
+
+      const memberBinIds = memberRows?.map(row => row.bin_id) || [];
+
+      let memberBins = [];
+      if (memberBinIds.length > 0) {
+        const { data: memberBinsData } = await supabase
+          .from("bins")
+          .select("*")
+          .in("id", memberBinIds);
+        memberBins = memberBinsData || [];
+      }
+
+      // Combine and deduplicate
+      const allBins = [
+        ...(ownedBins || []),
+        ...memberBins.filter(b => !(ownedBins || []).some(ob => ob.id === b.id))
+      ];
+
+      if (ownedError || memberError) setError(ownedError?.message || memberError?.message || "");
+      else setBins(allBins);
+
       setLoading(false);
     };
     fetchBins();

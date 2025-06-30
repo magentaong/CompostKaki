@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from('bin_logs')
-    .select('*')
+    .select('*, profiles!bin_logs_user_id_fkey(first_name, last_name)')
     .eq('bin_id', binId)
     .order('created_at', { ascending: false })
 
@@ -29,42 +29,87 @@ export async function POST(req: NextRequest) {
   if (userError || !user) return NextResponse.json({ error: 'Invalid user' }, { status: 401 })
 
   const body = await req.json()
-  const { bin_id, content, temperature, moisture, type, images } = body
+  const { bin_id, content, temperature, moisture, type, image } = body
   if (!bin_id || !content) return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
 
+  const tempValue = temperature !== undefined && temperature !== null && temperature !== "" ? Number(temperature) : null;
+  const moistValue = moisture !== undefined && moisture !== null && moisture !== "" ? moisture : null;
+
+  // Insert log (no filtering)
   const { data: log, error } = await supabase
     .from('bin_logs')
-    .insert([{ bin_id, user_id: user.id, content, temperature, moisture, type, images }])
+    .insert([{ bin_id, user_id: user.id, content, temperature: tempValue, moisture: moistValue, type, image }])
     .select()
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Health status logic
-  let health_status = 'Healthy';
-  let tempNum = parseFloat(temperature);
+  // Get latest non-null temperature
+  const { data: latestTempLog } = await supabase
+    .from('bin_logs')
+    .select('temperature')
+    .eq('bin_id', bin_id)
+    .not('temperature', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  const latestTemperature = latestTempLog?.temperature !== undefined && latestTempLog?.temperature !== null
+    ? Number(latestTempLog.temperature)
+    : null;
+
+  // Get latest non-null moisture
+  const { data: latestMoistureLog } = await supabase
+    .from('bin_logs')
+    .select('moisture')
+    .eq('bin_id', bin_id)
+    .not('moisture', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  const latestMoisture = latestMoistureLog?.moisture ?? null;
+
+  // Health status logic using latest values
+  let health_status = "Healthy";
   if (
-    (isNaN(tempNum) || tempNum < 35 || tempNum > 65) ||
-    (moisture && (moisture.toLowerCase() === 'dry' || moisture.toLowerCase() === 'wet'))
+    latestTemperature !== null && latestMoisture !== null &&
+    latestTemperature >= 27 && latestTemperature <= 45 && latestMoisture === "Perfect"
   ) {
-    health_status = 'Needs Attention';
-  }
-  if (
-    (isNaN(tempNum) || tempNum < 30 || tempNum > 70) &&
-    (moisture && (moisture.toLowerCase() === 'dry' || moisture.toLowerCase() === 'wet'))
+    health_status = "Healthy";
+  } else if (
+    (latestTemperature !== null && latestTemperature > 45 && latestTemperature <= 50) ||
+    latestMoisture === "Wet" || latestMoisture === "Dry"
   ) {
-    health_status = 'Critical';
-  }
-  // If both temp and moisture are optimal
-  if (
-    !isNaN(tempNum) && tempNum >= 40 && tempNum <= 60 &&
-    (moisture && moisture.toLowerCase() === 'good')
+    health_status = "Needs Attention";
+  } else if (
+    (latestTemperature !== null && latestTemperature > 50) ||
+    latestMoisture === "Very Wet" || latestMoisture === "Very Dry"
   ) {
-    health_status = 'Healthy';
+    health_status = "Critical";
   }
 
-  // Update bin health_status
-  await supabase.from('bins').update({ health_status }).eq('id', bin_id);
+  const latestTemperatureNum = typeof latestTemperature === "number" ? latestTemperature : null;
+  const latestMoistureStr = typeof latestMoisture === "string" ? latestMoisture : null;
 
-  return NextResponse.json({ entry: log })
+  // If type is 'Turn Pile', increment latest_flips
+  let binUpdateError = null;
+  if (type && type.toLowerCase().includes('turn')) {
+    const { error: flipError } = await supabase.rpc('increment_bin_flips', { bin_id_input: bin_id });
+    if (flipError) binUpdateError = flipError;
+  }
+  const { error: updateError } = await supabase
+    .from('bins')
+    .update({
+      latest_temperature: latestTemperatureNum,
+      latest_moisture: latestMoistureStr,
+      health_status
+    })
+    .eq('id', bin_id);
+  if (updateError) binUpdateError = updateError;
+  if (binUpdateError) {
+    return NextResponse.json({ error: binUpdateError.message || String(binUpdateError) }, { status: 500 });
+  }
+
+  return NextResponse.json({ entry: log, latestTemperature, latestMoisture, health_status });
 }

@@ -24,7 +24,8 @@ function getInitials(name?: string, email?: string) {
 
 export default function ProfileSettings() {
   const [user, setUser] = useState<any>(null);
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string>("");
   const [email, setEmail] = useState("");
   const [notifications, setNotifications] = useState(true);
@@ -37,16 +38,28 @@ export default function ProfileSettings() {
     const getUser = async () => {
       const { data } = await supabase.auth.getUser();
       setUser(data.user);
-      setName(data.user?.user_metadata?.name || "");
+      setFirstName(data.user?.user_metadata?.first_name || "");
+      setLastName(data.user?.user_metadata?.last_name || "");
       setAvatarUrl(data.user?.user_metadata?.avatar_url || "");
       setEmail(data.user?.email || "");
       setNotifications(data.user?.user_metadata?.notifications !== false); // default true
+      if (data.user?.id) {
+        const { data: profile } = await supabase.from('profiles').select('first_name, last_name').eq('id', data.user.id).single();
+        if (profile) {
+          setFirstName(profile.first_name || "");
+          setLastName(profile.last_name || "");
+        }
+      }
     };
     getUser();
   }, []);
 
-  const handleNameChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setName(e.target.value);
+  const handleFirstNameChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setFirstName(e.target.value);
+  };
+
+  const handleLastNameChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setLastName(e.target.value);
   };
 
   const handleAvatarChange = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -73,8 +86,15 @@ export default function ProfileSettings() {
     setError("");
     setSuccess("");
     const { error: updateError } = await supabase.auth.updateUser({
-      data: { name, avatar_url: avatarUrl, notifications },
+      data: { first_name: firstName, last_name: lastName, avatar_url: avatarUrl, notifications },
     });
+    if (user?.id) {
+      await supabase.from('profiles').upsert({
+        id: user.id,
+        first_name: firstName,
+        last_name: lastName
+      });
+    }
     if (updateError) {
       setError("Failed to update profile");
     } else {
@@ -105,15 +125,21 @@ export default function ProfileSettings() {
               <Avatar className="w-20 h-20">
                 <AvatarImage src={avatarUrl || "/placeholder.svg?height=80&width=80"} />
                 <AvatarFallback className="bg-green-100 text-green-700 text-2xl">
-                  {getInitials(name, email)}
+                  {getInitials(firstName + ' ' + lastName, email)}
                 </AvatarFallback>
               </Avatar>
               <input type="file" accept="image/*" onChange={handleAvatarChange} disabled={uploading} />
               {uploading && <div className="text-xs text-green-700">Uploading...</div>}
             </div>
-            <div>
-              <Label htmlFor="name">Display Name</Label>
-              <Input id="name" value={name} onChange={handleNameChange} placeholder="Your name" />
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Label htmlFor="firstName">First Name</Label>
+                <Input id="firstName" value={firstName} onChange={handleFirstNameChange} placeholder="First Name" />
+              </div>
+              <div className="flex-1">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input id="lastName" value={lastName} onChange={handleLastNameChange} placeholder="Last Name" />
+              </div>
             </div>
             <div>
               <Label htmlFor="email">Email</Label>

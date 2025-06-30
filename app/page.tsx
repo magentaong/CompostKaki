@@ -99,6 +99,8 @@ export default function CompostConnect() {
   const [authView, setAuthView] = useState<'sign-in' | 'sign-up'>("sign-in")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
   const [session, setSession] = useState<any>(null)
   const [authError, setAuthError] = useState<string>("")
   const [journalEntries, setJournalEntries] = useState<any[]>([])
@@ -155,9 +157,28 @@ export default function CompostConnect() {
   const handleSignUp = async () => {
     setIsLoading(true)
     setAuthError("")
-    const { error } = await supabase.auth.signUp({ email, password })
-    if (error) setAuthError(error.message)
-    setIsLoading(false)
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { first_name: firstName, last_name: lastName }
+      }
+    });
+    if (error) {
+      setAuthError(error.message);
+      setIsLoading(false);
+      return;
+    }
+    // Insert into profiles table
+    const userId = data?.user?.id;
+    if (userId) {
+      await supabase.from('profiles').upsert({
+        id: userId,
+        first_name: firstName,
+        last_name: lastName
+      });
+    }
+    setIsLoading(false);
     if (!error) router.push("/main")
   }
 
@@ -428,6 +449,18 @@ export default function CompostConnect() {
           </CardHeader>
           <CardContent>
             <form onSubmit={e => { e.preventDefault(); authView === 'sign-in' ? handleSignIn() : handleSignUp() }} className="space-y-4">
+              {authView === 'sign-up' && (
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Label htmlFor="firstName">First Name</Label>
+                    <Input id="firstName" value={firstName} onChange={e => setFirstName(e.target.value)} required placeholder="First Name" />
+                  </div>
+                  <div className="flex-1">
+                    <Label htmlFor="lastName">Last Name</Label>
+                    <Input id="lastName" value={lastName} onChange={e => setLastName(e.target.value)} required placeholder="Last Name" />
+                  </div>
+                </div>
+              )}
               <div>
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />

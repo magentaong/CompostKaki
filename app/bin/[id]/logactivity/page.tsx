@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Camera, RefreshCw, Thermometer, Plus, Leaf } from "lucide-react";
+import { NextResponse } from "next/server";
 
-const MOISTURE_OPTIONS = ["Good", "Wet", "Dry"];
+const MOISTURE_OPTIONS = ["Very Dry", "Dry", "Perfect", "Wet", "Very Wet"];
 
 export default function LogActivityPage() {
   const router = useRouter();
@@ -46,44 +47,45 @@ export default function LogActivityPage() {
       const user = await supabase.auth.getUser();
       const userId = user.data.user?.id;
       if (!userId) throw new Error("Not logged in");
-      let imageBase64 = null;
+      let imageUrl = null;
       if (imageFile) {
-        const reader = new FileReader();
-        imageBase64 = await new Promise<string>((resolve, reject) => {
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(imageFile);
-        });
+        const fileExt = imageFile.name.split('.').pop();
+        const filePath = `${userId}_${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage.from('bin-logs').upload(filePath, imageFile, { upsert: true });
+        if (uploadError) {
+          console.error('Supabase upload error:', uploadError);
+          setError(uploadError.message || "Failed to upload image");
+          setLoading(false);
+          return;
+        }
+        const { data: publicUrlData } = supabase.storage.from('bin-logs').getPublicUrl(filePath);
+        imageUrl = publicUrlData.publicUrl;
       }
-      // Insert log
-      const { data: log, error: logError } = await supabase
-        .from("bin_logs")
-        .insert({
+      // Use API route to insert log and update bin
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const response = await fetch('/api/bins/logs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
           bin_id: binId,
-          user_id: userId,
           content,
           temperature: temperature ? parseInt(temperature) : null,
-          moisture,
+          moisture: moisture || null,
           type,
           weight: weight ? parseFloat(weight) : null,
-          image: imageBase64 ? [imageBase64] : null, // TODO: use Supabase Storage
-        })
-        .select()
-        .single();
-      if (logError) throw new Error(logError.message);
-      // Update bin latest values
-      let updates: any = {};
-      if (temperature) updates.latest_temperature = parseInt(temperature);
-      if (moisture) updates.latest_moisture = moisture;
-      if (type && type.toLowerCase().includes("turn")) {
-        await supabase.rpc("increment_bin_flips", { bin_id_input: binId });
-      }
-      if (Object.keys(updates).length > 0) {
-        await supabase.from("bins").update(updates).eq("id", binId);
-      }
+          image: imageUrl,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Failed to log activity");
       router.push(`/bin/${binId}`);
     } catch (err: any) {
       setError(err.message || "Failed to log activity");
+      return NextResponse.json({ error: err.message || String(err) }, { status: 500 });
     }
     setLoading(false);
   };
