@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Camera, RefreshCw, Thermometer, Plus, Leaf } from "lucide-react";
+import { NextResponse } from "next/server";
 
-const MOISTURE_OPTIONS = ["Very dry", "Dry", "Perfect", "Wet", "Very Wet"];
+const MOISTURE_OPTIONS = ["Very Dry", "Dry", "Perfect", "Wet", "Very Wet"];
 
 export default function LogActivityPage() {
   const router = useRouter();
@@ -55,56 +56,34 @@ export default function LogActivityPage() {
           reader.readAsDataURL(imageFile);
         });
       }
-      // Insert log
-      const { data: log, error: logError } = await supabase
-        .from("bin_logs")
-        .insert({
+      // Use API route to insert log and update bin
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const response = await fetch('/api/bins/logs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
           bin_id: binId,
-          user_id: userId,
           content,
           temperature: temperature ? parseInt(temperature) : null,
-          moisture,
+          moisture: moisture || null,
           type,
           weight: weight ? parseFloat(weight) : null,
-          image: imageBase64 ? [imageBase64] : null, // TODO: use Supabase Storage
-        })
-        .select()
-        .single();
-      if (logError) throw new Error(logError.message);
-      // Update bin latest values
-      let updates: any = {};
-      if (temperature) updates.latest_temperature = parseInt(temperature);
-      if (moisture) updates.latest_moisture = moisture;
-
-      // Health status logic
-      let health_status = undefined;
-      const tempNum = temperature ? parseInt(temperature) : null;
-      if (
-        tempNum !== null && tempNum >= 27 && tempNum <= 45 && moisture === 'Perfect'
-      ) {
-        health_status = 'Healthy';
-      } else if (
-        (tempNum !== null && tempNum > 45 && tempNum <= 50) ||
-        moisture === 'Wet' || moisture === 'Dry'
-      ) {
-        health_status = 'Needs Help';
-      } else if (
-        (tempNum !== null && tempNum > 50) ||
-        moisture === 'Very wet' || moisture === 'Very dry'
-      ) {
-        health_status = 'Critical';
-      }
-      if (health_status) updates.health_status = health_status;
-
+          image: imageBase64 ? [imageBase64] : null,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Failed to log activity");
       if (type && type.toLowerCase().includes("turn")) {
         await supabase.rpc("increment_bin_flips", { bin_id_input: binId });
-      }
-      if (Object.keys(updates).length > 0) {
-        await supabase.from("bins").update(updates).eq("id", binId);
       }
       router.push(`/bin/${binId}`);
     } catch (err: any) {
       setError(err.message || "Failed to log activity");
+      return NextResponse.json({ error: err.message || String(err) }, { status: 500 });
     }
     setLoading(false);
   };

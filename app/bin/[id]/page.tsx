@@ -15,7 +15,7 @@ function getHealthColor(status: string) {
   switch (status) {
     case "Critical": return "bg-red-100 text-red-700";
     case "Healthy": return "bg-green-100 text-green-700";
-    case "Needs Help": return "bg-yellow-100 text-yellow-800";
+    case "Needs Attention": return "bg-yellow-100 text-yellow-800";
     default: return "bg-gray-100 text-gray-700";
   }
 }
@@ -92,24 +92,24 @@ export default function BinDetailPage() {
   let tempWarning = "";
   if (temp !== undefined && temp !== null) {
     if (temp > 50) {
-      tempColor = "from-red-500 to-orange-500 text-white border-0";
+      tempColor = "bg-red-500 text-white border-0";
       tempWarning = "Too hot!";
     } else if (temp < 27) {
-      tempColor = "from-red-500 to-orange-500 text-white border-0";
+      tempColor = "bg-red-500 text-white border-0";
       tempWarning = "Too cold!";
     } else if (temp >= 45) {
-      tempColor = "from-yellow-300 to-yellow-100 text-yellow-900 border-0";
+      tempColor = "bg-yellow-300 text-yellow-900 border-0";
       tempWarning = "Getting hot!";
     }
   }
 
-  let moistureColor = "bg-white border-green-700 text-green-900";
+  let moistureColor = "bg-yellow-300 text-yellow-900 border-0";
   if (moisture === "Perfect") {
     moistureColor = "bg-white border-green-700 text-green-900";
   } else if (moisture === "Wet" || moisture === "Dry") {
-    moistureColor = "from-yellow-300 to-yellow-100 text-yellow-900 border-0";
-  } else if (moisture === "Very wet" || moisture === "Very dry") {
-    moistureColor = "from-red-500 to-orange-500 text-white border-0";
+    moistureColor = "bg-yellow-300 text-yellow-900 border-0";
+  } else if (moisture === "Very Wet" || moisture === "Very Dry") {
+    moistureColor = "bg-red-500 text-white border-0";
   }
 
 
@@ -306,7 +306,7 @@ export default function BinDetailPage() {
                   } else if (moist === "Wet" || moist === "Dry") {
                     moistStatus = moist;
                     moistColor = "text-yellow-700 font-semibold";
-                  } else if (moist === "Very wet" || moist === "Very dry") {
+                  } else if (moist === "Very Wet" || moist === "Very Dry") {
                     moistStatus = moist;
                     moistColor = "text-red-600 font-bold";
                   }
