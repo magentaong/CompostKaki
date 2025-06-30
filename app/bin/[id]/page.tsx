@@ -263,8 +263,12 @@ export default function BinDetailPage() {
           <div className="flex justify-center mb-4">
             <Button
               onClick={() => router.push(`/bin/${binId}/logactivity`)}
-              className="w-48 h-16 text-lg bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+              className="w-56 h-14 text-lg font-semibold flex items-center justify-center gap-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-full shadow-md hover:shadow-lg transition-all duration-200 border-none"
+              style={{ boxShadow: '0 4px 16px 0 rgba(34,197,94,0.10)' }}
             >
+              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-white bg-opacity-90 mr-1">
+                <svg width="22" height="22" fill="none" stroke="#22c55e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </span>
               Log new activity
             </Button>
           </div>
