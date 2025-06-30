@@ -8,8 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Share2, Thermometer, Droplets, RefreshCw, Users, Calendar, Plus, Clock, Filter, Send, QrCode } from "lucide-react";
+import { ArrowLeft, Share2, Thermometer, Droplets, RefreshCw, Users, Calendar, Plus, Clock, Filter, Send, QrCode, Shovel, Leaf } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { differenceInDays, formatDistanceToNow } from 'date-fns';
 
 function getHealthColor(status: string) {
   switch (status) {
@@ -38,6 +39,12 @@ export default function BinDetailPage() {
   const [joining, setJoining] = useState(false);
   const [joined, setJoined] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Modal state: which log (by id) is open, or null
+  const [openModalLogId, setOpenModalLogId] = useState<string | null>(null);
+  // Client-side mount state for relative time
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     if (!binId) return;
@@ -276,9 +283,9 @@ export default function BinDetailPage() {
             {loading && <div>Loading...</div>}
             {error && <div className="text-red-600 text-sm">{error}</div>}
             <ScrollArea className="h-96">
-              <div className="space-y-4">
+              <div className="flex flex-col items-center">
                 {activities.length === 0 && !loading && <div>No activities yet.</div>}
-                {activities.map((entry: any) => {
+                {activities.map((entry: any, idx: number) => {
                   // Determine temperature and moisture display for activity card
                   const temp = entry.temperature;
                   const moist = entry.moisture;
@@ -310,45 +317,170 @@ export default function BinDetailPage() {
                     moistStatus = moist;
                     moistColor = "text-red-600 font-bold";
                   }
+                  // Calculate 'x days ago'
+                  const createdAt = new Date(entry.created_at);
+                  const timeAgo = formatDistanceToNow(createdAt, { addSuffix: true });
+                  // Highlight most recent log
+                  const isMostRecent = idx === 0;
+                  // Choose icon and color based on action/type
+                  let ActionIcon = Shovel;
+                  let iconColor = '#16a34a'; // default green
+                  const actionText = (entry.action || entry.content || '').toLowerCase();
+                  const typeText = (entry.type || '').toLowerCase();
+                  if (actionText.includes('turn') || typeText.includes('turn')) {
+                    ActionIcon = RefreshCw;
+                    iconColor = '#2563eb'; // blue
+                  } else if (actionText.includes('monitor') || actionText.includes('check') || typeText.includes('monitor') || typeText.includes('check')) {
+                    ActionIcon = Thermometer;
+                    iconColor = '#ea580c'; // orange
+                  } else if (actionText.includes('greens') || typeText.includes('greens')) {
+                    ActionIcon = Leaf;
+                    iconColor = '#16a34a'; // green
+                  } else if (actionText.includes('browns') || typeText.includes('browns')) {
+                    ActionIcon = Plus;
+                    iconColor = '#f59e42'; // amber
+                  }
+                  // Image preview logic
+                  let imageUrl = null;
+                  if (entry.image && Array.isArray(entry.image) && entry.image.length > 0) {
+                    imageUrl = entry.image[0];
+                  } else if (entry.image && typeof entry.image === 'string') {
+                    imageUrl = entry.image;
+                  }
                   return (
-                    <Card key={entry.id} className="bg-white border-green-100 shadow-none">
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
-                          <Avatar className="w-10 h-10 border-2 border-white shadow-sm">
-                            <AvatarImage src={entry.avatar || "/placeholder.svg"} />
-                            <AvatarFallback className="bg-green-100 text-green-700">
-                              {entry.user?.split(" ").map((n: string) => n[0]).join("") || "U"}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-start mb-1">
+                    <div key={entry.id} className="flex items-stretch group w-full justify-center">
+                      <Card className={`w-full max-w-2xl mb-3 ml-0 ${isMostRecent ? 'shadow-lg ring-2 ring-green-200' : 'shadow'} bg-white rounded-xl transition-all duration-200`} style={{ minHeight: '70px' }}>
+                        <CardContent className="px-6 py-3 flex flex-col gap-0.5">
+                          <div className="flex justify-between items-start mb-0.5">
+                            <div className="flex items-center gap-2">
+                              <Avatar className="w-10 h-10 border-2 border-white shadow-sm">
+                                <AvatarImage src={entry.avatar || "/placeholder.svg"} />
+                                <AvatarFallback className="bg-green-100 text-green-700">
+                                  {(() => {
+                                    if (entry.user_id === currentUserId) return "Y";
+                                    const fn = entry.profiles?.first_name || "";
+                                    const ln = entry.profiles?.last_name || "";
+                                    const initials = (fn + ' ' + ln).trim().split(' ').map((n: string) => n[0]).join('');
+                                    return initials || "U";
+                                  })()}
+                                </AvatarFallback>
+                              </Avatar>
                               <div>
-                                <h4 className="font-semibold text-green-800 text-base mb-0.5">{entry.action || entry.content}</h4>
-                                <div className="text-sm text-gray-600 mb-1">by {entry.user || "Unknown"}</div>
+                                <div className="flex items-center gap-1 font-bold text-green-800 text-base">
+                                  <ActionIcon className="w-5 h-5 mr-1" style={{ color: iconColor }} />
+                                  {entry.type || entry.action || entry.content}
+                                </div>
+                                <div className="text-xs text-gray-600 mt-0.5">
+                                  by {entry.user_id === currentUserId ? "You" : ((entry.profiles?.first_name || "") + (entry.profiles?.last_name ? " " + entry.profiles.last_name : "")).trim() || "Unnamed"}
+                                </div>
                               </div>
-                              <span className="text-xs text-gray-500 whitespace-nowrap">{new Date(entry.created_at).toLocaleString()}</span>
                             </div>
-                            <div className="text-gray-700 text-sm mb-2">{entry.details || entry.content}</div>
-                            <div className="flex gap-6 mt-2">
-                              {temp !== undefined && temp !== null && (
-                                <span className={`flex items-center gap-1 text-sm ${tempColor}`}>
-                                  <Thermometer className="w-4 h-4" />
-                                  {temp}°C {tempStatus && <span className="ml-1">{tempStatus}</span>}
-                                </span>
-                              )}
-                              {moist !== undefined && moist !== null && (
-                                <span className={`flex items-center gap-1 text-sm ${moistColor}`}>
-                                  <Droplets className="w-4 h-4" />
-                                  {moistStatus === moist ? moist : `${moist} ${moistStatus && moistStatus}`}
-                                </span>
-                              )}
-                            </div>
+                            <span className="text-xs text-gray-500 whitespace-nowrap mt-1">
+                              {mounted ? timeAgo : new Date(entry.created_at).toLocaleString()}
+                            </span>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                          <div className="flex items-center ml-12 gap-3">
+                            <div className="text-gray-700 text-sm mb-1">{entry.content}</div>
+                            {imageUrl && (
+                              <img src={imageUrl} alt="Log image" className="w-12 h-12 object-cover rounded-md border ml-2" />
+                            )}
+                          </div>
+                          <div className="flex gap-6 mt-1 ml-12">
+                            {temp !== undefined && temp !== null && (
+                              <span className={`flex items-center gap-1 text-sm ${tempColor}`}>
+                                <Thermometer className="w-4 h-4" />
+                                {temp}°C {tempStatus && <span className="ml-1">{tempStatus}</span>}
+                              </span>
+                            )}
+                            {moist !== undefined && moist !== null && (
+                              <span className={`flex items-center gap-1 text-sm ${moistColor}`}>
+                                <Droplets className="w-4 h-4" />
+                                {moistStatus === moist ? moist : `${moist} ${moistStatus && moistStatus}`}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex justify-end mt-1">
+                            <button
+                              className="text-green-700 hover:underline text-xs font-medium flex items-center gap-1"
+                              onClick={() => setOpenModalLogId(entry.id)}
+                            >
+                              View details
+                            </button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
                   );
                 })}
+                {/* Modal rendering outside the map for hydration safety */}
+                {openModalLogId && (() => {
+                  const entry = activities.find((e: any) => e.id === openModalLogId);
+                  if (!entry) return null;
+                  // icon logic
+                  let ActionIcon = Shovel;
+                  let iconColor = '#16a34a';
+                  const actionText = (entry.action || entry.content || '').toLowerCase();
+                  const typeText = (entry.type || '').toLowerCase();
+                  if (actionText.includes('turn') || typeText.includes('turn')) {
+                    ActionIcon = RefreshCw;
+                    iconColor = '#2563eb';
+                  } else if (actionText.includes('monitor') || actionText.includes('check') || typeText.includes('monitor') || typeText.includes('check')) {
+                    ActionIcon = Thermometer;
+                    iconColor = '#ea580c';
+                  } else if (actionText.includes('greens') || typeText.includes('greens')) {
+                    ActionIcon = Leaf;
+                    iconColor = '#16a34a';
+                  } else if (actionText.includes('browns') || typeText.includes('browns')) {
+                    ActionIcon = Plus;
+                    iconColor = '#f59e42';
+                  }
+                  let imageUrl = null;
+                  if (entry.image && Array.isArray(entry.image) && entry.image.length > 0) {
+                    imageUrl = entry.image[0];
+                  } else if (entry.image && typeof entry.image === 'string') {
+                    imageUrl = entry.image;
+                  }
+                  const temp = entry.temperature;
+                  const moist = entry.moisture;
+                  return (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                      <div className="bg-white rounded-xl shadow-lg p-6 max-w-lg w-full relative">
+                        <button
+                          className="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-xl"
+                          onClick={() => setOpenModalLogId(null)}
+                          aria-label="Close"
+                        >
+                          ×
+                        </button>
+                        <div className="flex items-center gap-2 mb-2">
+                          <ActionIcon className="w-6 h-6 mr-1" style={{ color: iconColor }} />
+                          <span className="font-bold text-lg text-green-800">{entry.type || entry.action || entry.content}</span>
+                        </div>
+                        <div className="text-gray-700 text-base mb-2">{entry.content}</div>
+                        {imageUrl && (
+                          <div className="mb-3 flex flex-col items-center">
+                            <img src={imageUrl} alt="Log image" className="max-h-64 rounded-md border mb-2" />
+                            <a
+                              href={imageUrl}
+                              download
+                              className="text-green-700 hover:underline text-xs font-medium"
+                            >
+                              Download image
+                            </a>
+                          </div>
+                        )}
+                        <div className="flex flex-col gap-1 text-sm text-gray-700 mt-2">
+                          <div>
+                            <span className="font-semibold">User:</span> {entry.user_id === currentUserId ? "You" : ((entry.profiles?.first_name || "") + (entry.profiles?.last_name ? " " + entry.profiles.last_name : "")).trim() || "Unnamed"}
+                          </div>
+                          {entry.created_at && <div><span className="font-semibold">Time:</span> {new Date(entry.created_at).toLocaleString()}</div>}
+                          {temp !== undefined && temp !== null && <div><span className="font-semibold">Temperature:</span> {temp}°C</div>}
+                          {moist !== undefined && moist !== null && <div><span className="font-semibold">Moisture:</span> {moist}</div>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </ScrollArea>
           </div>

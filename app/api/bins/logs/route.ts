@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from('bin_logs')
-    .select('*')
+    .select('*, profiles!bin_logs_user_id_fkey(first_name, last_name)')
     .eq('bin_id', binId)
     .order('created_at', { ascending: false })
 

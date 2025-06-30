@@ -47,14 +47,19 @@ export default function LogActivityPage() {
       const user = await supabase.auth.getUser();
       const userId = user.data.user?.id;
       if (!userId) throw new Error("Not logged in");
-      let imageBase64 = null;
+      let imageUrl = null;
       if (imageFile) {
-        const reader = new FileReader();
-        imageBase64 = await new Promise<string>((resolve, reject) => {
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(imageFile);
-        });
+        const fileExt = imageFile.name.split('.').pop();
+        const filePath = `${userId}_${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage.from('bin-logs').upload(filePath, imageFile, { upsert: true });
+        if (uploadError) {
+          console.error('Supabase upload error:', uploadError);
+          setError(uploadError.message || "Failed to upload image");
+          setLoading(false);
+          return;
+        }
+        const { data: publicUrlData } = supabase.storage.from('bin-logs').getPublicUrl(filePath);
+        imageUrl = publicUrlData.publicUrl;
       }
       // Use API route to insert log and update bin
       const { data: { session } } = await supabase.auth.getSession();
@@ -72,7 +77,7 @@ export default function LogActivityPage() {
           moisture: moisture || null,
           type,
           weight: weight ? parseFloat(weight) : null,
-          image: imageBase64 ? [imageBase64] : null,
+          image: imageUrl,
         }),
       });
       const result = await response.json();
