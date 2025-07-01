@@ -162,6 +162,7 @@ export default function LogActivityPage() {
               onChange={e => setContent(e.target.value)}
               placeholder="Describe what you added or did (e.g., 2.5kg mixed vegetable scraps from weekend market)"
               className="w-full border-2 border-green-200 rounded-xl px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-green-300 bg-green-50 text-green-900"
+              disabled={!type}
             />
           </div>
           <div>
@@ -169,7 +170,6 @@ export default function LogActivityPage() {
             <label className="flex flex-col items-center justify-center border-2 border-dashed border-green-200 rounded-xl p-6 cursor-pointer hover:bg-green-50">
               <Camera className="w-10 h-10 text-green-400 mb-2" />
               <span className="text-green-800 font-medium">Tap to add photos</span>
-              <span className="text-xs text-green-400">Help others see your progress</span>
               <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
             </label>
             {imageFile && <div className="text-green-800 text-xs mt-2">Selected: {imageFile.name}</div>}
