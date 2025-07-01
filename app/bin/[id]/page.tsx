@@ -2,6 +2,7 @@
 import React from "react";
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +10,6 @@ import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeft, Share2, Thermometer, Droplets, RefreshCw, Users, Calendar, Plus, Clock, Filter, Send, QrCode, Shovel, Leaf } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
 import { differenceInDays, formatDistanceToNow } from 'date-fns';
 
 function getHealthColor(status: string) {
@@ -43,6 +43,8 @@ export default function BinDetailPage() {
   const [joining, setJoining] = useState(false);
   const [joined, setJoined] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  const [session, setSession] = useState(null);
 
   // Modal state: which log (by id) is open, or null
   const [openModalLogId, setOpenModalLogId] = useState<string | null>(null);
@@ -234,14 +236,6 @@ export default function BinDetailPage() {
           </div>
 
           {/* Compost Health Button */}
-          {/* {bin?.health_status && (
-            <div className="flex justify-center mb-4">
-              <span className={`px-3 py-1 rounded-full font-semibold text-sm shadow-sm ${getHealthColor(bin.health_status)}`}>
-                Compost Health: {bin.health_status}
-              </span>
-            </div>
-          )} */}
-
           {!editingHealth ? (
             bin?.health_status && (
               <div className="flex justify-center mb-4">
@@ -271,24 +265,41 @@ export default function BinDetailPage() {
                 onClick={async () => {
                   setEditingHealth(false);
                   if (newHealth !== bin.health_status) {
-                    // Update health status in DB
-                    await fetch(`/api/bins/${binId}`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ health_status: newHealth }),
-                    });
-                    // Log activity
-                    await fetch(`/api/bins/logs`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        bin_id: binId,
-                        action: `Health status changed to ${newHealth}`,
-                        details: `Health status updated from ${bin.health_status} to ${newHealth}`,
-                      }),
-                    });
-                    // Refresh bin data
-                    setBin({ ...bin, health_status: newHealth });
+                    try {
+                      console.log("Updating health status...");
+                      await fetch(`/api/bins/${binId}`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ health_status: newHealth }),
+                      });
+                      console.log("Fetching session...");
+                      const { data: { session } } = await supabase.auth.getSession();
+                      const token = session?.access_token;
+                      if (!token) {
+                        alert("You must be logged in to log activity.");
+                        return;
+                      }
+                      console.log("Token being sent:", token);
+                      await fetch(`/api/bins/logs`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                        },
+                        body: JSON.stringify({
+                          bin_id: binId,
+                          content: `Health status changed to ${newHealth}`,
+                          temperature: bin.latest_temperature,
+                          moisture: bin.latest_moisture,
+                          weight: bin.latest_weight,
+                          type: "Monitor",
+                          image: null,
+                        }),
+                      });
+                      setBin({ ...bin, health_status: newHealth });
+                    } catch (err) {
+                      console.error("Error in Save handler:", err);
+                    }
                   }
                 }}
               >

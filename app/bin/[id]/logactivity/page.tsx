@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Camera, RefreshCw, Thermometer, Plus, Leaf } from "lucide-react";
 import { NextResponse } from "next/server";
@@ -18,21 +17,22 @@ export default function LogActivityPage() {
   const [temperature, setTemperature] = useState("");
   const [moisture, setMoisture] = useState("");
   const [type, setType] = useState("");
-  const [weight, setWeight] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
 
   // Action buttons
   const handleAction = (action: string) => {
     setType(action);
+    setTemperature("");
+    setMoisture("");
     if (action === "Turn Pile") setContent("Turned the pile");
     if (action === "Add Greens") setContent("Added greens (kitchen scraps)");
     if (action === "Add Browns") setContent("Added browns (dry materials)");
     if (action === "Monitor") setContent("Checked status");
   };
 
-  // Handle image upload (for now, just store base64 string in a hidden field)
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setImageFile(e.target.files[0]);
@@ -43,6 +43,7 @@ export default function LogActivityPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setSuccess(false);
     try {
       const user = await supabase.auth.getUser();
       const userId = user.data.user?.id;
@@ -53,7 +54,6 @@ export default function LogActivityPage() {
         const filePath = `${userId}_${Date.now()}.${fileExt}`;
         const { error: uploadError } = await supabase.storage.from('bin-logs').upload(filePath, imageFile, { upsert: true });
         if (uploadError) {
-          console.error('Supabase upload error:', uploadError);
           setError(uploadError.message || "Failed to upload image");
           setLoading(false);
           return;
@@ -61,7 +61,6 @@ export default function LogActivityPage() {
         const { data: publicUrlData } = supabase.storage.from('bin-logs').getPublicUrl(filePath);
         imageUrl = publicUrlData.publicUrl;
       }
-      // Use API route to insert log and update bin
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       const response = await fetch('/api/bins/logs', {
@@ -73,16 +72,16 @@ export default function LogActivityPage() {
         body: JSON.stringify({
           bin_id: binId,
           content,
-          temperature: temperature ? parseInt(temperature) : null,
-          moisture: moisture || null,
+          temperature: type === "Monitor" ? (temperature ? parseInt(temperature) : null) : null,
+          moisture: type === "Monitor" ? moisture : null,
           type,
-          weight: weight ? parseFloat(weight) : null,
           image: imageUrl,
         }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Failed to log activity");
-      router.push(`/bin/${binId}`);
+      setSuccess(true);
+      setTimeout(() => router.push(`/bin/${binId}`), 1200);
     } catch (err: any) {
       setError(err.message || "Failed to log activity");
       return NextResponse.json({ error: err.message || String(err) }, { status: 500 });
@@ -92,51 +91,114 @@ export default function LogActivityPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50">
-      <div className="max-w-md w-full p-4 bg-white rounded-xl shadow-lg">
+      <div className="max-w-md w-full p-4 bg-white rounded-xl shadow-lg border border-green-100">
         {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <Button variant={type === "Add Greens" ? "default" : "outline"} className="flex flex-col gap-1 py-6" onClick={() => handleAction("Add Greens")}> <Leaf className="w-6 h-6 text-green-600" /> Add Greens <span className="text-xs text-gray-500">Kitchen scraps</span> </Button>
-          <Button variant={type === "Add Browns" ? "default" : "outline"} className="flex flex-col gap-1 py-6" onClick={() => handleAction("Add Browns")}> <Plus className="w-6 h-6 text-amber-600" /> Add Browns <span className="text-xs text-gray-500">Dry materials</span> </Button>
-          <Button variant={type === "Turn Pile" ? "default" : "outline"} className="flex flex-col gap-1 py-6" onClick={() => handleAction("Turn Pile")}> <RefreshCw className="w-6 h-6 text-blue-600" /> Turn Pile <span className="text-xs text-gray-500">Mix & aerate</span> </Button>
-          <Button variant={type === "Monitor" ? "default" : "outline"} className="flex flex-col gap-1 py-6" onClick={() => handleAction("Monitor")}> <Thermometer className="w-6 h-6 text-orange-600" /> Monitor <span className="text-xs text-gray-500">Check status</span> </Button>
+        <div className="grid grid-cols-2 gap-4 mb-8">
+          {[
+            { label: "Add Greens", icon: <Leaf className="w-12 h-12 text-green-600" />, desc: "Kitchen scraps" },
+            { label: "Add Browns", icon: <Plus className="w-12 h-12 text-amber-600" />, desc: "Dry materials" },
+            { label: "Turn Pile", icon: <RefreshCw className="w-12 h-12 text-blue-600" />, desc: "Mix & aerate" },
+            { label: "Monitor", icon: <Thermometer className="w-12 h-12 text-orange-600" />, desc: "Check status" },
+          ].map(btn => (
+            <Button
+              key={btn.label}
+              type="button"
+              variant="ghost"
+              className={`
+                flex flex-col gap-2 py-8 text-xl rounded-2xl border-2 shadow-md
+                ${type === btn.label
+                  ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white border-green-600 font-bold"
+                  : "bg-green-50 text-green-800 border-green-200"}
+                transition-all duration-150
+              `}
+              style={{ minHeight: 120 }}
+              onClick={() => handleAction(btn.label)}
+            >
+              <span className="flex items-center justify-center">{btn.icon}</span>
+              {btn.label}
+              <span className="text-base text-gray-500">{btn.desc}</span>
+            </Button>
+          ))}
         </div>
         <form className="space-y-6" onSubmit={handleSubmit}>
-          <div>
-            <h2 className="text-green-700 font-bold mb-2">Activity Details</h2>
-            <Textarea value={content} onChange={e => setContent(e.target.value)} required placeholder="Describe what you added or did (e.g., 2.5kg mixed vegetable scraps from weekend market)" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-green-700 font-medium mb-1">Temperature (°C)</label>
-              <Input type="number" value={temperature} onChange={e => setTemperature(e.target.value)} placeholder="e.g. 45" />
+          {/* Show Temperature and Moisture only if Monitor is selected */}
+          {type === "Monitor" && (
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label className="block text-green-800 font-semibold mb-1 text-lg">Temperature (°C)</label>
+                <input
+                  type="number"
+                  value={temperature}
+                  onChange={e => setTemperature(e.target.value)}
+                  placeholder="Enter temperature"
+                  min={0}
+                  max={100}
+                  step={1}
+                  className="w-full border-2 border-green-200 rounded-xl px-4 py-3 text-2xl text-center focus:outline-none focus:ring-2 focus:ring-green-300 bg-green-50 text-green-900"
+                  style={{ fontSize: "2rem" }}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-green-800 font-semibold mb-1 text-lg">Moisture Level</label>
+                <select
+                  className="w-full border-2 border-green-200 rounded-xl px-4 py-3 text-2xl text-center focus:outline-none focus:ring-2 focus:ring-green-300 bg-green-50 text-green-900"
+                  value={moisture}
+                  onChange={e => setMoisture(e.target.value)}
+                  required
+                >
+                  <option value="">Select</option>
+                  {MOISTURE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="block text-green-700 font-medium mb-1">Moisture Level</label>
-              <select className="w-full border rounded px-3 py-2" value={moisture} onChange={e => setMoisture(e.target.value)}>
-                <option value="">Select</option>
-                {MOISTURE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-              </select>
-            </div>
+          )}
+          <div>
+            <label className="block text-green-800 font-semibold mb-1 text-lg">
+              Activity Details <span className="font-normal text-gray-500">(Optional)</span>
+            </label>
+            <Textarea
+              value={content}
+              onChange={e => setContent(e.target.value)}
+              placeholder="Describe what you added or did (e.g., 2.5kg mixed vegetable scraps from weekend market)"
+              className="w-full border-2 border-green-200 rounded-xl px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-green-300 bg-green-50 text-green-900"
+            />
           </div>
           <div>
-            <label className="block text-green-700 font-medium mb-1">Weight (kg)</label>
-            <Input type="number" value={weight} onChange={e => setWeight(e.target.value)} placeholder="e.g. 2.5" step="0.01" min="0" />
-          </div>
-          <div>
-            <label className="block text-green-700 font-medium mb-1">Add Photos (Optional)</label>
-            <label className="flex flex-col items-center justify-center border-2 border-dashed border-green-400 rounded-xl p-6 cursor-pointer hover:bg-green-50">
-              <Camera className="w-8 h-8 text-green-500 mb-2" />
-              <span className="text-green-700 font-medium">Tap to add photos</span>
-              <span className="text-xs text-green-500">Help others see your progress</span>
+            <label className="block text-green-800 font-semibold mb-1 text-lg">Add Photos (Optional)</label>
+            <label className="flex flex-col items-center justify-center border-2 border-dashed border-green-200 rounded-xl p-6 cursor-pointer hover:bg-green-50">
+              <Camera className="w-10 h-10 text-green-400 mb-2" />
+              <span className="text-green-800 font-medium">Tap to add photos</span>
+              <span className="text-xs text-green-400">Help others see your progress</span>
               <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
             </label>
-            {imageFile && <div className="text-green-700 text-xs mt-2">Selected: {imageFile.name}</div>}
+            {imageFile && <div className="text-green-800 text-xs mt-2">Selected: {imageFile.name}</div>}
           </div>
           {error && <div className="text-red-600 text-sm">{error}</div>}
-          <Button type="submit" className="w-full text-lg py-3" disabled={loading}>{loading ? "Saving..." : "Save Entry"}</Button>
-          <Button type="button" variant="outline" className="w-full" onClick={() => router.push(`/bin/${binId}`)}>Cancel</Button>
+          {success && (
+            <div className="flex items-center justify-center text-green-700 font-bold text-lg">
+              ✓ Activity logged!
+            </div>
+          )}
+          <div className="flex flex-col gap-2">
+            <Button
+              type="submit"
+              className="w-full text-lg py-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-full shadow-md border-none"
+              disabled={loading}
+            >
+              {loading ? "Saving..." : "Save Entry"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full border-2 border-green-200 text-green-800 rounded-full py-4"
+              onClick={() => router.push(`/bin/${binId}`)}
+            >
+              Cancel
+            </Button>
+          </div>
         </form>
       </div>
     </div>
   );
-} 
+}

@@ -19,7 +19,8 @@ export async function GET(req: NextRequest, contextPromise: Promise<{ params: { 
   return NextResponse.json({ bin: { ...data, contributors_list } })
 } 
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, contextPromise: Promise<{ params: { id: string } }>) {
+  const { params } = await contextPromise;
   const { id } = params;
   const { health_status } = await req.json();
   const { error } = await supabase

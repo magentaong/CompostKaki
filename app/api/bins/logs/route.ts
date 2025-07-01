@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
+  console.log("Auth header:", authHeader); // Add this line for debugging
   const jwt = authHeader?.replace('Bearer ', '')
   if (!jwt) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
