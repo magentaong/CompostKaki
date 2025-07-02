@@ -220,7 +220,7 @@ export default function MainPage() {
                   
                   <Card
                     key={bin.id}
-                    className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-white/80 backdrop-blur-sm border-green-100 hover:border-green-200 p-0"
+                    className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-white/80 backdrop-blur-sm border-green-100 hover:border-green-200 p-0 "
                     onClick={() => router.push(`/bin/${bin.id}`)}
                   >
                     <CardContent className="p-0">
@@ -228,7 +228,7 @@ export default function MainPage() {
                         <img
                         src={bin.image || "/default_compost_image.jpg"}
                         alt={bin.name}
-                        className="w-30 object-cover rounded-l-lg height-auto"
+                        className="w-24 sm:w-28 md:w-32 object-cover rounded-l-lg h-auto"
                         />
                         <div className="flex-1 p-4">
                           <div className="flex justify-between items-start mb-2">
@@ -248,7 +248,7 @@ export default function MainPage() {
                               className={
                                 bin.health_status === "Healthy"
                                   ? "bg-green-100 text-green-700"
-                                  : bin.health_status === "Needs Attention"
+                                  : bin.health_status === "Needs ttention"
                                   ? "bg-amber-100 text-amber-700"
                                   : bin.health_status === "Critical"
                                   ? "bg-red-100 text-red-700"
@@ -266,16 +266,16 @@ export default function MainPage() {
 
                           </div>
                           
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-1 text-orange-600 text-sm">
+                            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-sm">
+                              <div className="flex items-center gap-0.5 text-orange-600 text-sm">
                                 <Thermometer className="w-5 h-5" />
                                 {bin.latest_temperature || "-"}°C
                               </div>
-                              <div className="flex items-center gap-1 text-blue-600 text-sm">
+                              <div className="flex items-center gap-0.5 text-blue-600 text-sm">
                                 <Droplets className="w-5 h-5" />
                                 {bin.latest_moisture || "-"}
                               </div>
-                              <div className="flex items-center gap-1 text-brown-600 text-sm">
+                              <div className="flex items-center gap-0.5 text-brown-600 text-sm">
                                 <RefreshCw className="w-5 h-5" />
                                 {bin.latest_flips || "0"}
                               </div>

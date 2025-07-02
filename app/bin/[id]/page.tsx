@@ -365,7 +365,7 @@ export default function BinDetailPage() {
             </div>
             {loading && <div>Loading...</div>}
             {error && <div className="text-red-600 text-sm">{error}</div>}
-            <ScrollArea className="h-96">
+            <ScrollArea className="h-96 px-2 sm:px-0">
               <div className="flex flex-col items-center">
                 {activities.length === 0 && !loading && <div>No activities yet.</div>}
                 {activities.map((entry: any, idx: number) => {
@@ -431,12 +431,12 @@ export default function BinDetailPage() {
                     imageUrl = entry.image;
                   }
                   return (
-                    <div key={entry.id} className="flex items-stretch group w-full justify-center">
-                      <Card className={`w-full max-w-2xl mb-2 ml-0 ${isMostRecent ? 'shadow-lg ring-2 ring-green-200' : 'shadow-sm'} bg-white rounded-lg transition-all duration-200`} style={{ minHeight: '56px' }}>
-                        <CardContent className="px-4 py-0.7 flex flex-col gap-0.5">
-                          {/* Top row: avatar, title, timestamp */}
-                          <div className="flex items-center justify-between mb-0.5">
-                            <div className="flex items-center gap-3">
+                    <div key={entry.id} className="w-full max-w-2xl mb-2 ml-0 group px-2">
+                      <Card className={`w-full rounded-xl transition-all duration-200 ${isMostRecent ? 'shadow-lg ring-2 ring-green-200' : 'shadow-sm'} bg-white border border-green-100 hover:shadow-md`}>
+                        <CardContent className="px-4 flex flex-col gap-2">
+                          {/* Top row: Avatar + Action + Timestamp */}
+                          <div className="flex justify-between items-start mb-0.5">
+                            <div className="flex items-start gap-3">
                               <Avatar className="w-9 h-9 border border-white shadow-sm">
                                 <AvatarImage src={entry.avatar || "/placeholder.svg"} />
                                 <AvatarFallback className="bg-green-100 text-green-700 text-base">
@@ -450,8 +450,8 @@ export default function BinDetailPage() {
                                 </AvatarFallback>
                               </Avatar>
                               <div className="flex flex-col">
-                                <div className="flex items-center gap-1 font-bold text-green-800 text-base leading-tight">
-                                  <ActionIcon className="w-5 h-5 mr-1" style={{ color: iconColor }} />
+                                <div className="flex items-center gap-0.5 font-bold text-green-800 text-base">
+                                  <ActionIcon className="w-4 h-4 mr-1 -ml-1.25" style={{ color: iconColor }} />
                                   {entry.type || entry.action || entry.content}
                                 </div>
                                 <div className="text-xs text-gray-500 font-medium leading-tight">
@@ -459,36 +459,40 @@ export default function BinDetailPage() {
                                 </div>
                               </div>
                             </div>
-                            <span className="text-xs text-gray-400 whitespace-nowrap font-medium">
+                            <span className="text-xs text-gray-400 font-medium whitespace-nowrap mt-1">
                               {mounted ? timeAgo : new Date(entry.created_at).toLocaleString()}
                             </span>
                           </div>
+
                           {/* Content row */}
-                          <div className="flex items-center gap-2 ml-12 mt-0">
-                            <div className="text-gray-700 text-sm leading-tight">{entry.content}</div>
+                          <div className="flex items-center gap-2 ml-12 text-sm text-gray-700 leading-tight">
+                            {entry.content}
                             {imageUrl && (
                               <img src={imageUrl} alt="Log image" className="w-10 h-10 object-cover rounded-md border ml-2" />
                             )}
                           </div>
+
                           {/* Divider */}
-                          <div className="border-t border-green-100 my-0.5" />
-                          {/* Stats and actions row */}
-                          <div className="flex items-center gap-6 ml-11 mt-0.5 mb-0.5">
-                            {temp !== undefined && temp !== null && (
-                              <span className={`flex items-center gap-1 text-sm ${tempColor}`}>
-                                <Thermometer className="w-4 h-4" />
-                                {temp}°C {tempStatus && <span className="ml-1">{tempStatus}</span>}
-                              </span>
-                            )}
-                            {moist !== undefined && moist !== null && (
-                              <span className={`flex items-center gap-1 text-sm ${moistColor}`}>
-                                <Droplets className="w-4 h-4" />
-                                {moistStatus === moist ? moist : `${moist} ${moistStatus && moistStatus}`}
-                              </span>
-                            )}
-                            <div className="flex-1" />
+                          {(temp !== null || moist !== null) && <div className="border-t border-green-100" />}
+
+                          {/* Temp / Moist / Button Row */}
+                          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 ml-11 text-sm">
+                            <div className="flex flex-wrap gap-4 items-center">
+                              {temp !== undefined && temp !== null && (
+                                <span className={`flex items-center gap-1 ${tempColor}`}>
+                                  <Thermometer className="w-4 h-4" />
+                                  {temp}°C <span className="ml-1">{tempStatus}</span>
+                                </span>
+                              )}
+                              {moist !== undefined && moist !== null && (
+                                <span className={`flex items-center gap-1 ${moistColor}`}>
+                                  <Droplets className="w-4 h-4" />
+                                  {moistStatus}
+                                </span>
+                              )}
+                            </div>
                             <button
-                              className="text-green-700 hover:underline text-xs font-medium flex items-center gap-1 ml-auto"
+                              className="text-green-700 hover:underline text-xs font-medium"
                               onClick={() => setOpenModalLogId(entry.id)}
                             >
                               View details
@@ -497,6 +501,7 @@ export default function BinDetailPage() {
                         </CardContent>
                       </Card>
                     </div>
+
                   );
                 })}
                 {/* Modal rendering outside the map for hydration safety */}
