@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -59,6 +59,10 @@ import {
   AlertTriangle,
   CheckCircle,
 } from "lucide-react"
+import { supabase } from "@/lib/supabaseClient"
+import GuideListComp from "@/app/components/GuideList"
+import GuideDetailComp from "@/app/components/GuideDetail"
+import { useRouter } from "next/navigation"
 
 type Screen =
   | "home"
@@ -72,386 +76,406 @@ type Screen =
   | "guide-detail"
   | "tips"
 
+function getInitials(name?: string, email?: string) {
+  if (name && name.trim().length > 0) {
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase();
+  }
+  if (email && email.length > 0) {
+    return email[0].toUpperCase();
+  }
+  return 'U';
+}
+
 export default function CompostConnect() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("home")
   const [selectedPile, setSelectedPile] = useState<string>("")
   const [selectedGuide, setSelectedGuide] = useState<string>("")
   const [isLoading, setIsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [authView, setAuthView] = useState<'sign-in' | 'sign-up'>("sign-in")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
+  const [session, setSession] = useState<any>(null)
+  const [authError, setAuthError] = useState<string>("")
+  const [journalEntries, setJournalEntries] = useState<any[]>([])
+  const [newEntryContent, setNewEntryContent] = useState("")
+  const [journalLoading, setJournalLoading] = useState(false)
+  const [journalError, setJournalError] = useState("")
+  const [pilesLoading, setPilesLoading] = useState(false)
+  const [pilesError, setPilesError] = useState("")
+  const [forumLoading, setForumLoading] = useState(false)
+  const [forumError, setForumError] = useState("")
+  const [pileEntries, setPileEntries] = useState<any[]>([])
+  const [pileEntriesLoading, setPileEntriesLoading] = useState(false)
+  const [pileEntriesError, setPileEntriesError] = useState("")
+  const [newPileName, setNewPileName] = useState("")
+  const [newPileLocation, setNewPileLocation] = useState("")
+  const [newPileImage, setNewPileImage] = useState("")
+  const [newPileDescription, setNewPileDescription] = useState("")
+  const [addPileLoading, setAddPileLoading] = useState(false)
+  const [addPileError, setAddPileError] = useState("")
+  const [newForumTitle, setNewForumTitle] = useState("")
+  const [newForumContent, setNewForumContent] = useState("")
+  const [addForumLoading, setAddForumLoading] = useState(false)
+  const [addForumError, setAddForumError] = useState("")
+  const [piles, setPiles] = useState<any[]>([])
+  const [forumPosts, setForumPosts] = useState<any[]>([])
+  const [guides, setGuides] = useState<any[]>([]);
+  const [tips, setTips] = useState<any[]>([]);
+  const [guidesLoading, setGuidesLoading] = useState(false);
+  const [tipsLoading, setTipsLoading] = useState(false);
+  const [guidesError, setGuidesError] = useState("");
+  const [tipsError, setTipsError] = useState("");
+  // Add state for guide search, filter, and like
+  const [guideSearch, setGuideSearch] = useState("");
+  const [guideFilter, setGuideFilter] = useState("All");
+  const [guideLikes, setGuideLikes] = useState<{ [id: string]: number }>({});
+  const [showNotifications, setShowNotifications] = useState(false);
+  const router = useRouter();
 
-  const guides = [
-    {
-      id: "singapore-starter",
-      title: "Composting in Singapore: Complete Beginner's Guide",
-      description: "Everything you need to know to start composting in tropical Singapore",
-      category: "Beginner",
-      readTime: "8 min read",
-      difficulty: "Beginner",
-      views: 1234,
-      likes: 89,
-      image: "/placeholder.svg?height=120&width=200",
-      author: "Dr. Sarah Lim",
-      tags: ["beginner", "singapore", "tropical", "setup"],
-      sections: [
-        {
-          title: "Why Compost in Singapore?",
-          content:
-            "Singapore generates over 1.5 million tonnes of food waste annually. Learn how composting helps reduce this burden while creating nutrient-rich soil for our urban gardens.",
-          icon: Recycle,
-        },
-        {
-          title: "Choosing Your Setup",
-          content:
-            "From HDB-friendly bokashi bins to community pile systems, discover which composting method works best for your living situation and space constraints.",
-          icon: Home,
-        },
-        {
-          title: "Tropical Climate Considerations",
-          content:
-            "Singapore's year-round heat and humidity create unique challenges. Learn how to manage moisture, prevent pest issues, and maintain optimal decomposition rates.",
-          icon: Sun,
-        },
-        {
-          title: "Getting Started Checklist",
-          content:
-            "Your step-by-step action plan including materials needed, initial setup, and first week activities to ensure composting success from day one.",
-          icon: CheckCircle,
-        },
-      ],
-    },
-    {
-      id: "hdb-composting",
-      title: "HDB Apartment Composting Solutions",
-      description: "Space-efficient methods for high-rise living",
-      category: "Urban",
-      readTime: "6 min read",
-      difficulty: "Beginner",
-      views: 892,
-      likes: 67,
-      image: "/placeholder.svg?height=120&width=200",
-      author: "Marcus Tan",
-      tags: ["hdb", "small-space", "urban", "indoor"],
-      sections: [
-        {
-          title: "Balcony Setup",
-          content:
-            "Transform your HDB balcony into a composting station with proper ventilation, odor control, and neighbor-friendly practices.",
-          icon: Building,
-        },
-        {
-          title: "Kitchen Prep Area",
-          content:
-            "Organize your kitchen for efficient scrap collection and preprocessing before adding to your compost system.",
-          icon: Home,
-        },
-        {
-          title: "Odor Management",
-          content:
-            "Essential techniques to keep your apartment and hallway odor-free while maintaining an active compost system.",
-          icon: AlertTriangle,
-        },
-      ],
-    },
-    {
-      id: "pest-prevention",
-      title: "Pest-Free Composting in the Tropics",
-      description: "Keep flies, ants, and critters away from your compost",
-      category: "Troubleshooting",
-      readTime: "5 min read",
-      difficulty: "Intermediate",
-      views: 756,
-      likes: 54,
-      image: "/placeholder.svg?height=120&width=200",
-      author: "Lisa Wong",
-      tags: ["pests", "tropical", "prevention", "maintenance"],
-      sections: [
-        {
-          title: "Common Tropical Pests",
-          content: "Identify fruit flies, ants, cockroaches, and other common compost invaders in Singapore's climate.",
-          icon: Bug,
-        },
-        {
-          title: "Prevention Strategies",
-          content:
-            "Proactive measures to prevent pest infestations before they start, including proper ratios and covering techniques.",
-          icon: CheckCircle,
-        },
-        {
-          title: "Natural Solutions",
-          content:
-            "Chemical-free methods to eliminate existing pest problems without harming your compost microorganisms.",
-          icon: TreePine,
-        },
-      ],
-    },
-    {
-      id: "community-composting",
-      title: "Community Composting Success",
-      description: "Building and maintaining shared composting projects",
-      category: "Community",
-      readTime: "7 min read",
-      difficulty: "Advanced",
-      views: 445,
-      likes: 32,
-      image: "/placeholder.svg?height=120&width=200",
-      author: "David Chen",
-      tags: ["community", "management", "collaboration", "leadership"],
-      sections: [
-        {
-          title: "Getting Started",
-          content:
-            "How to propose, plan, and launch a community composting initiative in your neighborhood or organization.",
-          icon: Users,
-        },
-        {
-          title: "Management Systems",
-          content:
-            "Organizing volunteers, creating schedules, and maintaining consistent participation in group composting projects.",
-          icon: Calendar,
-        },
-        {
-          title: "Conflict Resolution",
-          content:
-            "Common challenges in community composting and diplomatic solutions to keep everyone engaged and happy.",
-          icon: MessageCircle,
-        },
-      ],
-    },
-  ]
+  useEffect(() => {
+    const getSession = async () => {
+      const { data, error } = await supabase.auth.getSession()
+      if (data?.session) setSession(data.session)
+      if (data?.session) router.push("/main")
+    }
+    getSession()
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+    return () => {
+      listener?.subscription.unsubscribe()
+    }
+  }, [])
 
-  const tips = [
-    {
-      id: "green-brown-ratio",
-      title: "Perfect Green-to-Brown Ratio for Singapore",
-      category: "Basics",
-      difficulty: "Beginner",
-      time: "2 min",
-      likes: 156,
-      description: "The 3:1 ratio that actually works in tropical humidity",
-      icon: Scales,
-      color: "from-green-500 to-emerald-600",
-      content:
-        "In Singapore's humid climate, use 3 parts brown materials (dry leaves, cardboard, paper) to 1 part green materials (kitchen scraps). This prevents the soggy, smelly compost common in tropical climates.",
-    },
-    {
-      id: "freeze-scraps",
-      title: "Freeze Kitchen Scraps Before Composting",
-      category: "Pro Tips",
-      difficulty: "Beginner",
-      time: "1 min",
-      likes: 134,
-      description: "Kill fruit fly eggs and speed up decomposition",
-      icon: Zap,
-      color: "from-blue-500 to-cyan-600",
-      content:
-        "Freeze kitchen scraps for 24-48 hours before adding to compost. This kills fruit fly eggs, breaks down cell walls for faster decomposition, and reduces initial odors.",
-    },
-    {
-      id: "monsoon-management",
-      title: "Monsoon Season Composting",
-      category: "Seasonal",
-      difficulty: "Intermediate",
-      time: "3 min",
-      likes: 98,
-      description: "Keep your pile active during heavy rains",
-      icon: CloudRain,
-      color: "from-purple-500 to-indigo-600",
-      content:
-        "During monsoon season, cover your pile with a tarp, add extra brown materials, and turn more frequently. Create drainage channels around ground piles to prevent waterlogging.",
-    },
-    {
-      id: "temperature-monitoring",
-      title: "Temperature Sweet Spots",
-      category: "Monitoring",
-      difficulty: "Intermediate",
-      time: "2 min",
-      likes: 87,
-      description: "When to worry about pile temperature",
-      icon: Thermometer,
-      color: "from-orange-500 to-red-600",
-      content:
-        "Ideal range: 40-60°C for active decomposition. Below 35°C means add greens and turn. Above 70°C means add browns and water. No heat after 1 week indicates imbalanced ratios.",
-    },
-    {
-      id: "urban-collection",
-      title: "Urban Scrap Collection Hacks",
-      category: "Organization",
-      difficulty: "Beginner",
-      time: "2 min",
-      likes: 112,
-      description: "Efficient ways to collect materials in the city",
-      icon: Recycle,
-      color: "from-teal-500 to-green-600",
-      content:
-        "Partner with local coffee shops for grounds, ask markets for vegetable trimmings at closing time, and collect fallen leaves during morning walks. Always ask permission first!",
-    },
-    {
-      id: "smell-test",
-      title: "The Smell Test: Diagnosing Problems",
-      category: "Troubleshooting",
-      difficulty: "Intermediate",
-      time: "2 min",
-      likes: 76,
-      description: "What different odors tell you about your pile",
-      icon: AlertTriangle,
-      color: "from-amber-500 to-orange-600",
-      content:
-        "Sweet/earthy smell = healthy compost. Sour/putrid = too wet, add browns. Ammonia smell = too much nitrogen, add carbon. No smell = pile too dry or inactive.",
-    },
-  ]
+  const handleSignUp = async () => {
+    setIsLoading(true)
+    setAuthError("")
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { first_name: firstName, last_name: lastName }
+      }
+    });
+    if (error) {
+      setAuthError(error.message);
+      setIsLoading(false);
+      return;
+    }
+    // Insert into profiles table
+    const userId = data?.user?.id;
+    if (userId) {
+      await supabase.from('profiles').upsert({
+        id: userId,
+        first_name: firstName,
+        last_name: lastName
+      });
+    }
+    setIsLoading(false);
+    if (!error) router.push("/main")
+  }
 
-  const piles = [
-    {
-      id: "pile-a",
-      name: "Community Garden A",
-      location: "Toa Payoh Central",
-      lastUpdate: "2 hours ago",
-      temperature: 45,
-      moisture: "Optimal",
-      status: "active",
-      progress: 65,
-      contributors: 12,
-      image: "/placeholder.svg?height=120&width=200",
-      healthScore: 85,
-    },
-    {
-      id: "pile-b",
-      name: "Greenwood School",
-      location: "Ang Mo Kio Ave 3",
-      lastUpdate: "1 day ago",
-      temperature: 38,
-      moisture: "Needs Water",
-      status: "attention",
-      progress: 40,
-      contributors: 8,
-      image: "/placeholder.svg?height=120&width=200",
-      healthScore: 72,
-    },
-    {
-      id: "pile-c",
-      name: "Sunrise HDB Block",
-      location: "Jurong West St 42",
-      lastUpdate: "3 days ago",
-      temperature: 42,
-      moisture: "Good",
-      status: "active",
-      progress: 80,
-      contributors: 15,
-      image: "/placeholder.svg?height=120&width=200",
-      healthScore: 90,
-    },
-  ]
+  const handleSignIn = async () => {
+    setIsLoading(true)
+    setAuthError("")
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) setAuthError(error.message)
+    setIsLoading(false)
+    if (!error) router.push("/main")
+  }
 
-  const journalEntries = [
-    {
-      id: 1,
-      user: "Sarah Lim",
-      avatar: "/placeholder.svg?height=40&width=40",
-      action: "Added organic greens",
-      details: "2.5kg mixed vegetable scraps from weekend market",
-      time: "2 hours ago",
-      temp: 45,
-      moisture: "Optimal",
-      photos: ["/placeholder.svg?height=80&width=80"],
-      likes: 5,
-      type: "greens",
-    },
-    {
-      id: 2,
-      user: "Mike Tan",
-      avatar: "/placeholder.svg?height=40&width=40",
-      action: "Turned and aerated pile",
-      details: "Mixed thoroughly, added air pockets for better decomposition",
-      time: "1 day ago",
-      temp: 43,
-      moisture: "Good",
-      photos: [],
-      likes: 8,
-      type: "maintenance",
-    },
-    {
-      id: 3,
-      user: "Lisa Wong",
-      avatar: "/placeholder.svg?height=40&width=40",
-      action: "Added carbon-rich browns",
-      details: "1.2kg dried leaves and shredded cardboard",
-      time: "2 days ago",
-      temp: 40,
-      moisture: "Dry",
-      photos: ["/placeholder.svg?height=80&width=80"],
-      likes: 3,
-      type: "browns",
-    },
-    {
-      id: 4,
-      user: "David Chen",
-      avatar: "/placeholder.svg?height=40&width=40",
-      action: "Temperature monitoring",
-      details: "Pile heating up well, decomposition progressing nicely",
-      time: "3 days ago",
-      temp: 38,
-      moisture: "Good",
-      photos: [],
-      likes: 6,
-      type: "monitoring",
-    },
-  ]
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    setSession(null)
+  }
 
-  const forumPosts = [
-    {
-      id: 1,
-      title: "Fruit flies invasion - emergency help needed!",
-      author: "GreenNewbie",
-      authorAvatar: "/placeholder.svg?height=32&width=32",
-      replies: 15,
-      views: 234,
-      time: "1 hour ago",
-      category: "troubleshooting",
-      tags: ["fruit-flies", "pest-control", "urgent"],
-      excerpt:
-        "My compost bin is completely overrun with fruit flies. I've tried covering it but they keep coming back. The smell is getting worse and my neighbors are complaining...",
-      isAnswered: true,
-      votes: 12,
-    },
-    {
-      id: 2,
-      title: "Perfect green-to-brown ratio for Singapore climate?",
-      author: "TropicalGardener",
-      authorAvatar: "/placeholder.svg?height=32&width=32",
-      replies: 28,
-      views: 567,
-      time: "3 hours ago",
-      category: "best-practices",
-      tags: ["ratios", "climate", "singapore"],
-      excerpt:
-        "I keep hearing different ratios from 2:1 to 4:1. What actually works best in our humid tropical climate? Looking for data-backed answers...",
-      isAnswered: true,
-      votes: 24,
-    },
-    {
-      id: 3,
-      title: "Composting in HDB: space-efficient methods",
-      author: "UrbanComposter",
-      authorAvatar: "/placeholder.svg?height=32&width=32",
-      replies: 19,
-      views: 445,
-      time: "5 hours ago",
-      category: "beginner-tips",
-      tags: ["hdb", "small-space", "urban"],
-      excerpt:
-        "Living in a small HDB flat but want to start composting. What are the most space-efficient and neighbor-friendly methods you'd recommend?",
-      isAnswered: false,
-      votes: 18,
-    },
-  ]
+  // Fetch journal entries from backend API
+  const fetchJournalEntries = async () => {
+    if (!session?.access_token) return
+    setJournalLoading(true)
+    setJournalError("")
+    try {
+      const res = await fetch("/api/journal", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setJournalEntries(data.entries)
+      } else {
+        setJournalError(data.error || "Failed to fetch journal entries")
+      }
+    } catch (e) {
+      setJournalError("Network error")
+    }
+    setJournalLoading(false)
+  }
+
+  useEffect(() => {
+    if (session?.access_token) {
+      fetchJournalEntries()
+    }
+    // eslint-disable-next-line
+  }, [session])
+
+  // Add new journal entry via backend API
+  const handleAddJournalEntry = async () => {
+    if (!session?.access_token || !newEntryContent.trim()) return
+    setJournalLoading(true)
+    setJournalError("")
+    try {
+      const res = await fetch("/api/journal", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ content: newEntryContent }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setNewEntryContent("")
+        fetchJournalEntries()
+        setCurrentScreen("journal")
+      } else {
+        setJournalError(data.error || "Failed to add entry")
+      }
+    } catch (e) {
+      setJournalError("Network error")
+    }
+    setJournalLoading(false)
+  }
+
+  // Fetch piles
+  const fetchPiles = async () => {
+    setPilesLoading(true)
+    setPilesError("")
+    try {
+      const res = await fetch("/api/piles")
+      const data = await res.json()
+      if (res.ok) {
+        setPiles(data.piles)
+      } else {
+        setPilesError(data.error || "Failed to fetch piles")
+      }
+    } catch (e) {
+      setPilesError("Network error")
+    }
+    setPilesLoading(false)
+  }
+
+  // Fetch forum posts
+  const fetchForumPosts = async () => {
+    setForumLoading(true)
+    setForumError("")
+    try {
+      const res = await fetch("/api/community/posts")
+      const data = await res.json()
+      if (res.ok) {
+        setForumPosts(data.posts)
+      } else {
+        setForumError(data.error || "Failed to fetch forum posts")
+      }
+    } catch (e) {
+      setForumError("Network error")
+    }
+    setForumLoading(false)
+  }
+
+  // Fetch pile entries for selected pile
+  const fetchPileEntries = async (pileId: string) => {
+    setPileEntriesLoading(true)
+    setPileEntriesError("")
+    try {
+      const res = await fetch(`/api/piles/entries?pile_id=${pileId}`)
+      const data = await res.json()
+      if (res.ok) {
+        setPileEntries(data.entries)
+      } else {
+        setPileEntriesError(data.error || "Failed to fetch pile entries")
+      }
+    } catch (e) {
+      setPileEntriesError("Network error")
+    }
+    setPileEntriesLoading(false)
+  }
+
+  // Add new pile
+  const handleAddPile = async () => {
+    if (!session?.access_token || !newPileName.trim()) return
+    setAddPileLoading(true)
+    setAddPileError("")
+    try {
+      const res = await fetch("/api/piles", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ name: newPileName, location: newPileLocation, image: newPileImage, description: newPileDescription }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setNewPileName("")
+        setNewPileLocation("")
+        setNewPileImage("")
+        setNewPileDescription("")
+        fetchPiles()
+      } else {
+        setAddPileError(data.error || "Failed to add pile")
+      }
+    } catch (e) {
+      setAddPileError("Network error")
+    }
+    setAddPileLoading(false)
+  }
+
+  // Add new forum post
+  const handleAddForumPost = async () => {
+    if (!session?.access_token || !newForumTitle.trim() || !newForumContent.trim()) return
+    setAddForumLoading(true)
+    setAddForumError("")
+    try {
+      const res = await fetch("/api/community/posts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ title: newForumTitle, content: newForumContent }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setNewForumTitle("")
+        setNewForumContent("")
+        fetchForumPosts()
+      } else {
+        setAddForumError(data.error || "Failed to add post")
+      }
+    } catch (e) {
+      setAddForumError("Network error")
+    }
+    setAddForumLoading(false)
+  }
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchPiles()
+    fetchForumPosts()
+    fetchGuides()
+    fetchTips()
+  }, [])
+
+  // Fetch pile entries when selectedPile changes
+  useEffect(() => {
+    if (selectedPile) fetchPileEntries(selectedPile)
+  }, [selectedPile])
+
+  // Fetch guides
+  const fetchGuides = async () => {
+    setGuidesLoading(true);
+    setGuidesError("");
+    try {
+      const res = await fetch("/api/guides");
+      const data = await res.json();
+      if (res.ok) {
+        setGuides(data.guides);
+      } else {
+        setGuidesError(data.error || "Failed to fetch guides");
+      }
+    } catch (e) {
+      setGuidesError("Network error");
+    }
+    setGuidesLoading(false);
+  };
+
+  // Fetch tips
+  const fetchTips = async () => {
+    setTipsLoading(true);
+    setTipsError("");
+    try {
+      const res = await fetch("/api/tips");
+      const data = await res.json();
+      if (res.ok) {
+        setTips(data.tips);
+      } else {
+        setTipsError(data.error || "Failed to fetch tips");
+      }
+    } catch (e) {
+      setTipsError("Network error");
+    }
+    setTipsLoading(false);
+  };
 
   const handleScan = () => {
-    setIsLoading(true)
-    setTimeout(() => {
-      setSelectedPile("pile-a")
-      setCurrentScreen("journal")
-      setIsLoading(false)
-    }, 2000)
+    // TODO: Implement scan logic or leave empty for now
+  };
+
+  // Like handler for guides
+  const handleGuideLike = (id: string) => {
+    setGuideLikes((prev) => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
+    // TODO: Call backend API to persist like
+  };
+
+  // Compose guides with local like state
+  const guidesWithLikes = guides.map((g) => ({
+    ...g,
+    likes: guideLikes[g.id] !== undefined ? guideLikes[g.id] : g.likes,
+  }));
+
+  // In CompostConnect, extract user info from session:
+  const userName = session?.user?.user_metadata?.name;
+  const userEmail = session?.user?.email;
+  const userAvatar = session?.user?.user_metadata?.avatar_url;
+
+  if (!session) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
+        <Card className="max-w-sm w-full p-6">
+          <CardHeader>
+            <h2 className="text-xl font-bold mb-2 text-green-800">CompostConnect</h2>
+            <Tabs value={authView} onValueChange={v => setAuthView(v as 'sign-in' | 'sign-up')} className="w-full">
+              <TabsList className="grid grid-cols-2 mb-4">
+                <TabsTrigger value="sign-in">Sign In</TabsTrigger>
+                <TabsTrigger value="sign-up">Sign Up</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={e => { e.preventDefault(); authView === 'sign-in' ? handleSignIn() : handleSignUp() }} className="space-y-4">
+              {authView === 'sign-up' && (
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Label htmlFor="firstName">First Name</Label>
+                    <Input id="firstName" value={firstName} onChange={e => setFirstName(e.target.value)} required placeholder="First Name" />
+                  </div>
+                  <div className="flex-1">
+                    <Label htmlFor="lastName">Last Name</Label>
+                    <Input id="lastName" value={lastName} onChange={e => setLastName(e.target.value)} required placeholder="Last Name" />
+                  </div>
+                </div>
+              )}
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
+              </div>
+              <div>
+                <Label htmlFor="password">Password</Label>
+                <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+              </div>
+              {authError && <div className="text-red-600 text-sm">{authError}</div>}
+              <Button type="submit" className="w-full" disabled={isLoading}>{isLoading ? 'Loading...' : authView === 'sign-in' ? 'Sign In' : 'Sign Up'}</Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   const renderHomeScreen = () => (
@@ -467,16 +491,18 @@ export default function CompostConnect() {
               <p className="text-sm text-green-600 font-medium">Singapore Community Network</p>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" className="relative">
+              <Button variant="ghost" size="sm" className="relative" onClick={() => setShowNotifications(true)}>
                 <Bell className="w-5 h-5 text-green-700" />
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
                   <span className="text-xs text-white font-bold">3</span>
                 </div>
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => setCurrentScreen("profile")}>
+              <Button variant="ghost" size="sm" onClick={() => router.push("/profile-settings")}>
                 <Avatar className="w-6 h-6">
-                  <AvatarImage src="/placeholder.svg?height=24&width=24" />
-                  <AvatarFallback className="bg-green-100 text-green-700 text-xs">YL</AvatarFallback>
+                  <AvatarImage src={userAvatar || undefined} />
+                  <AvatarFallback className="bg-green-100 text-green-700 text-xs">
+                    {getInitials(userName, userEmail)}
+                  </AvatarFallback>
                 </Avatar>
               </Button>
             </div>
@@ -559,7 +585,7 @@ export default function CompostConnect() {
                     </Button>
                   </div>
 
-                  {piles.map((pile) => (
+                  {piles.map((pile: any) => (
                     <Card
                       key={pile.id}
                       className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-white/80 backdrop-blur-sm border-green-100 hover:border-green-200"
@@ -703,7 +729,7 @@ export default function CompostConnect() {
                   </Card>
 
                   <div className="grid grid-cols-1 gap-3">
-                    {tips.slice(0, 2).map((tip) => (
+                    {tips.slice(0, 2).map((tip: any) => (
                       <Card
                         key={tip.id}
                         className="bg-white/80 backdrop-blur-sm border-green-100 hover:shadow-md transition-shadow cursor-pointer"
@@ -782,7 +808,7 @@ export default function CompostConnect() {
                   </div>
 
                   {/* Forum Posts */}
-                  {forumPosts.map((post) => (
+                  {forumPosts.map((post: any) => (
                     <Card
                       key={post.id}
                       className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-white/80 backdrop-blur-sm border-green-100"
@@ -803,7 +829,7 @@ export default function CompostConnect() {
                             <p className="text-xs text-gray-600 mb-2 line-clamp-2">{post.excerpt}</p>
 
                             <div className="flex flex-wrap gap-1 mb-2">
-                              {post.tags.map((tag) => (
+                              {post.tags.map((tag: string) => (
                                 <Badge key={tag} variant="secondary" className="text-xs px-2 py-0">
                                   {tag}
                                 </Badge>
@@ -841,349 +867,57 @@ export default function CompostConnect() {
           </Tabs>
         </div>
       </div>
-    </div>
+      {showNotifications && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-xs w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-green-800">Notifications</h3>
+              <Button variant="ghost" size="sm" onClick={() => setShowNotifications(false)}>
+                Close
+            </Button>
+            </div>
+            <div className="text-gray-600 text-center">No notifications yet</div>
+          </div>
+            </div>
+      )}
+            </div>
   )
 
   const renderGuidesScreen = () => (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50">
       <div className="max-w-md mx-auto">
-        {/* Header */}
-        <div className="bg-white/80 backdrop-blur-sm border-b border-green-100 p-4 sticky top-0 z-10">
-          <div className="flex items-center gap-3 mb-4">
-            <Button variant="ghost" size="sm" onClick={() => setCurrentScreen("home")}>
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div>
-              <h2 className="text-xl font-bold text-green-800">Composting Guides</h2>
-              <p className="text-sm text-green-600">Complete step-by-step tutorials</p>
-            </div>
-          </div>
-
-          {/* Search and Filter */}
-          <div className="space-y-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                placeholder="Search guides..."
-                className="pl-10 bg-white/70 backdrop-blur-sm border-green-200 focus:border-green-400"
-              />
-            </div>
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              <Badge variant="default" className="bg-green-100 text-green-700 whitespace-nowrap">
-                All
-              </Badge>
-              <Badge variant="outline" className="whitespace-nowrap">
-                Beginner
-              </Badge>
-              <Badge variant="outline" className="whitespace-nowrap">
-                Urban
-              </Badge>
-              <Badge variant="outline" className="whitespace-nowrap">
-                Troubleshooting
-              </Badge>
-              <Badge variant="outline" className="whitespace-nowrap">
-                Community
-              </Badge>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-4 space-y-4">
-          {guides.map((guide) => (
-            <Card
-              key={guide.id}
-              className="bg-white/90 backdrop-blur-sm border-green-200 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer"
-              onClick={() => {
-                setSelectedGuide(guide.id)
-                setCurrentScreen("guide-detail")
-              }}
-            >
-              <CardContent className="p-0">
-                <div className="relative">
-                  <img
-                    src={guide.image || "/placeholder.svg"}
-                    alt={guide.title}
-                    className="w-full h-48 object-cover rounded-t-lg"
-                  />
-                  <div className="absolute top-3 left-3">
-                    <Badge className="bg-white/90 text-green-700">{guide.category}</Badge>
+        <GuideListComp
+          guides={guidesWithLikes}
+          loading={guidesLoading}
+          error={guidesError}
+          search={guideSearch}
+          filter={guideFilter}
+          onSearch={setGuideSearch}
+          onFilter={setGuideFilter}
+          onSelect={(id: string) => {
+            setSelectedGuide(id);
+            setCurrentScreen("guide-detail");
+          }}
+          onLike={(id: string) => handleGuideLike(id)}
+          onBack={() => setCurrentScreen("home")}
+        />
                   </div>
-                  <div className="absolute top-3 right-3">
-                    <div className="bg-black/50 text-white px-2 py-1 rounded text-xs">{guide.readTime}</div>
                   </div>
-                </div>
-
-                <div className="p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-bold text-green-800 text-lg line-clamp-2">{guide.title}</h3>
-                  </div>
-
-                  <p className="text-gray-600 text-sm mb-3 line-clamp-2">{guide.description}</p>
-
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {guide.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 text-sm text-gray-500">
-                      <div className="flex items-center gap-1">
-                        <Avatar className="w-5 h-5">
-                          <AvatarFallback className="bg-green-100 text-green-700 text-xs">
-                            {guide.author
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-xs">{guide.author}</span>
-                      </div>
-                      <span className="flex items-center gap-1">
-                        <Eye className="w-3 h-3" />
-                        {guide.views}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs">
-                        {guide.difficulty}
-                      </Badge>
-                      <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600">
-                        <Heart className="w-4 h-4 mr-1" />
-                        {guide.likes}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
+  );
 
   const renderGuideDetailScreen = () => {
-    const guide = guides.find((g) => g.id === selectedGuide)
-    if (!guide) return null
-
+    const guide = guidesWithLikes.find((g) => g.id === selectedGuide);
+    const relatedGuides = guidesWithLikes.filter((g) => g.id !== selectedGuide).slice(0, 2);
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50">
-        <div className="max-w-md mx-auto">
-          {/* Header */}
-          <div className="bg-white/80 backdrop-blur-sm border-b border-green-100 p-4 sticky top-0 z-10">
-            <div className="flex items-center gap-3 mb-3">
-              <Button variant="ghost" size="sm" onClick={() => setCurrentScreen("guides")}>
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-              <div className="flex-1">
-                <Badge className="bg-green-100 text-green-700 mb-1">{guide.category}</Badge>
-                <h2 className="text-lg font-bold text-green-800 line-clamp-2">{guide.title}</h2>
-              </div>
-              <div className="flex gap-1">
-                <Button variant="ghost" size="sm">
-                  <Share2 className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="sm">
-                  <Bookmark className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-sm text-gray-600">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1">
-                  <Avatar className="w-6 h-6">
-                    <AvatarFallback className="bg-green-100 text-green-700 text-xs">
-                      {guide.author
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-xs">{guide.author}</span>
-                </div>
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  {guide.readTime}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600">
-                  <Heart className="w-4 h-4 mr-1" />
-                  {guide.likes}
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-4 space-y-6">
-            {/* Hero Image */}
-            <div className="relative">
-              <img
-                src={guide.image || "/placeholder.svg"}
-                alt={guide.title}
-                className="w-full h-48 object-cover rounded-xl"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent rounded-xl"></div>
-            </div>
-
-            {/* Overview */}
-            <Card className="bg-white/90 backdrop-blur-sm border-green-200">
-              <CardContent className="p-4">
-                <h3 className="font-semibold text-green-800 mb-2">What you'll learn</h3>
-                <p className="text-gray-700 text-sm leading-relaxed mb-3">{guide.description}</p>
-                <div className="flex items-center gap-4 text-sm text-gray-600">
-                  <div className="flex items-center gap-1">
-                    <Target className="w-4 h-4 text-green-600" />
-                    <span>{guide.difficulty}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Eye className="w-4 h-4 text-blue-600" />
-                    <span>{guide.views} views</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Table of Contents */}
-            <Card className="bg-white/90 backdrop-blur-sm border-green-200">
-              <CardHeader className="pb-3">
-                <h3 className="font-semibold text-green-800 flex items-center gap-2">
-                  <BookOpen className="w-5 h-5" />
-                  Table of Contents
-                </h3>
-              </CardHeader>
-              <CardContent className="pt-0 space-y-3">
-                {guide.sections.map((section, index) => (
-                  <div
-                    key={index}
-                    className="flex items-start gap-3 p-3 bg-green-50/50 rounded-lg hover:bg-green-50 transition-colors cursor-pointer"
-                  >
-                    <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <section.icon className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-medium text-green-800 text-sm">{section.title}</h4>
-                      <p className="text-xs text-gray-600 mt-1 line-clamp-2">{section.content}</p>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-gray-400 mt-1" />
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            {/* Quick Start Preview */}
-            <Card className="bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-200">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Zap className="w-5 h-5 text-emerald-600" />
-                  <h3 className="font-semibold text-emerald-800">Quick Start Preview</h3>
-                </div>
-                {selectedGuide === "singapore-starter" && (
-                  <div className="space-y-3 text-sm text-emerald-700">
-                    <div className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
-                      <span>Choose your location: balcony, community garden, or shared space</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
-                      <span>Gather materials: container, brown materials (3 parts), green materials (1 part)</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
-                      <span>Set up proper drainage and ventilation for Singapore's humidity</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
-                      <span>Start with small amounts and build your composting routine</span>
-                    </div>
-                  </div>
-                )}
-                {selectedGuide === "hdb-composting" && (
-                  <div className="space-y-3 text-sm text-emerald-700">
-                    <div className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
-                      <span>Measure your balcony space and check building regulations</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
-                      <span>Select compact, enclosed composting system with tight lids</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
-                      <span>Install proper drainage system to prevent water damage</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
-                      <span>Create maintenance schedule to prevent odor complaints</span>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Action Buttons */}
-            <div className="space-y-3">
-              <Button className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white py-3 rounded-xl shadow-lg">
-                <Play className="w-5 h-5 mr-2" />
-                Start Reading Guide
-              </Button>
-              <div className="grid grid-cols-2 gap-3">
-                <Button variant="outline" className="border-green-200 text-green-700 hover:bg-green-50 bg-transparent">
-                  <Download className="w-4 h-4 mr-2" />
-                  Download PDF
-                </Button>
-                <Button variant="outline" className="border-green-200 text-green-700 hover:bg-green-50 bg-transparent">
-                  <Share2 className="w-4 h-4 mr-2" />
-                  Share Guide
-                </Button>
-              </div>
-            </div>
-
-            {/* Related Guides */}
-            <Card className="bg-white/80 backdrop-blur-sm border-green-200">
-              <CardHeader className="pb-3">
-                <h3 className="font-semibold text-green-800">Related Guides</h3>
-              </CardHeader>
-              <CardContent className="pt-0 space-y-3">
-                {guides
-                  .filter((g) => g.id !== selectedGuide)
-                  .slice(0, 2)
-                  .map((relatedGuide) => (
-                    <div
-                      key={relatedGuide.id}
-                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                      onClick={() => {
-                        setSelectedGuide(relatedGuide.id)
-                      }}
-                    >
-                      <img
-                        src={relatedGuide.image || "/placeholder.svg"}
-                        alt={relatedGuide.title}
-                        className="w-12 h-12 object-cover rounded-lg"
-                      />
-                      <div className="flex-1">
-                        <h4 className="font-medium text-green-800 text-sm line-clamp-1">{relatedGuide.title}</h4>
-                        <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                          <Badge variant="outline" className="text-xs">
-                            {relatedGuide.category}
-                          </Badge>
-                          <span>{relatedGuide.readTime}</span>
-                        </div>
-                      </div>
-                      <ArrowRight className="w-4 h-4 text-gray-400" />
-                    </div>
-                  ))}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-    )
-  }
+      <GuideDetailComp
+        guide={guide}
+        relatedGuides={relatedGuides}
+        onBack={() => setCurrentScreen("guides")}
+        onLike={(id: string) => handleGuideLike(id)}
+        onSelectRelated={(id: string) => setSelectedGuide(id)}
+      />
+    );
+  };
 
   const renderTipsScreen = () => (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50">
@@ -1513,8 +1247,11 @@ export default function CompostConnect() {
               </Button>
             </div>
 
+            {journalLoading && <div>Loading...</div>}
+            {journalError && <div className="text-red-600 text-sm">{journalError}</div>}
             <ScrollArea className="h-96">
               <div className="space-y-4">
+                {journalEntries.length === 0 && !journalLoading && <div>No entries yet.</div>}
                 {journalEntries.map((entry, index) => (
                   <Card
                     key={entry.id}
@@ -1526,76 +1263,22 @@ export default function CompostConnect() {
                           <Avatar className="w-10 h-10 border-2 border-white shadow-sm">
                             <AvatarImage src={entry.avatar || "/placeholder.svg"} />
                             <AvatarFallback className="bg-green-100 text-green-700">
-                              {entry.user
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")}
+                              {entry.user?.split(" ").map((n: string) => n[0]).join("") || "U"}
                             </AvatarFallback>
                           </Avatar>
-                          <div
-                            className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center ${
-                              entry.type === "greens"
-                                ? "bg-green-500"
-                                : entry.type === "browns"
-                                  ? "bg-amber-500"
-                                  : entry.type === "maintenance"
-                                    ? "bg-blue-500"
-                                    : "bg-orange-500"
-                            }`}
-                          >
-                            {entry.type === "greens" && <Leaf className="w-3 h-3 text-white" />}
-                            {entry.type === "browns" && <Coffee className="w-3 h-3 text-white" />}
-                            {entry.type === "maintenance" && <RotateCcw className="w-3 h-3 text-white" />}
-                            {entry.type === "monitoring" && <Thermometer className="w-3 h-3 text-white" />}
                           </div>
-                        </div>
-
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-start mb-2">
                             <div>
-                              <h4 className="font-semibold text-green-800 text-sm">{entry.action}</h4>
-                              <p className="text-xs text-gray-600">by {entry.user}</p>
+                              <h4 className="font-semibold text-green-800 text-sm">{entry.action || entry.content}</h4>
+                              <p className="text-xs text-gray-600">by {entry.user || "You"}</p>
                             </div>
-                            <span className="text-xs text-gray-500">{entry.time}</span>
+                            <span className="text-xs text-gray-500">{new Date(entry.created_at).toLocaleString()}</span>
                           </div>
-
-                          <p className="text-sm text-gray-700 mb-3">{entry.details}</p>
-
-                          {entry.photos.length > 0 && (
-                            <div className="flex gap-2 mb-3">
-                              {entry.photos.map((photo, i) => (
-                                <img
-                                  key={i}
-                                  src={photo || "/placeholder.svg"}
-                                  alt="Activity photo"
-                                  className="w-16 h-16 object-cover rounded-lg border border-gray-200"
-                                />
-                              ))}
+                          <p className="text-sm text-gray-700 mb-3">{entry.details || entry.content}</p>
+                          {/* Add more fields as needed */}
                             </div>
-                          )}
-
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3 text-xs text-gray-500">
-                              <span className="flex items-center gap-1">
-                                <Thermometer className="w-3 h-3" />
-                                {entry.temp}°C
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Droplets className="w-3 h-3" />
-                                {entry.moisture}
-                              </span>
                             </div>
-                            <Button variant="ghost" size="sm" className="text-gray-500 hover:text-red-500">
-                              <Heart className="w-4 h-4 mr-1" />
-                              {entry.likes}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-
-                      {index < journalEntries.length - 1 && (
-                        <div className="absolute left-8 top-16 w-px h-8 bg-gradient-to-b from-green-200 to-transparent"></div>
-                      )}
                     </CardContent>
                   </Card>
                 ))}
@@ -1628,109 +1311,22 @@ export default function CompostConnect() {
             <CardHeader className="pb-4">
               <h3 className="font-semibold text-green-800">What did you do today?</h3>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Activity Type Selection */}
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  variant="outline"
-                  className="h-24 flex-col gap-2 bg-green-50 hover:bg-green-100 border-green-200"
-                >
-                  <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
-                    <Leaf className="w-5 h-5 text-white" />
-                  </div>
-                  <span className="text-sm font-medium">Add Greens</span>
-                  <span className="text-xs text-gray-600">Kitchen scraps</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-24 flex-col gap-2 bg-amber-50 hover:bg-amber-100 border-amber-200"
-                >
-                  <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center">
-                    <Coffee className="w-5 h-5 text-white" />
-                  </div>
-                  <span className="text-sm font-medium">Add Browns</span>
-                  <span className="text-xs text-gray-600">Dry materials</span>
-                </Button>
-                <Button variant="outline" className="h-24 flex-col gap-2 bg-blue-50 hover:bg-blue-100 border-blue-200">
-                  <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                    <RotateCcw className="w-5 h-5 text-white" />
-                  </div>
-                  <span className="text-sm font-medium">Turn Pile</span>
-                  <span className="text-xs text-gray-600">Mix & aerate</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-24 flex-col gap-2 bg-orange-50 hover:bg-orange-100 border-orange-200"
-                >
-                  <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center">
-                    <Thermometer className="w-5 h-5 text-white" />
-                  </div>
-                  <span className="text-sm font-medium">Monitor</span>
-                  <span className="text-xs text-gray-600">Check status</span>
-                </Button>
-              </div>
-
-              <Separator />
-
-              {/* Form Fields */}
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="details" className="text-sm font-semibold text-green-800 mb-2 block">
-                    Activity Details
-                  </Label>
+            <CardContent>
                   <Textarea
-                    id="details"
-                    placeholder="Describe what you added or did (e.g., 2.5kg mixed vegetable scraps from weekend market)"
+                placeholder="Describe your composting activity..."
+                value={newEntryContent}
+                onChange={e => setNewEntryContent(e.target.value)}
                     className="bg-white/70 border-green-200 focus:border-green-400 min-h-[80px]"
                   />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="temperature" className="text-sm font-semibold text-green-800 mb-2 block">
-                      Temperature (°C)
-                    </Label>
-                    <Input
-                      id="temperature"
-                      type="number"
-                      placeholder="45"
-                      className="bg-white/70 border-green-200 focus:border-green-400"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="moisture" className="text-sm font-semibold text-green-800 mb-2 block">
-                      Moisture Level
-                    </Label>
-                    <select className="w-full p-2 border border-green-200 rounded-md text-sm bg-white/70 focus:border-green-400 focus:outline-none">
-                      <option>Good</option>
-                      <option>Dry</option>
-                      <option>Too Wet</option>
-                      <option>Optimal</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Photo Upload */}
-                <div>
-                  <Label className="text-sm font-semibold text-green-800 mb-2 block">Add Photos (Optional)</Label>
-                  <div className="border-2 border-dashed border-green-300 rounded-lg p-6 text-center bg-green-50/50">
-                    <Camera className="w-8 h-8 mx-auto text-green-600 mb-2" />
-                    <p className="text-sm text-green-700 font-medium">Tap to add photos</p>
-                    <p className="text-xs text-green-600 mt-1">Help others see your progress</p>
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Action Buttons */}
-              <div className="space-y-3">
+              {journalError && <div className="text-red-600 text-sm mt-2">{journalError}</div>}
+              <div className="space-y-3 mt-4">
                 <Button
-                  onClick={() => setCurrentScreen("journal")}
+                  onClick={handleAddJournalEntry}
                   className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white py-3 rounded-xl shadow-lg"
+                  disabled={journalLoading || !newEntryContent.trim()}
                 >
                   <CheckCircle2 className="w-5 h-5 mr-2" />
-                  Save Entry
+                  {journalLoading ? "Saving..." : "Save Entry"}
                 </Button>
                 <Button
                   variant="outline"
