@@ -143,10 +143,13 @@ export default function MainPage() {
         <div className="bg-white/80 backdrop-blur-sm border-b border-green-100 p-4 sticky top-0 z-10">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-green-700 to-emerald-600 bg-clip-text text-transparent">
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-[#556B2F] to-[#7BAE52] bg-clip-text text-transparent">
                 CompostConnect
-              </h1>
-              <p className="text-sm text-green-600 font-medium">Singapore Community Network</p>
+              </h1> 
+              <p className="text-sm font-medium bg-gradient-to-r from-[#7BAE52] to-[#A3C585] bg-clip-text text-transparent">
+                Singapore Community Network
+              </p>
+
             </div>
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" className="relative">
@@ -156,19 +159,33 @@ export default function MainPage() {
                 </span>
               </Button> 
 
-              <Button variant="ghost" size="sm" onClick={() => router.push("/profile-settings")}> <div className="w-8 h-8 rounded-full bg-gray-200" /> </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push("/profile-settings")}
+                className="p-0 hover:bg-gray-300/50 transition"
+              >
+                <div className="w-8 h-8 rounded-full bg-gray-200" />
+              </Button>
             </div>
           </div>
           <Tabs value={tab} onValueChange={setTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-green-100/50 p-1">
-              <TabsTrigger value="journal" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                <span className="font-medium">Journal</span>
-              </TabsTrigger>
-              <TabsTrigger value="community" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                <span className="font-medium">Community</span>
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <TabsList className="grid w-full grid-cols-2 bg-[#E5F2D9] p-1 rounded-lg h-10">
+            <TabsTrigger
+              value="journal"
+              className="flex items-center justify-center rounded-md text-sm font-medium text-[#3B561E] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-[#3B561E] transition-all h-full"
+            >
+              Journal
+            </TabsTrigger>
+            <TabsTrigger
+              value="community"
+              className="flex items-center justify-center rounded-md text-sm font-medium text-[#3B561E] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-[#3B561E] transition-all h-full"
+            >
+              Community
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         </div>
         <Tabs value={tab} onValueChange={setTab} className="w-full">
           <TabsContent value="journal">
@@ -176,19 +193,21 @@ export default function MainPage() {
 
               {/* Quick Stats */}
               <div className="grid grid-cols-2 gap-3">
-                <Card className="flex flex-col gap-6 shadow-sm bg-white border-green-700 text-green-900 rounded-xl border-2 p-0">
-                  <CardContent className="p-3 text-center">
-                    <div className="text-2xl font-bold">{bins.length}</div>
-                    <div className="text-xs opacity-90">Active Bins</div>
-                  </CardContent>
-                </Card>
-                <Card className="flex flex-col gap-6 shadow-sm bg-white border-green-700 text-green-900 rounded-xl border-2 p-0">
-                  <CardContent className="p-3 text-center">
-                    <div className="text-2xl font-bold">{userLogCount}</div>
-                    <div className="text-xs opacity-90">Logs</div>
-                  </CardContent>
-                </Card>
-              </div>           
+              <Card className="flex flex-col gap-6 shadow-sm bg-[#FFFFFF] border-[#3B561E] text-[#3B561E] rounded-xl border-2 p-0">
+                <CardContent className="p-3 text-center">
+                  <div className="text-2xl font-bold">{bins.length}</div>
+                  <div className="text-xs text-[#3B561E]/80">Active Bins</div>
+                </CardContent>
+              </Card>
+
+              <Card className="flex flex-col gap-6 shadow-sm bg-[#FFFFFF] border-[#3B561E] text-[#3B561E] rounded-xl border-2 p-0">
+                <CardContent className="p-3 text-center">
+                  <div className="text-2xl font-bold">{userLogCount}</div>
+                  <div className="text-xs text-[#3B561E]/80">Logs</div>
+                </CardContent>
+              </Card>
+            </div>
+
               {/* Search Bar 
               <div className="relative">
                 <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -201,17 +220,21 @@ export default function MainPage() {
               </div> */}
               {/* Add Bin Button */}
               <div className="flex justify-between items-center">
-                <p className="text-green-700 text-m font-medium font-bold flex gap-2 items-center">
-                  <TrendingUp className="w-5 h-5"></TrendingUp> Your Active Piles</p>
-                <div className="flex justify-end">
-                  <Button
-                    className="w-8 h-8 rounded-full border-2 border-[#96CC4F] bg-white text-[#96CC4F] flex items-center justify-center hover:bg-[#96CC4F] hover:text-white shadow-[0_0_5px_rgba(150,204,79,0.3)] hover:shadow-[0_0_10px_rgba(150,204,79,0.5)]transition duration-200"
-                    onClick={() => router.push("/add-bin")}
-                  >
-                    <Plus className="w-5 h-5" /> 
-                  </Button>
-                </div>
+              <p className="text-[#3B561E] text-base font-semibold flex gap-2 items-center">
+                <TrendingUp className="w-5 h-5" />
+                Your Active Piles
+              </p>
+              
+              <div className="flex justify-end">
+                <Button
+                className="w-8 h-8 rounded-full border-2 border-[#96CC4F] bg-white text-[#96CC4F] flex items-center justify-center hover:bg-[#96CC4F] hover:text-white shadow-[0_0_5px_rgba(150,204,79,0.3)] hover:shadow-[0_0_10px_rgba(150,204,79,0.5)] transition duration-200"
+                onClick={() => router.push('/add-bin')}
+              >
+                <Plus className="w-5 h-5" />
+              </Button>
+              
               </div>
+            </div>                
               {/* Bin Cards */}
               <div className="space-y-4">
                 {loading && <div>Loading bins...</div>}
@@ -247,12 +270,12 @@ export default function MainPage() {
                               }
                               className={
                                 bin.health_status === "Healthy"
-                                  ? "bg-green-100 text-green-700"
-                                  : bin.health_status === "Needs ttention"
-                                  ? "bg-amber-100 text-amber-700"
+                                  ? "bg-[#80B543] text-[#E1E1DA] font-bold"
+                                  : bin.health_status === "Needs Attention"
+                                  ? "bg-[#FFD479] text-[#E1E1DA] font-bold"
                                   : bin.health_status === "Critical"
-                                  ? "bg-red-100 text-red-700"
-                                  : "bg-gray-100 text-gray-600"
+                                  ? "bg-[#E04F4F] text-[#E1E1DA] font-bold"
+                                  : "bg-[#E1E1DA] text-[#E1E1DA] font-bold"
                               }
                             >
                               {bin.health_status === "Healthy"
@@ -264,26 +287,28 @@ export default function MainPage() {
                                 : "Unknown"}
                             </Badge>
 
+
                           </div>
                           
                             <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-sm">
-                              <div className="flex items-center gap-0.5 text-orange-600 text-sm">
-                                <Thermometer className="w-5 h-5" />
-                                {bin.latest_temperature || "-"}°C
-                              </div>
-                              <div className="flex items-center gap-0.5 text-blue-600 text-sm">
-                                <Droplets className="w-5 h-5" />
-                                {bin.latest_moisture || "-"}
-                              </div>
-                              <div className="flex items-center gap-0.5 text-brown-600 text-sm">
-                                <RefreshCw className="w-5 h-5" />
-                                {bin.latest_flips || "0"}
-                              </div>
+                            <div className="flex items-center gap-0.5 text-[#E67E22] text-sm">
+                              <Thermometer className="w-5 h-5" />
+                              {bin.latest_temperature || "-"}°C
                             </div>
-                            <div className="flex items-centergap-1 text-gray-500 justify-end mt-5">
-                              <Users className="w-5 h-5" />
-                              {bin.contributors || 1}
+                            <div className="flex items-center gap-0.5 text-[#5DADE2] text-sm">
+                              <Droplets className="w-5 h-5" />
+                              {bin.latest_moisture || "-"}
                             </div>
+                            <div className="flex items-center gap-0.5 text-[#5A3E1B] text-sm">
+                              <RefreshCw className="w-5 h-5" />
+                              {bin.latest_flips || "0"}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 text-[#4B5563] justify-end mt-5">
+                            <Users className="w-5 h-5" />
+                            {bin.contributors || 1}
+                          </div>
+
                           </div>
                         </div>
                       
