@@ -105,29 +105,32 @@ export default function BinDetailPage() {
   const temp = bin?.latest_temperature;
   const moisture = bin?.latest_moisture;
 
-  let tempColor = "bg-white border-green-700 text-green-900";
+  let tempColor = "bg-[#80B543] border-green-700 text-[#2B2B2B]";
   let tempWarning = "";
+
   if (temp !== undefined && temp !== null) {
     if (temp > 50) {
-      tempColor = "bg-red-500 text-white border-0";
+      tempColor = "bg-[#E04F4F] text-[#2B2B2B] border-[#991B1B]";
       tempWarning = "Too hot!";
     } else if (temp < 27) {
-      tempColor = "bg-red-500 text-white border-0";
+      tempColor = "bg-[#E04F4F] text-[#2B2B2B] border-[#991B1B]";
       tempWarning = "Too cold!";
     } else if (temp >= 45) {
-      tempColor = "bg-yellow-300 text-yellow-900 border-0";
+      tempColor = "bg-[#FEF3C7] text-[#92400E] border-[#991B1B]";
       tempWarning = "Getting hot!";
     }
   }
 
-  let moistureColor = "bg-yellow-300 text-yellow-900 border-0";
+  let moistureColor = "bg-[#FEF3C7] text-[#2B2B2B] border-[#FEF3C7]"; // Default "okay" warning
+
   if (moisture === "Perfect") {
-    moistureColor = "bg-white border-green-700 text-green-900";
+    moistureColor = "bg-[#80B543] border-green-700 text-[#2B2B2B]";
   } else if (moisture === "Wet" || moisture === "Dry") {
-    moistureColor = "bg-yellow-300 text-yellow-900 border-0";
+    moistureColor = "bg-[#FFD479] text-[#92400E] border-[#92400E]";
   } else if (moisture === "Very Wet" || moisture === "Very Dry") {
-    moistureColor = "bg-red-500 text-white border-0";
+    moistureColor = "bg-[#E04F4F] text-[#2B2B2B] border-[#991B1B]";
   }
+
 
 
   const statTiles = [
@@ -148,7 +151,7 @@ export default function BinDetailPage() {
       label: "Flipping",
       value: bin?.latest_flips !== undefined && bin?.latest_flips !== null ? String(bin.latest_flips) : "New bin: not flipped yet",
       icon: <RefreshCw className="w-5 h-5" />,
-      color: "bg-white border-green-700 text-green-900",
+      color: "bg-white border-green-700 text-[#2B2B2B]",
       warning: "",
     },
   ];
@@ -159,31 +162,71 @@ export default function BinDetailPage() {
         {/* Sticky Header */}
         <div className="bg-white/80 backdrop-blur-sm border-b border-green-100 p-4 sticky top-0 z-10">
           <div className="flex items-center gap-3 mb-4">
-            <Button variant="ghost" size="sm" onClick={() => router.push("/main")}> <ArrowLeft className="w-5 h-5" /> </Button>
+            {/* Back Button */}
+            <Button variant="ghost" size="sm" onClick={() => router.push("/main")}>
+              <ArrowLeft className="w-5 h-5 text-[#5F9133]" />
+            </Button>
+
+            {/* Bin Title + Created At */}
             <div className="flex-1">
-              <h2 className="text-xl font-bold text-green-800">{bin?.name || "Bin"}</h2>
+              <h2 className="text-xl font-bold bg-gradient-to-r from-green-700 to-emerald-600 bg-clip-text text-transparent">
+                {bin?.name || "Bin"}
+              </h2>
               {bin?.created_at && (
-                <div className="text-sm text-green-600 mt-1">
+                <div className="text-sm text-[#5F9133] mt-1">
                   Created on: {new Date(bin.created_at).toLocaleDateString('en-GB')}
                 </div>
               )}
             </div>
+
+            {/* QR Button */}
             {bin?.qr_code && (
               <Button variant="ghost" size="sm" onClick={() => setShowQR(true)}>
-                <QrCode className="w-5 h-5" />
+                <QrCode className="w-5 h-5 text-[#5F9133]" />
               </Button>
             )}
+
+            {/* Share Dropdown */}
             <div className="relative">
-              <Button variant="ghost" size="sm" onClick={() => setShowShare(v => !v)}><Share2 className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="sm" onClick={() => setShowShare((v) => !v)}>
+                <Share2 className="w-4 h-4 text-[#5F9133]" />
+              </Button>
+
               {showShare && (
-                <div className="absolute right-0 mt-2 bg-white border rounded shadow-lg z-20 p-2 flex flex-col gap-2 min-w-[140px]">
-                  <Button asChild variant="outline" size="sm" className="justify-start"><a href={whatsappUrl} target="_blank" rel="noopener noreferrer">Share on WhatsApp</a></Button>
-                  <Button asChild variant="outline" size="sm" className="justify-start"><a href={telegramUrl} target="_blank" rel="noopener noreferrer">Share on Telegram</a></Button>
-                  <Button variant="ghost" size="sm" onClick={() => setShowShare(false)}>Close</Button>
+                <div className="absolute right-0 mt-2 bg-white border border-green-100 rounded-lg shadow-md z-20 p-2 flex flex-col gap-2 min-w-[140px]">
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="justify-start text-[#5F9133] border-[#CDE5A7] hover:bg-green-50"
+                  >
+                    <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+                      Share on WhatsApp
+                    </a>
+                  </Button>
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="justify-start text-[#5F9133] border-[#CDE5A7] hover:bg-green-50"
+                  >
+                    <a href={telegramUrl} target="_blank" rel="noopener noreferrer">
+                      Share on Telegram
+                    </a>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowShare(false)}
+                    className="text-red-600 hover:bg-red-50"
+                  >
+                    Close
+                  </Button>
                 </div>
               )}
             </div>
           </div>
+
 
           {/* Join Bin Prompt - moved up */}
           {joinPrompt && !joined && (
@@ -222,18 +265,26 @@ export default function BinDetailPage() {
           )}
 
           {/* Stat Tiles */}
-          <div className="grid grid-cols-3 gap-2 mb-4">
+          <div className="grid grid-cols-3 gap-3 mb-4">
             {statTiles.map((tile, i) => (
-              <Card key={tile.label} className={`${tile.color} rounded-xl border-2 p-0`}>
-                <CardContent className="p-2 text-center flex flex-col items-center justify-center">
-                  <div className="mb-0.5">{React.cloneElement(tile.icon, { className: "w-4 h-4" })}</div>
-                  <div className="text-base font-bold leading-tight">{typeof tile.value === 'string' ? tile.value : String(tile.value)}</div>
-                  {tile.warning && <div className="text-xs font-semibold mt-0.5">{tile.warning}</div>}
+              <Card
+                key={tile.label}
+                className={`rounded-xl border-2 p-0 ${tile.color}`}
+              >
+                <CardContent className="p-3 text-center flex flex-col items-center justify-center">
+                  <div className="mb-1">{React.cloneElement(tile.icon, { className: "w-4 h-4" })}</div>
+                  <div className="text-base font-bold leading-tight">
+                    {typeof tile.value === 'string' ? tile.value : String(tile.value)}
+                  </div>
+                  {tile.warning && (
+                    <div className="text-xs font-semibold mt-0.5">{tile.warning}</div>
+                  )}
                   <div className="text-xs opacity-90 mt-0.5">{tile.label}</div>
                 </CardContent>
               </Card>
             ))}
           </div>
+
 
           {/* Compost Health Button */}
           {!editingHealth ? (
@@ -345,24 +396,38 @@ export default function BinDetailPage() {
           <div className="flex justify-center mb-4">
             <Button
               onClick={() => router.push(`/bin/${binId}/logactivity`)}
-              className="w-56 h-14 text-lg font-semibold flex items-center justify-center gap-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-full shadow-md hover:shadow-lg transition-all duration-200 border-none"
-              style={{ boxShadow: '0 4px 16px 0 rgba(34,197,94,0.10)' }}
+              className="w-56 h-14 text-lg font-semibold flex items-center justify-center gap-3 bg-gradient-to-r from-[#96CC4F] to-[#6FA844] hover:from-[#80B643] hover:to-[#5F9133] text-white rounded-full transition-all duration-200 border-none shadow-[0_4px_12px_rgba(111,168,68,0.25)]"
             >
               <span className="flex items-center justify-center w-8 h-8 rounded-full bg-white bg-opacity-90 mr-1">
-                <svg width="22" height="22" fill="none" stroke="#22c55e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <svg
+                  width="22"
+                  height="22"
+                  fill="none"
+                  stroke="#6FA844"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  viewBox="0 0 24 24"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
               </span>
               Log new activity
             </Button>
           </div>
 
+
+
           {/* Activity Timeline */}
           <div className="space-y-4">
             <div className="flex items-center">
-              <h3 className="font-bold text-green-800 flex items-center gap-2">
-                <Clock className="w-5 h-5" />
+              <h3 className="font-bold text-transparent bg-gradient-to-r from-[#6FA844] to-[#96CC4F] bg-clip-text flex items-center gap-2">
+                <Clock className="w-5 h-5 text-[#6FA844]" />
                 Activity Timeline
               </h3>
             </div>
+
             {loading && <div>Loading...</div>}
             {error && <div className="text-red-600 text-sm">{error}</div>}
             <ScrollArea className="h-96 px-2 sm:px-0">
@@ -372,34 +437,40 @@ export default function BinDetailPage() {
                   // Determine temperature and moisture display for activity card
                   const temp = entry.temperature;
                   const moist = entry.moisture;
+
                   let tempStatus = '';
-                  let tempColor = 'text-green-800';
+                  let tempColor = 'text-[#6FA844]'; // Dark Moss Green (default optimal)
+
                   if (temp !== undefined && temp !== null) {
                     if (temp > 50) {
                       tempStatus = 'Too hot!';
-                      tempColor = 'text-red-600 font-bold';
+                      tempColor = 'text-[#E63946] font-bold'; // Alert Red
                     } else if (temp < 27) {
                       tempStatus = 'Too cold!';
-                      tempColor = 'text-red-600 font-bold';
+                      tempColor = 'text-[#E63946] font-bold'; // Alert Red
                     } else if (temp >= 45) {
                       tempStatus = 'Getting hot!';
-                      tempColor = 'text-yellow-700 font-semibold';
+                      tempColor = 'text-[#D97706] font-semibold'; // Warm amber
                     } else {
                       tempStatus = 'Optimal';
+                      tempColor = 'text-[#6FA844] font-medium'; // Dark Moss Green
                     }
                   }
+
                   let moistStatus = '';
-                  let moistColor = "text-green-800";
-                  if (moist === "Perfect") {
-                    moistStatus = "Perfect";
-                    moistColor = "text-green-800";
-                  } else if (moist === "Wet" || moist === "Dry") {
+                  let moistColor = 'text-[#6FA844]'; // Default
+
+                  if (moist === 'Perfect') {
+                    moistStatus = 'Perfect';
+                    moistColor = 'text-[#6FA844] font-medium'; // Green
+                  } else if (moist === 'Wet' || moist === 'Dry') {
                     moistStatus = moist;
-                    moistColor = "text-yellow-700 font-semibold";
-                  } else if (moist === "Very Wet" || moist === "Very Dry") {
+                    moistColor = 'text-[#D97706] font-semibold'; // Yellow-ish (for warning)
+                  } else if (moist === 'Very Wet' || moist === 'Very Dry') {
                     moistStatus = moist;
-                    moistColor = "text-red-600 font-bold";
+                    moistColor = 'text-[#E63946] font-bold'; // Red (critical)
                   }
+
                   // Calculate 'x days ago'
                   const createdAt = new Date(entry.created_at);
                   const timeAgo = formatDistanceToNow(createdAt, { addSuffix: true });
@@ -432,14 +503,14 @@ export default function BinDetailPage() {
                   }
                   return (
                     <div key={entry.id} className="w-full max-w-2xl mb-2 ml-0 group px-2">
-                      <Card className={`w-full rounded-xl transition-all duration-200 ${isMostRecent ? 'shadow-lg ring-2 ring-green-200' : 'shadow-sm'} bg-white border border-green-100 hover:shadow-md`}>
+                      <Card className={`w-full rounded-2xl transition-all duration-200 ${isMostRecent ?'shadow-lg ring-2 ring-green-200' : 'shadow-sm'} bg-white border border-green-100`}>
                         <CardContent className="px-4 flex flex-col gap-2">
                           {/* Top row: Avatar + Action + Timestamp */}
                           <div className="flex justify-between items-start mb-0.5">
                             <div className="flex items-start gap-3">
                               <Avatar className="w-9 h-9 border border-white shadow-sm">
                                 <AvatarImage src={entry.avatar || "/placeholder.svg"} />
-                                <AvatarFallback className="bg-green-100 text-green-700 text-base">
+                                <AvatarFallback className="bg-[#E7F9DA] text-[#6FA844] text-base shadow-sm">
                                   {(() => {
                                     if (entry.user_id === currentUserId) return "Y";
                                     const fn = entry.profiles?.first_name || "";

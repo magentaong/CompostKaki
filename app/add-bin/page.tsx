@@ -54,30 +54,51 @@ export default function AddBinPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50">
-      {/* Sticky header with back button */}
+      {/* Sticky header */}
       <div className="bg-white/80 backdrop-blur-sm border-b border-green-100 p-4 sticky top-0 z-10 w-full max-w-md mx-auto flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/main")}> <ArrowLeft className="w-5 h-5" /> </Button>
-        <span className="text-xl font-bold text-green-800">Add New Bin</span>
+        <Button variant="ghost" size="sm" onClick={() => router.push("/main")}>
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+        <span className="text-xl font-bold bg-gradient-to-r from-green-700 to-emerald-600 bg-clip-text text-transparent">
+          Add New Bin
+        </span>
       </div>
-      <Card className="max-w-md w-full p-6 mt-8">
+
+      <Card className="max-w-md w-full p-6 mt-8 border border-green-100 shadow-sm">
         <CardHeader>
           <h2 className="text-xl font-bold mb-6 text-green-800">Bin Details</h2>
-          <p className="text-green-700 text-sm mb-4">Tip: Name your bin after its location, e.g., <b>Dakota Crescent</b></p>
+          <p className="text-[#5F9133] text-sm mb-4">
+            Tip: Name your bin after its location, e.g., <span className="font-semibold">Dakota Crescent</span>
+          </p>
         </CardHeader>
         <CardContent>
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <Label htmlFor="name">Bin Name</Label>
-              <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Dakota Crescent" required className="mt-3" />
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Dakota Crescent"
+                required
+                className="mt-3"
+              />
             </div>
-            {error && <div className="text-red-600 text-sm">{error}</div>}
-            <Button type="submit" className="w-full" disabled={loading || !name.trim()}>
+            {error && <div className="text-[#C0392B] text-sm">{error}</div>}
+            <Button
+              type="submit"
+              className="w-full bg-[#96CC4F] text-white hover:bg-[#7CAB38]"
+              disabled={loading || !name.trim()}
+            >
               {loading ? "Creating..." : "Create Bin"}
             </Button>
-            <div className="text-xs text-gray-500 mt-2">Note: If you see a QR code error, make sure you have installed the <code>qrcode</code> package.</div>
+            <div className="text-xs text-gray-500 mt-2">
+              Note: If you see a QR code error, make sure you have installed the <code>qrcode</code> package.
+            </div>
           </form>
         </CardContent>
       </Card>
     </div>
+
   );
 }

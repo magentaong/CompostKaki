@@ -270,12 +270,12 @@ export default function MainPage() {
                               }
                               className={
                                 bin.health_status === "Healthy"
-                                  ? "bg-[#80B543] text-[#E1E1DA] font-bold"
+                                  ? "bg-[#80B543] text-[#2B2B2B] font-bold"
                                   : bin.health_status === "Needs Attention"
-                                  ? "bg-[#FFD479] text-[#E1E1DA] font-bold"
+                                  ? "bg-[#FFD479] text-[#2B2B2B] font-bold"
                                   : bin.health_status === "Critical"
-                                  ? "bg-[#E04F4F] text-[#E1E1DA] font-bold"
-                                  : "bg-[#E1E1DA] text-[#E1E1DA] font-bold"
+                                  ? "bg-[#E04F4F] text-[#2B2B2B] font-bold"
+                                  : "bg-[#E1E1DA] text-[#2B2B2B] font-bold"
                               }
                             >
                               {bin.health_status === "Healthy"
