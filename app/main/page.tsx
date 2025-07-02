@@ -122,7 +122,7 @@ export default function MainPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
-      <div className="max-w-md mx-auto">
+      <div className="relative max-w-md mx-auto">
         {/* Header */}
         <div className="bg-white/80 backdrop-blur-sm border-b border-green-100 p-4 sticky top-0 z-10">
           <div className="flex items-center justify-between mb-4">
@@ -154,39 +154,23 @@ export default function MainPage() {
         <Tabs value={tab} onValueChange={setTab} className="w-full">
           <TabsContent value="journal">
             <div className="p-4 space-y-6">
+
               {/* Quick Stats */}
-              <div className="grid grid-cols-3 gap-3">
-                <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white border-0">
+              <div className="grid grid-cols-2 gap-3">
+                <Card className="flex flex-col gap-6 shadow-sm bg-white border-green-700 text-green-900 rounded-xl border-2 p-0">
                   <CardContent className="p-3 text-center">
                     <div className="text-2xl font-bold">{bins.length}</div>
                     <div className="text-xs opacity-90">Active Bins</div>
                   </CardContent>
                 </Card>
-                <Card className="bg-gradient-to-br from-blue-500 to-cyan-600 text-white border-0">
-                  <CardContent className="p-3 text-center">
-                    <div className="text-2xl font-bold">156</div>
-                    <div className="text-xs opacity-90">Volunteers</div>
-                  </CardContent>
-                </Card>
-                <Card className="bg-gradient-to-br from-amber-500 to-orange-600 text-white border-0">
+                <Card className="flex flex-col gap-6 shadow-sm bg-white border-green-700 text-green-900 rounded-xl border-2 p-0">
                   <CardContent className="p-3 text-center">
                     <div className="text-2xl font-bold">2.4T</div>
                     <div className="text-xs opacity-90">Composted</div>
                   </CardContent>
                 </Card>
-              </div>
-              {/* QR Scanner Button */}
-              <Button
-                onClick={() => router.push("/scanner")}
-                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white py-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
-              >
-                <QrCode className="w-6 h-6 mr-3" />
-                <div className="text-left">
-                  <div className="font-semibold">Scan QR Code</div>
-                  <div className="text-sm opacity-90">Access bin journal instantly</div>
-                </div>
-              </Button>
-              {/* Search Bar */}
+              </div>           
+              {/* Search Bar 
               <div className="relative">
                 <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
@@ -195,14 +179,25 @@ export default function MainPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 bg-white/70 backdrop-blur-sm border-green-200 focus:border-green-400"
                 />
-              </div>
+              </div> */}
               {/* Add Bin Button */}
-              <Button
-                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-4 text-lg font-semibold flex items-center justify-center gap-2"
-                onClick={() => router.push("/add-bin")}
-              >
-                <Plus className="w-5 h-5" /> Add Bin
-              </Button>
+              <div className="flex justify-between items-center">
+                <p className="text-green-700 text-m font-medium font-bold flex gap-2 items-center">
+                  <TrendingUp className="w-5 h-5"></TrendingUp> Your Active Piles</p>
+                <div className="flex justify-end">
+                  <Button
+                    className="w-8 h-8 rounded-full border-2 border-[#96CC4F] bg-white text-[#96CC4F]
+              flex items-center justify-center
+              hover:bg-[#96CC4F] hover:text-white
+              shadow-[0_0_5px_rgba(150,204,79,0.3)]
+              hover:shadow-[0_0_10px_rgba(150,204,79,0.5)]
+              transition duration-200"
+                    onClick={() => router.push("/add-bin")}
+                  >
+                    <Plus className="w-5 h-5" /> 
+                  </Button>
+                </div>
+              </div>
               {/* Bin Cards */}
               <div className="space-y-4">
                 {loading && <div>Loading bins...</div>}
@@ -210,15 +205,15 @@ export default function MainPage() {
                 {filteredBins.map((bin) => (
                   <Card
                     key={bin.id}
-                    className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-white/80 backdrop-blur-sm border-green-100 hover:border-green-200"
+                    className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-white/80 backdrop-blur-sm border-green-100 hover:border-green-200 p-0"
                     onClick={() => router.push(`/bin/${bin.id}`)}
                   >
                     <CardContent className="p-0">
                       <div className="flex">
                         <img
-                          src={bin.image || "/placeholder.svg"}
-                          alt={bin.name}
-                          className="w-24 h-24 object-cover rounded-l-lg"
+                        src={bin.image || "/default_compost_image.jpg"}
+                        alt={bin.name}
+                        className="w-30 object-cover rounded-l-lg height-auto"
                         />
                         <div className="flex-1 p-4">
                           <div className="flex justify-between items-start mb-2">
@@ -269,6 +264,17 @@ export default function MainPage() {
                   </Card>
                 ))}
                 {filteredBins.length === 0 && !loading && <div className="text-gray-500 text-center">No bins found.</div>}
+              </div>
+              {/* QR Scanner Button */}
+              <div className="mt-12 flex justify-end items-end ">
+                <button onClick={() => router.push("/scanner")}
+                className="fixed bottom-6 w-16 h-16 rounded-full bg-[#96CC4F] text-white 
+             flex items-center justify-center
+             shadow-[0_0_8px_rgba(150,204,79,0.5)]
+             hover:bg-[#80B543]
+             transition">
+                  <QrCode className="w-6 h-6" />
+                </button>
               </div>
             </div>
           </TabsContent>
