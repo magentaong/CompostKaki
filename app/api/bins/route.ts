@@ -5,31 +5,38 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string
 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const { id } = params
+function extractIdFromUrl(req: NextRequest): string | null {
+  const url = new URL(req.url)
+  const match = url.pathname.match(/\/api\/bins\/([^\/]+)/)
+  return match ? match[1] : null
+}
+
+export async function GET(req: NextRequest) {
+  const id = extractIdFromUrl(req)
+  if (!id) return NextResponse.json({ error: 'Missing bin ID' }, { status: 400 })
+
   const { data, error } = await supabase.from('bins').select('*').eq('id', id).single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ bin: data })
+
+  const { data: contributors } = await supabase
+    .from('bin_members')
+    .select('user_id')
+    .eq('bin_id', id)
+
+  const contributors_list = contributors ? contributors.map((c: any) => c.user_id) : []
+  return NextResponse.json({ bin: { ...data, contributors_list } })
 }
 
 export async function POST(req: NextRequest) {
-  const authHeader = req.headers.get('authorization')
-  const jwt = authHeader?.replace('Bearer ', '')
-  if (!jwt) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const id = extractIdFromUrl(req)
+  if (!id) return NextResponse.json({ error: 'Missing bin ID' }, { status: 400 })
 
-  const { data: { user }, error: userError } = await supabase.auth.getUser(jwt)
-  if (userError || !user) return NextResponse.json({ error: 'Invalid user' }, { status: 401 })
-
-  const body = await req.json()
-  const { name, location, image, description } = body
-  if (!name) return NextResponse.json({ error: 'Missing bin name' }, { status: 400 })
-
-  const { data, error } = await supabase
+  const { health_status } = await req.json()
+  const { error } = await supabase
     .from('bins')
-    .insert([{ user_id: user.id, name, location, image, description, health_status: 'Healthy' }])
-    .select()
-    .single()
+    .update({ health_status })
+    .eq('id', id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ bin: data })
+  return NextResponse.json({ success: true })
 }
