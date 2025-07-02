@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { MapPin, TrendingUp, Filter, QrCode, Plus, Thermometer, Droplets, Users, Award, BookOpen, Lightbulb, MessageCircle, Star, HelpCircle, Heart, Eye, Search, CheckCircle2, Share2 } from "lucide-react";
+import { MapPin, TrendingUp, Filter, QrCode, Plus, Thermometer, Droplets, Users, Award, BookOpen, Lightbulb, MessageCircle, Star, HelpCircle, Heart, Eye, Search, CheckCircle2, Share2, Bell, RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 export default function MainPage() {
   const router = useRouter();
   const [bins, setBins] = useState<any[]>([]);
+  const [userLogCount, setUserLogCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -29,7 +30,9 @@ export default function MainPage() {
   const [tipsLoading, setTipsLoading] = useState(false);
   const [guidesError, setGuidesError] = useState("");
   const [tipsError, setTipsError] = useState("");
-
+  
+  // future implementation for notifs
+  const notificationCount = 3;
   useEffect(() => {
     const fetchBins = async () => {
       setLoading(true);
@@ -72,12 +75,25 @@ export default function MainPage() {
 
       if (ownedError || memberError) setError(ownedError?.message || memberError?.message || "");
       else setBins(allBins);
+      // Fetch logs count for current user
+      const { count: logCount, error: logError } = await supabase
+        .from("bin_logs")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId);
+
+      if (logError) {
+        console.error("Error fetching user log count:", logError);
+      } else {
+        setUserLogCount(logCount ?? 0);
+      }
 
       setLoading(false);
     };
     fetchBins();
   }, []);
 
+  
+  
   useEffect(() => {
     if (tab === "community") {
       setForumLoading(true);
@@ -134,9 +150,12 @@ export default function MainPage() {
             </div>
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" className="relative">
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-xs text-white font-bold">3</span>
-                <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-bell w-6 h-6 text-green-700"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-              </Button>
+                <Bell className="w-10 h-10 text-green-700" />
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] text-white font-bold">
+                  {notificationCount}
+                </span>
+              </Button> 
+
               <Button variant="ghost" size="sm" onClick={() => router.push("/profile-settings")}> <div className="w-8 h-8 rounded-full bg-gray-200" /> </Button>
             </div>
           </div>
@@ -165,8 +184,8 @@ export default function MainPage() {
                 </Card>
                 <Card className="flex flex-col gap-6 shadow-sm bg-white border-green-700 text-green-900 rounded-xl border-2 p-0">
                   <CardContent className="p-3 text-center">
-                    <div className="text-2xl font-bold">2.4T</div>
-                    <div className="text-xs opacity-90">Composted</div>
+                    <div className="text-2xl font-bold">{userLogCount}</div>
+                    <div className="text-xs opacity-90">Logs</div>
                   </CardContent>
                 </Card>
               </div>           
@@ -186,12 +205,7 @@ export default function MainPage() {
                   <TrendingUp className="w-5 h-5"></TrendingUp> Your Active Piles</p>
                 <div className="flex justify-end">
                   <Button
-                    className="w-8 h-8 rounded-full border-2 border-[#96CC4F] bg-white text-[#96CC4F]
-              flex items-center justify-center
-              hover:bg-[#96CC4F] hover:text-white
-              shadow-[0_0_5px_rgba(150,204,79,0.3)]
-              hover:shadow-[0_0_10px_rgba(150,204,79,0.5)]
-              transition duration-200"
+                    className="w-8 h-8 rounded-full border-2 border-[#96CC4F] bg-white text-[#96CC4F] flex items-center justify-center hover:bg-[#96CC4F] hover:text-white shadow-[0_0_5px_rgba(150,204,79,0.3)] hover:shadow-[0_0_10px_rgba(150,204,79,0.5)]transition duration-200"
                     onClick={() => router.push("/add-bin")}
                   >
                     <Plus className="w-5 h-5" /> 
@@ -203,6 +217,7 @@ export default function MainPage() {
                 {loading && <div>Loading bins...</div>}
                 {error && <div className="text-red-600 text-sm">{error}</div>}
                 {filteredBins.map((bin) => (
+                  
                   <Card
                     key={bin.id}
                     className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-white/80 backdrop-blur-sm border-green-100 hover:border-green-200 p-0"
@@ -219,47 +234,59 @@ export default function MainPage() {
                           <div className="flex justify-between items-start mb-2">
                             <div>
                               <h4 className="font-semibold text-green-800">{bin.name}</h4>
-                              <div className="flex items-center gap-1 text-sm text-gray-600">
-                                <MapPin className="w-3 h-3" />
-                                {bin.location}
-                              </div>
                             </div>
                             <Badge
-                              variant={bin.status === "active" ? "default" : "secondary"}
+                              variant={
+                                bin.health_status === "Healthy"
+                                  ? "default"
+                                  : bin.health_status === "Needs Attention"
+                                  ? "secondary"
+                                  : bin.health_status === "Critical"
+                                  ? "destructive"
+                                  : "outline"
+                              }
                               className={
-                                bin.status === "active"
+                                bin.health_status === "Healthy"
                                   ? "bg-green-100 text-green-700"
-                                  : "bg-amber-100 text-amber-700"
+                                  : bin.health_status === "Needs Attention"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : bin.health_status === "Critical"
+                                  ? "bg-red-100 text-red-700"
+                                  : "bg-gray-100 text-gray-600"
                               }
                             >
-                              {bin.status === "active" ? "Active" : "Needs Attention"}
+                              {bin.health_status === "Healthy"
+                                ? "Healthy"
+                                : bin.health_status === "Needs Attention"
+                                ? "Needs Attention"
+                                : bin.health_status === "Critical"
+                                ? "Critical"
+                                : "Unknown"}
                             </Badge>
+
                           </div>
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-gray-600">Progress</span>
-                              <span className="font-medium text-green-700">{bin.progress || 0}%</span>
-                            </div>
-                            <Progress value={bin.progress || 0} className="h-2" />
-                          </div>
-                          <div className="flex items-center justify-between mt-3 text-sm">
-                            <div className="flex items-center gap-3">
-                              <div className="flex items-center gap-1 text-orange-600">
-                                <Thermometer className="w-3 h-3" />
-                                {bin.temperature || "-"}°C
+                          
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1 text-orange-600 text-sm">
+                                <Thermometer className="w-5 h-5" />
+                                {bin.latest_temperature || "-"}°C
                               </div>
-                              <div className="flex items-center gap-1 text-blue-600">
-                                <Droplets className="w-3 h-3" />
-                                {bin.moisture || "-"}
+                              <div className="flex items-center gap-1 text-blue-600 text-sm">
+                                <Droplets className="w-5 h-5" />
+                                {bin.latest_moisture || "-"}
+                              </div>
+                              <div className="flex items-center gap-1 text-brown-600 text-sm">
+                                <RefreshCw className="w-5 h-5" />
+                                {bin.latest_flips || "0"}
                               </div>
                             </div>
-                            <div className="flex items-center gap-1 text-gray-500">
-                              <Users className="w-3 h-3" />
+                            <div className="flex items-centergap-1 text-gray-500 justify-end mt-5">
+                              <Users className="w-5 h-5" />
                               {bin.contributors || 1}
                             </div>
                           </div>
                         </div>
-                      </div>
+                      
                     </CardContent>
                   </Card>
                 ))}
