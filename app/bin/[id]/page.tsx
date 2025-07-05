@@ -64,6 +64,9 @@ export default function BinDetailPage() {
   const [helpError, setHelpError] = useState('');
   const [helpSuccess, setHelpSuccess] = useState(false);
 
+  const [joinInput, setJoinInput] = useState("");
+  const [joinBinId, setJoinBinId] = useState("");
+
   const handleHelpPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setHelpPhoto(e.target.files[0]);
