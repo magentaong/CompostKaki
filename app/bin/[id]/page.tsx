@@ -52,6 +52,79 @@ export default function BinDetailPage() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
+  // Ask for Help modal state
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [helpUrgency, setHelpUrgency] = useState('Normal');
+  const [helpEffort, setHelpEffort] = useState('Medium');
+  const [helpDescription, setHelpDescription] = useState('');
+  const [helpTimeSensitive, setHelpTimeSensitive] = useState(false);
+  const [helpDueDate, setHelpDueDate] = useState('');
+  const [helpPhoto, setHelpPhoto] = useState<File | null>(null);
+  const [helpLoading, setHelpLoading] = useState(false);
+  const [helpError, setHelpError] = useState('');
+  const [helpSuccess, setHelpSuccess] = useState(false);
+
+  const handleHelpPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setHelpPhoto(e.target.files[0]);
+    }
+  };
+
+  const handleHelpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setHelpLoading(true);
+    setHelpError('');
+    setHelpSuccess(false);
+    let photoUrl = null;
+    try {
+      const user = await supabase.auth.getUser();
+      const userId = user.data.user?.id;
+      if (!userId) throw new Error("Not logged in");
+      if (!binId) throw new Error("No bin");
+      if (!helpDescription.trim()) throw new Error("Description required");
+      if (helpPhoto) {
+        const fileExt = helpPhoto.name.split('.').pop();
+        const filePath = `help_${userId}_${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage.from('bin-logs').upload(filePath, helpPhoto, { upsert: true });
+        if (uploadError) throw new Error(uploadError.message || "Failed to upload photo");
+        const { data: publicUrlData } = supabase.storage.from('bin-logs').getPublicUrl(filePath);
+        photoUrl = publicUrlData.publicUrl;
+      }
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const response = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          bin_id: binId,
+          urgency: helpUrgency,
+          effort: helpEffort,
+          description: helpDescription,
+          is_time_sensitive: helpTimeSensitive,
+          due_date: helpTimeSensitive && helpDueDate ? helpDueDate : null,
+          photo_url: photoUrl,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Failed to create help request");
+      setHelpSuccess(true);
+      setTimeout(() => {
+        setShowHelpModal(false);
+        setHelpSuccess(false);
+        setHelpDescription('');
+        setHelpPhoto(null);
+        setHelpDueDate('');
+        setHelpTimeSensitive(false);
+      }, 1200);
+    } catch (err: any) {
+      setHelpError(err.message || "Failed to create help request");
+    }
+    setHelpLoading(false);
+  };
+
   useEffect(() => {
     if (!binId) return;
     setLoading(true);
@@ -156,499 +229,310 @@ export default function BinDetailPage() {
     },
   ];
 
+  const handleJoinInput = (val: string) => {
+    setJoinInput(val);
+    // Extract full UUID from link or QR code
+    const match = val.match(/bin\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/);
+    if (match) setJoinBinId(match[1]);
+    else setJoinBinId("");
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50">
+    <div className="min-h-screen bg-white">
       <div className="max-w-md mx-auto">
-        {/* Sticky Header */}
-        <div className="bg-white/80 backdrop-blur-sm border-b border-green-100 p-4 sticky top-0 z-10">
-          <div className="flex items-center gap-3 mb-4">
-            {/* Back Button */}
-            <Button variant="ghost" size="sm" onClick={() => router.push("/main")}>
-              <ArrowLeft className="w-5 h-5 text-[#5F9133]" />
-            </Button>
-
-            {/* Bin Title + Created At */}
-            <div className="flex-1">
-              <h2 className="text-xl font-bold bg-gradient-to-r from-green-700 to-emerald-600 bg-clip-text text-transparent">
-                {bin?.name || "Bin"}
-              </h2>
-              {bin?.created_at && (
-                <div className="text-sm text-[#5F9133] mt-1">
-                  Created on: {new Date(bin.created_at).toLocaleDateString('en-GB')}
-                </div>
-              )}
-            </div>
-
-            {/* QR Button */}
-            {bin?.qr_code && (
-              <Button variant="ghost" size="sm" onClick={() => setShowQR(true)}>
-                <QrCode className="w-5 h-5 text-[#5F9133]" />
+        {/* Top section: softer off-white background */}
+        <div className="bg-[#FFFEFA] pb-6">
+          {/* Header: Back button and pile image */}
+          <div className="flex flex-col items-center pt-4 pb-2">
+            <div className="w-full flex items-center justify-between px-2 mb-2">
+              <Button variant="ghost" size="icon" onClick={() => router.push('/main')}>
+                <ArrowLeft className="w-6 h-6 text-black" />
               </Button>
-            )}
-
-            {/* Share Dropdown */}
-            <div className="relative">
-              <Button variant="ghost" size="sm" onClick={() => setShowShare((v) => !v)}>
-                <Share2 className="w-4 h-4 text-[#5F9133]" />
-              </Button>
-
-              {showShare && (
-                <div className="absolute right-0 mt-2 bg-white border border-green-100 rounded-lg shadow-md z-20 p-2 flex flex-col gap-2 min-w-[140px]">
-                  <Button
-                    asChild
-                    variant="outline"
-                    size="sm"
-                    className="justify-start text-[#5F9133] border-[#CDE5A7] hover:bg-green-50"
-                  >
-                    <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
-                      Share on WhatsApp
-                    </a>
-                  </Button>
-                  <Button
-                    asChild
-                    variant="outline"
-                    size="sm"
-                    className="justify-start text-[#5F9133] border-[#CDE5A7] hover:bg-green-50"
-                  >
-                    <a href={telegramUrl} target="_blank" rel="noopener noreferrer">
-                      Share on Telegram
-                    </a>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowShare(false)}
-                    className="text-red-600 hover:bg-red-50"
-                  >
-                    Close
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-
-
-          {/* Join Bin Prompt - moved up */}
-          {joinPrompt && !joined && (
-            <div className="mb-4 p-4 bg-green-100 rounded-xl flex flex-col items-center">
-              <div className="mb-2 text-green-800 font-semibold">Do you want to join this bin?</div>
-              <Button
-                disabled={joining}
-                onClick={async () => {
-                  setJoining(true);
-                  try {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    const token = session?.access_token;
-                    await fetch('/api/bins/join', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-                      },
-                      body: JSON.stringify({ binId })
-                    });
-                    setJoined(true);
-                    setJoinPrompt(false);
-                    window.location.reload();
-                  } catch (e) {
-                    setJoining(false);
-                  }
-                }}
-                className="mt-2"
-              >
-                {joining ? 'Joining...' : 'Join Bin'}
-              </Button>
-            </div>
-          )}
-          {joined && (
-            <div className="mb-4 p-4 bg-green-50 rounded-xl text-green-700 text-center">You have joined this bin!</div>
-          )}
-
-          {/* Stat Tiles */}
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            {statTiles.map((tile, i) => (
-              <Card
-                key={tile.label}
-                className={`rounded-xl border-2 p-0 ${tile.color}`}
-              >
-                <CardContent className="p-3 text-center flex flex-col items-center justify-center">
-                  <div className="mb-1">{React.cloneElement(tile.icon, { className: "w-4 h-4" })}</div>
-                  <div className="text-base font-bold leading-tight">
-                    {typeof tile.value === 'string' ? tile.value : String(tile.value)}
-                  </div>
-                  {tile.warning && (
-                    <div className="text-xs font-semibold mt-0.5">{tile.warning}</div>
-                  )}
-                  <div className="text-xs opacity-90 mt-0.5">{tile.label}</div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-
-          {/* Compost Health Button */}
-          {!editingHealth ? (
-            bin?.health_status && (
-              <div className="flex justify-center mb-4">
-                <span
-                  className={`px-3 py-1 rounded-full font-semibold text-sm shadow-sm cursor-pointer ${getHealthColor(bin.health_status)}`}
-                  onClick={() => setEditingHealth(true)}
-                  title="Click to edit health status"
-                >
-                  Compost Health: {bin.health_status}
-                </span>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" onClick={() => setShowShare(true)}>
+                  <Share2 className="w-6 h-6 text-[#00796B]" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => setShowQR(true)}>
+                  <QrCode className="w-6 h-6 text-[#00796B]" />
+                </Button>
               </div>
-            )
-          ) : (
+            </div>
+            <img
+              src={bin?.image || "/default_compost_image.jpg"}
+              alt={bin?.name || "Compost pile"}
+              className="w-24 h-24 object-cover rounded-xl mb-2 border border-gray-200 bg-gray-100"
+            />
+          </div>
+          {/* Bin Name */}
+          <h2 className="text-2xl font-bold text-center mb-2">{bin?.name || "Bin"}</h2>
+          {/* Health Status */}
+          {bin?.health_status && (
             <div className="flex justify-center mb-4">
-              <select
-                className="px-3 py-1 rounded-full font-semibold text-sm shadow-sm border"
-                value={newHealth}
-                onChange={e => setNewHealth(e.target.value)}
-              >
-                <option value="Healthy">Healthy</option>
-                <option value="Needs Attention">Needs Attention</option>
-                <option value="Critical">Critical</option>
-              </select>
-              <Button
-                size="sm"
-                className="ml-2"
-                onClick={async () => {
-                  setEditingHealth(false);
-                  if (newHealth !== bin.health_status) {
-                    try {
-                      console.log("Updating health status...");
-                      await fetch(`/api/bins/${binId}`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ health_status: newHealth }),
-                      });
-                      console.log("Fetching session...");
-                      const { data: { session } } = await supabase.auth.getSession();
-                      const token = session?.access_token;
-                      if (!token) {
-                        alert("You must be logged in to log activity.");
-                        return;
-                      }
-                      console.log("Token being sent:", token);
-                      await fetch(`/api/bins/logs`, {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-                        },
-                        body: JSON.stringify({
-                          bin_id: binId,
-                          content: `Health status changed to ${newHealth}`,
-                          temperature: bin.latest_temperature,
-                          moisture: bin.latest_moisture,
-                          weight: bin.latest_weight,
-                          type: "Monitor",
-                          image: null,
-                        }),
-                      });
-                      setBin({ ...bin, health_status: newHealth });
-                    } catch (err) {
-                      console.error("Error in Save handler:", err);
-                    }
-                  }
-                }}
-              >
-                Save
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="ml-1"
-                onClick={() => setEditingHealth(false)}
-              >
-                Cancel
-              </Button>
+              <span className={`px-4 py-1 rounded-full font-semibold text-sm bg-[#E6F4EA] text-[#00796B]`}>{bin.health_status}</span>
             </div>
           )}
+          {/* Stat Tiles Row */}
+          <div className="grid grid-cols-3 gap-3 mb-4 px-4">
+            <div className="flex flex-col items-center justify-center rounded-xl min-h-[90px] min-w-[90px] px-0 py-6" style={{ background: '#F3F3F3' }}>
+              <div className="text-3xl text-black">{bin?.latest_temperature ?? '-'}</div>
+              <div className="text-base text-gray-600 mt-1">Temp</div>
+            </div>
+            <div className="flex flex-col items-center justify-center rounded-xl min-h-[90px] min-w-[90px] px-0 py-6" style={{ background: '#FFEDFF' }}>
+              <div className="text-3xl text-black">{bin?.latest_moisture ?? '-'}</div>
+              <div className="text-base text-gray-600 mt-1">Moisture Level</div>
         </div>
-
-        {/* QR Code Modal */}
-        {showQR && bin?.qr_code && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-            <div className="bg-white rounded-xl p-6 shadow-lg flex flex-col items-center relative">
-              <img src={bin.qr_code} alt="Bin QR Code" className="w-56 h-56 mb-4" id="bin-qr-img" />
-              <Button
-                variant="secondary"
-                size="sm"
-                className="mb-2"
-                onClick={() => {
-                  const link = document.createElement('a');
-                  link.href = bin.qr_code;
-                  link.download = 'bin-qr.png';
-                  link.click();
-                }}
-              >
-                Download QR Code
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setShowQR(false)} className="mt-2">Close</Button>
+            <div className="flex flex-col items-center justify-center rounded-xl min-h-[90px] min-w-[90px] px-0 py-6" style={{ background: '#F2FF9C' }}>
+              <div className="text-3xl text-black">{bin?.latest_flips ?? '-'}</div>
+              <div className="text-base text-gray-600 mt-1">Flips</div>
             </div>
           </div>
-        )}
-
-        <div className="p-4 space-y-4">
-          {/* Log New Activity Button */}
-          <div className="flex justify-center mb-4">
+        </div>
+        {/* Action Buttons and rest of page: white background */}
+        <div className="bg-white">
+          <div className="flex gap-3 justify-center mb-6 px-4">
             <Button
+              className="bg-[#00796B] text-white font-semibold rounded-lg px-6 py-2 flex-1"
               onClick={() => router.push(`/bin/${binId}/logactivity`)}
-              className="w-56 h-14 text-lg font-semibold flex items-center justify-center gap-3 bg-gradient-to-r from-[#96CC4F] to-[#6FA844] hover:from-[#80B643] hover:to-[#5F9133] text-white rounded-full transition-all duration-200 border-none shadow-[0_4px_12px_rgba(111,168,68,0.25)]"
             >
-              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-white bg-opacity-90 mr-1">
-                <svg
-                  width="22"
-                  height="22"
-                  fill="none"
-                  stroke="#6FA844"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  viewBox="0 0 24 24"
-                >
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-              </span>
-              Log new activity
+              + Activity
+            </Button>
+            <Button
+              variant="outline"
+              className="border-[#00796B] text-[#00796B] font-semibold rounded-lg px-6 py-2 flex-1 bg-transparent hover:bg-[#F3F3F3]"
+              onClick={() => setShowHelpModal(true)}
+            >
+              💪 Ask for Help
             </Button>
           </div>
-
-
-
-          {/* Activity Timeline */}
-          <div className="space-y-4">
-            <div className="flex items-center">
-              <h3 className="font-bold text-transparent bg-gradient-to-r from-[#6FA844] to-[#96CC4F] bg-clip-text flex items-center gap-2">
-                <Clock className="w-5 h-5 text-[#6FA844]" />
-                Activity Timeline
-              </h3>
-            </div>
-
+          {/* Activity Timeline - vertical timeline style */}
+          <div className="px-4">
+            <h3 className="font-bold text-lg mb-3">Activity Timeline</h3>
             {loading && <div>Loading...</div>}
             {error && <div className="text-red-600 text-sm">{error}</div>}
-            <ScrollArea className="h-96 px-2 sm:px-0">
-              <div className="flex flex-col items-center">
-                {activities.length === 0 && !loading && <div>No activities yet.</div>}
-                {activities.map((entry: any, idx: number) => {
-                  // Determine temperature and moisture display for activity card
-                  const temp = entry.temperature;
-                  const moist = entry.moisture;
-
-                  let tempStatus = '';
-                  let tempColor = 'text-[#6FA844]'; // Dark Moss Green (default optimal)
-
-                  if (temp !== undefined && temp !== null) {
-                    if (temp > 50) {
-                      tempStatus = 'Too hot!';
-                      tempColor = 'text-[#E63946] font-bold'; // Alert Red
-                    } else if (temp < 27) {
-                      tempStatus = 'Too cold!';
-                      tempColor = 'text-[#E63946] font-bold'; // Alert Red
-                    } else if (temp >= 45) {
-                      tempStatus = 'Getting hot!';
-                      tempColor = 'text-[#D97706] font-semibold'; // Warm amber
-                    } else {
-                      tempStatus = 'Optimal';
-                      tempColor = 'text-[#6FA844] font-medium'; // Dark Moss Green
-                    }
-                  }
-
-                  let moistStatus = '';
-                  let moistColor = 'text-[#6FA844]'; // Default
-
-                  if (moist === 'Perfect') {
-                    moistStatus = 'Perfect';
-                    moistColor = 'text-[#6FA844] font-medium'; // Green
-                  } else if (moist === 'Wet' || moist === 'Dry') {
-                    moistStatus = moist;
-                    moistColor = 'text-[#D97706] font-semibold'; // Yellow-ish (for warning)
-                  } else if (moist === 'Very Wet' || moist === 'Very Dry') {
-                    moistStatus = moist;
-                    moistColor = 'text-[#E63946] font-bold'; // Red (critical)
-                  }
-
-                  // Calculate 'x days ago'
-                  const createdAt = new Date(entry.created_at);
-                  const timeAgo = formatDistanceToNow(createdAt, { addSuffix: true });
-                  // Highlight most recent log
-                  const isMostRecent = idx === 0;
-                  // Choose icon and color based on action/type
-                  let ActionIcon = Shovel;
-                  let iconColor = '#16a34a'; // default green
-                  const actionText = (entry.action || entry.content || '').toLowerCase();
-                  const typeText = (entry.type || '').toLowerCase();
-                  if (actionText.includes('turn') || typeText.includes('turn')) {
-                    ActionIcon = RefreshCw;
-                    iconColor = '#2563eb'; // blue
-                  } else if (actionText.includes('monitor') || actionText.includes('check') || typeText.includes('monitor') || typeText.includes('check')) {
-                    ActionIcon = Thermometer;
-                    iconColor = '#ea580c'; // orange
-                  } else if (actionText.includes('greens') || typeText.includes('greens')) {
-                    ActionIcon = Leaf;
-                    iconColor = '#16a34a'; // green
-                  } else if (actionText.includes('browns') || typeText.includes('browns')) {
-                    ActionIcon = Plus;
-                    iconColor = '#f59e42'; // amber
-                  }
-                  // Image preview logic
-                  let imageUrl = null;
-                  if (entry.image && Array.isArray(entry.image) && entry.image.length > 0) {
-                    imageUrl = entry.image[0];
-                  } else if (entry.image && typeof entry.image === 'string') {
-                    imageUrl = entry.image;
-                  }
-                  return (
-                    <div key={entry.id} className="w-full max-w-2xl mb-2 ml-0 group px-2">
-                      <Card className={`w-full rounded-2xl transition-all duration-200 ${isMostRecent ?'shadow-lg ring-2 ring-green-200' : 'shadow-sm'} bg-white border border-green-100`}>
-                        <CardContent className="px-4 flex flex-col gap-2">
-                          {/* Top row: Avatar + Action + Timestamp */}
-                          <div className="flex justify-between items-start mb-0.5">
-                            <div className="flex items-start gap-3">
-                              <Avatar className="w-9 h-9 border border-white shadow-sm">
-                                <AvatarImage src={entry.avatar || "/placeholder.svg"} />
-                                <AvatarFallback className="bg-[#E7F9DA] text-[#6FA844] text-base shadow-sm">
-                                  {(() => {
-                                    if (entry.user_id === currentUserId) return "Y";
-                                    const fn = entry.profiles?.first_name || "";
-                                    const ln = entry.profiles?.last_name || "";
-                                    const initials = (fn + ' ' + ln).trim().split(' ').map((n: string) => n[0]).join('');
-                                    return initials || "U";
-                                  })()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex flex-col">
-                                <div className="flex items-center gap-0.5 font-bold text-green-800 text-base">
-                                  <ActionIcon className="w-4 h-4 mr-1 -ml-1.25" style={{ color: iconColor }} />
-                                  {entry.type || entry.action || entry.content}
+            <div className="relative ml-4">
+              {/* Vertical line */}
+              <div className="absolute left-0 top-0 w-0.5 h-full bg-gray-200" style={{ zIndex: 0 }} />
+              <div className="flex flex-col gap-8">
+                {activities.length === 0 && !loading && <div className="text-gray-500">No activities yet.</div>}
+                {activities.map((entry: any, idx: number) => (
+                  <div key={entry.id} className="relative flex items-start gap-4">
+                    {/* Dot - perfectly aligned to the line */}
+                    <div className="relative ml-[-5px] top-[4px] w-3 h-3 rounded-full bg-gray-200 border-2 border-white z-10" />
+                    <div className="flex-1 pl-3">
+                      <div className="text-xs text-gray-400 mb-1">
+                        {new Date(entry.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}, {new Date(entry.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
                                 </div>
-                                <div className="text-xs text-gray-500 font-medium leading-tight">
-                                  by {entry.user_id === currentUserId ? "You" : ((entry.profiles?.first_name || "") + (entry.profiles?.last_name ? " " + entry.profiles.last_name : "")).trim() || "Unnamed"}
-                                </div>
-                              </div>
-                            </div>
-                            <span className="text-xs text-gray-400 font-medium whitespace-nowrap mt-1">
-                              {mounted ? timeAgo : new Date(entry.created_at).toLocaleString()}
-                            </span>
-                          </div>
-
-                          {/* Content row */}
-                          <div className="flex items-center gap-2 ml-12 text-sm text-gray-700 leading-tight">
-                            {entry.content}
-                            {imageUrl && (
-                              <img src={imageUrl} alt="Log image" className="w-10 h-10 object-cover rounded-md border ml-2" />
-                            )}
-                          </div>
-
-                          {/* Divider */}
-                          {(temp !== null || moist !== null) && <div className="border-t border-green-100" />}
-
-                          {/* Temp / Moist / Button Row */}
-                          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 ml-11 text-sm">
-                            <div className="flex flex-wrap gap-4 items-center">
-                              {temp !== undefined && temp !== null && (
-                                <span className={`flex items-center gap-1 ${tempColor}`}>
-                                  <Thermometer className="w-4 h-4" />
-                                  {temp}°C <span className="ml-1">{tempStatus}</span>
-                                </span>
-                              )}
-                              {moist !== undefined && moist !== null && (
-                                <span className={`flex items-center gap-1 ${moistColor}`}>
-                                  <Droplets className="w-4 h-4" />
-                                  {moistStatus}
-                                </span>
-                              )}
-                            </div>
-                            <button
-                              className="text-green-700 hover:underline text-xs font-medium"
+                      <div className="text-lg font-semibold text-gray-900 mb-1">{entry.type || entry.action || entry.content}</div>
+                      <div className="text-base text-gray-600 mb-2">{entry.content}</div>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="border-gray-300 text-gray-700 rounded-lg px-4 py-1 text-sm font-medium bg-transparent"
                               onClick={() => setOpenModalLogId(entry.id)}
                             >
-                              View details
-                            </button>
-                          </div>
-                        </CardContent>
-                      </Card>
+                        Learn more &rarr;
+                      </Button>
                     </div>
-
-                  );
-                })}
-                {/* Modal rendering outside the map for hydration safety */}
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Modal for activity details */}
                 {openModalLogId && (() => {
                   const entry = activities.find((e: any) => e.id === openModalLogId);
                   if (!entry) return null;
-                  // icon logic
-                  let ActionIcon = Shovel;
-                  let iconColor = '#16a34a';
-                  const actionText = (entry.action || entry.content || '').toLowerCase();
-                  const typeText = (entry.type || '').toLowerCase();
-                  if (actionText.includes('turn') || typeText.includes('turn')) {
-                    ActionIcon = RefreshCw;
-                    iconColor = '#2563eb';
-                  } else if (actionText.includes('monitor') || actionText.includes('check') || typeText.includes('monitor') || typeText.includes('check')) {
-                    ActionIcon = Thermometer;
-                    iconColor = '#ea580c';
-                  } else if (actionText.includes('greens') || typeText.includes('greens')) {
-                    ActionIcon = Leaf;
-                    iconColor = '#16a34a';
-                  } else if (actionText.includes('browns') || typeText.includes('browns')) {
-                    ActionIcon = Plus;
-                    iconColor = '#f59e42';
-                  }
+              // Image logic
                   let imageUrl = null;
                   if (entry.image && Array.isArray(entry.image) && entry.image.length > 0) {
                     imageUrl = entry.image[0];
                   } else if (entry.image && typeof entry.image === 'string') {
                     imageUrl = entry.image;
                   }
-                  const temp = entry.temperature;
-                  const moist = entry.moisture;
                   return (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                      <div className="bg-white rounded-xl shadow-lg p-6 max-w-lg w-full relative">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                  <div className="bg-white rounded-xl p-6 shadow-lg max-w-md w-full relative">
                         <button
-                          className="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-xl"
+                      className="absolute top-3 right-3 text-3xl text-gray-500 hover:text-gray-800 focus:outline-none"
                           onClick={() => setOpenModalLogId(null)}
                           aria-label="Close"
+                      style={{ fontSize: '2rem', lineHeight: '2rem' }}
                         >
                           ×
                         </button>
-                        <div className="flex items-center gap-2 mb-2">
-                          <ActionIcon className="w-6 h-6 mr-1" style={{ color: iconColor }} />
-                          <span className="font-bold text-lg text-green-800">{entry.type || entry.action || entry.content}</span>
-                        </div>
-                        <div className="text-gray-700 text-base mb-2">{entry.content}</div>
+                    <div className="mb-2 text-xs text-gray-400">{new Date(entry.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                    <div className="mb-2 text-xl font-semibold text-gray-900">{entry.type || entry.action || entry.content}</div>
+                    <div className="mb-3 text-base text-gray-700">{entry.content}</div>
                         {imageUrl && (
-                          <div className="mb-3 flex flex-col items-center">
-                            <img src={imageUrl} alt="Log image" className="max-h-64 rounded-md border mb-2" />
-                            <a
-                              href={imageUrl}
-                              download
-                              className="text-green-700 hover:underline text-xs font-medium"
-                            >
-                              Download image
-                            </a>
-                          </div>
-                        )}
-                        <div className="flex flex-col gap-1 text-sm text-gray-700 mt-2">
-                          <div>
-                            <span className="font-semibold">User:</span> {entry.user_id === currentUserId ? "You" : ((entry.profiles?.first_name || "") + (entry.profiles?.last_name ? " " + entry.profiles.last_name : "")).trim() || "Unnamed"}
-                          </div>
-                          {entry.created_at && <div><span className="font-semibold">Time:</span> {new Date(entry.created_at).toLocaleString()}</div>}
-                          {temp !== undefined && temp !== null && <div><span className="font-semibold">Temperature:</span> {temp}°C</div>}
-                          {moist !== undefined && moist !== null && <div><span className="font-semibold">Moisture:</span> {moist}</div>}
-                        </div>
+                      <img src={imageUrl} alt="Log image" className="w-full max-h-72 object-contain rounded-lg border mb-2" />
+                    )}
                       </div>
                     </div>
                   );
                 })()}
               </div>
-            </ScrollArea>
-          </div>
         </div>
       </div>
+      {/* Ask for Help Modal */}
+      {showHelpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl p-6 shadow-lg max-w-md w-full relative">
+            <button
+              className="absolute top-3 right-3 text-3xl text-gray-500 hover:text-gray-800 focus:outline-none"
+              onClick={() => setShowHelpModal(false)}
+              aria-label="Close"
+              style={{ fontSize: '2rem', lineHeight: '2rem' }}
+            >
+              ×
+            </button>
+            <h2 className="text-xl font-bold mb-4 text-[#00796B]">Ask for Help</h2>
+            <form onSubmit={handleHelpSubmit} className="space-y-4">
+              {/* Urgency Pills */}
+              <div>
+                <div className="mb-1 font-semibold text-[#00796B]">Urgency</div>
+                <div className="flex gap-2 flex-wrap">
+                  {["High Priority", "Normal", "Low Priority"].map(opt => (
+                    <button
+                      type="button"
+                      key={opt}
+                      className={`px-3 py-1 rounded-full border text-sm font-medium ${helpUrgency === opt ? 'bg-[#00796B] text-white border-[#00796B]' : 'bg-white text-[#00796B] border-[#00796B]'}`}
+                      onClick={() => setHelpUrgency(opt)}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Effort Pills */}
+              <div>
+                <div className="mb-1 font-semibold text-[#00796B]">Effort</div>
+                <div className="flex gap-2 flex-wrap">
+                  {["Low", "Medium", "High"].map(opt => (
+                    <button
+                      type="button"
+                      key={opt}
+                      className={`px-3 py-1 rounded-full border text-sm font-medium ${helpEffort === opt ? 'bg-[#00796B] text-white border-[#00796B]' : 'bg-white text-[#00796B] border-[#00796B]'}`}
+                      onClick={() => setHelpEffort(opt)}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Description */}
+              <div>
+                <div className="mb-1 font-semibold text-[#00796B]">Description</div>
+                <textarea
+                  className="w-full border-2 border-[#00796B] rounded-xl px-4 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#00796B] bg-white text-[#00796B] placeholder:text-gray-400"
+                  placeholder="Describe what you need help with..."
+                  value={helpDescription}
+                  onChange={e => setHelpDescription(e.target.value)}
+                  rows={3}
+                  required
+                />
+              </div>
+              {/* Time Sensitive */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="help-time-sensitive"
+                  checked={helpTimeSensitive}
+                  onChange={e => setHelpTimeSensitive(e.target.checked)}
+                />
+                <label htmlFor="help-time-sensitive" className="text-[#00796B] font-medium">Time Sensitive</label>
+                {helpTimeSensitive && (
+                  <input
+                    type="datetime-local"
+                    className="ml-2 border border-[#00796B] rounded px-2 py-1 text-[#00796B]"
+                    value={helpDueDate}
+                    onChange={e => setHelpDueDate(e.target.value)}
+                    required
+                  />
+                )}
+              </div>
+              {/* Photo Upload */}
+              <div>
+                <label className="block text-[#00796B] font-semibold mb-1">Add Photo (Optional)</label>
+                <input type="file" accept="image/*" onChange={handleHelpPhotoChange} className="block w-full" />
+                {helpPhoto && <div className="text-xs text-[#00796B] mt-1">Selected: {helpPhoto.name}</div>}
+              </div>
+              {helpError && <div className="text-red-600 text-sm">{helpError}</div>}
+              {helpSuccess && <div className="text-green-700 font-bold text-center">Help request posted!</div>}
+              <div className="flex gap-2 mt-4">
+                <button
+                  type="submit"
+                  className="flex-1 bg-[#00796B] text-white rounded-lg py-2 font-semibold text-base disabled:opacity-60"
+                  disabled={helpLoading}
+                >
+                  {helpLoading ? 'Posting...' : 'Submit'}
+                </button>
+                <button
+                  type="button"
+                  className="flex-1 border border-[#00796B] text-[#00796B] rounded-lg py-2 font-semibold text-base bg-transparent"
+                  onClick={() => setShowHelpModal(false)}
+                  disabled={helpLoading}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {showQR && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl p-6 shadow-lg max-w-md w-full relative flex flex-col items-center">
+            <button
+              className="absolute top-3 right-3 text-3xl text-gray-500 hover:text-gray-800 focus:outline-none"
+              onClick={() => setShowQR(false)}
+              aria-label="Close"
+              style={{ fontSize: '2rem', lineHeight: '2rem' }}
+            >
+              ×
+            </button>
+            <h2 className="text-xl font-bold mb-4 text-[#00796B]">Share Bin QR Code</h2>
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shareUrl)}`}
+              alt="QR Code"
+              className="mb-4"
+            />
+            <div className="text-center text-sm text-gray-600 break-all">{shareUrl}</div>
+          </div>
+        </div>
+      )}
+      {showShare && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl p-6 shadow-lg max-w-md w-full relative flex flex-col items-center">
+            <button
+              className="absolute top-3 right-3 text-3xl text-gray-500 hover:text-gray-800 focus:outline-none"
+              onClick={() => setShowShare(false)}
+              aria-label="Close"
+              style={{ fontSize: '2rem', lineHeight: '2rem' }}
+            >
+              ×
+            </button>
+            <h2 className="text-xl font-bold mb-4 text-[#00796B]">Share Bin</h2>
+            <div className="flex gap-4 mb-4">
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-[#25D366] text-white px-4 py-2 rounded-lg font-semibold flex items-center"
+              >
+                WhatsApp
+              </a>
+              <a
+                href={telegramUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-[#0088cc] text-white px-4 py-2 rounded-lg font-semibold flex items-center"
+              >
+                Telegram
+              </a>
+            </div>
+            <div className="text-center text-sm text-gray-600 break-all">{shareUrl}</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

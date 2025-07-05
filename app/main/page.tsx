@@ -30,70 +30,81 @@ export default function MainPage() {
   const [tipsLoading, setTipsLoading] = useState(false);
   const [guidesError, setGuidesError] = useState("");
   const [tipsError, setTipsError] = useState("");
+  // Community tasks state
+  const [communityTasks, setCommunityTasks] = useState<any[]>([]);
+  const [communityLoading, setCommunityLoading] = useState(false);
+  const [communityError, setCommunityError] = useState("");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
   // future implementation for notifs
   const notificationCount = 3;
-  useEffect(() => {
-    const fetchBins = async () => {
-      setLoading(true);
-      setError("");
-      const user = await supabase.auth.getUser();
-      const userId = user.data.user?.id;
-      if (!userId) {
-        setError("Not logged in");
-        setLoading(false);
-        return;
-      }
-      // Fetch bins where user is the owner
-      const { data: ownedBins, error: ownedError } = await supabase
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [joinInput, setJoinInput] = useState("");
+  const [joinBinId, setJoinBinId] = useState("");
+  const [joinPrompt, setJoinPrompt] = useState(false);
+  const [joinLoading, setJoinLoading] = useState(false);
+  const [joinError, setJoinError] = useState("");
+
+  const fetchBins = async () => {
+    setLoading(true);
+    setError("");
+    const user = await supabase.auth.getUser();
+    const userId = user.data.user?.id;
+    if (!userId) {
+      setError("Not logged in");
+      setLoading(false);
+      return;
+    }
+    // Fetch bins where user is the owner
+    const { data: ownedBins, error: ownedError } = await supabase
+      .from("bins")
+      .select("*")
+      .eq("user_id", userId);
+
+    // Fetch bin memberships
+    const { data: memberRows, error: memberError } = await supabase
+      .from("bin_members")
+      .select("bin_id")
+      .eq("user_id", userId);
+
+    const memberBinIds = memberRows?.map(row => row.bin_id) || [];
+
+    let memberBins = [];
+    if (memberBinIds.length > 0) {
+      const { data: memberBinsData } = await supabase
         .from("bins")
         .select("*")
-        .eq("user_id", userId);
+        .in("id", memberBinIds);
+      memberBins = memberBinsData || [];
+    }
 
-      // Fetch bin memberships
-      const { data: memberRows, error: memberError } = await supabase
-        .from("bin_members")
-        .select("bin_id")
-        .eq("user_id", userId);
+    // Combine and deduplicate
+    const allBins = [
+      ...(ownedBins || []),
+      ...memberBins.filter(b => !(ownedBins || []).some(ob => ob.id === b.id))
+    ];
 
-      const memberBinIds = memberRows?.map(row => row.bin_id) || [];
+    if (ownedError || memberError) setError(ownedError?.message || memberError?.message || "");
+    else setBins(allBins);
+    // Fetch logs count for current user
+    const { count: logCount, error: logError } = await supabase
+      .from("bin_logs")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId);
 
-      let memberBins = [];
-      if (memberBinIds.length > 0) {
-        const { data: memberBinsData } = await supabase
-          .from("bins")
-          .select("*")
-          .in("id", memberBinIds);
-        memberBins = memberBinsData || [];
-      }
+    if (logError) {
+      console.error("Error fetching user log count:", logError);
+    } else {
+      setUserLogCount(logCount ?? 0);
+    }
 
-      // Combine and deduplicate
-      const allBins = [
-        ...(ownedBins || []),
-        ...memberBins.filter(b => !(ownedBins || []).some(ob => ob.id === b.id))
-      ];
+    setLoading(false);
+  };
 
-      if (ownedError || memberError) setError(ownedError?.message || memberError?.message || "");
-      else setBins(allBins);
-      // Fetch logs count for current user
-      const { count: logCount, error: logError } = await supabase
-        .from("bin_logs")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", userId);
-
-      if (logError) {
-        console.error("Error fetching user log count:", logError);
-      } else {
-        setUserLogCount(logCount ?? 0);
-      }
-
-      setLoading(false);
-    };
+  useEffect(() => {
     fetchBins();
   }, []);
 
-  
-  
   useEffect(() => {
     if (tab === "community") {
       setForumLoading(true);
@@ -129,6 +140,63 @@ export default function MainPage() {
     }
   }, [tab]);
 
+  useEffect(() => {
+    if (tab === "community") {
+      setCommunityLoading(true);
+      setCommunityError("");
+      // Get current user and their bin memberships
+      (async () => {
+        const user = await supabase.auth.getUser();
+        setCurrentUserId(user.data.user?.id || null);
+        if (!user.data.user) {
+          setCommunityError("Not logged in");
+          setCommunityLoading(false);
+          return;
+        }
+        // Get bins user is a member of
+        const { data: memberships, error: memberError } = await supabase
+          .from("bin_members")
+          .select("bin_id")
+          .eq("user_id", user.data.user.id);
+        if (memberError) {
+          setCommunityError(memberError.message);
+          setCommunityLoading(false);
+          return;
+        }
+        const binIds = memberships?.map((m: any) => m.bin_id) || [];
+        if (binIds.length === 0) {
+          setCommunityTasks([]);
+          setCommunityLoading(false);
+          return;
+        }
+        // Get tasks for those bins
+        const { data: tasks, error: taskError } = await supabase
+          .from("tasks")
+          .select("*, profiles:user_id(id, first_name, last_name)")
+          .in("bin_id", binIds)
+          .order("created_at", { ascending: false });
+        if (taskError) {
+          setCommunityError(taskError.message);
+          setCommunityLoading(false);
+          return;
+        }
+        setCommunityTasks(tasks || []);
+        setCommunityLoading(false);
+      })();
+    }
+  }, [tab]);
+
+  // Accept/Complete logic (API calls)
+  const handleAcceptTask = async (taskId: string) => {
+    // Call API to update task status and accepted_by
+    await fetch(`/api/tasks/${taskId}/accept`, { method: 'POST' });
+    setCommunityTasks(tasks => tasks.map(t => t.id === taskId ? { ...t, status: 'accepted', accepted_by: currentUserId } : t));
+  };
+  const handleCompleteTask = async (taskId: string) => {
+    await fetch(`/api/tasks/${taskId}/complete`, { method: 'POST' });
+    setCommunityTasks(tasks => tasks.map(t => t.id === taskId ? { ...t, status: 'completed' } : t));
+  };
+
   // Filter bins by search
   const filteredBins = bins.filter(
     (bin) =>
@@ -136,384 +204,288 @@ export default function MainPage() {
       bin.location?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const [showQR, setShowQR] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [whatsappUrl, setWhatsappUrl] = useState("");
+  const [telegramUrl, setTelegramUrl] = useState("");
+
+  const handleShowShare = () => {
+    if (filteredBins.length > 0) {
+      const url = `${window.location.origin}/bin/${filteredBins[0].id}`;
+      setShareUrl(url);
+      setWhatsappUrl(`https://wa.me/?text=${encodeURIComponent('Check out our compost bin on CompostKaki! ' + url)}`);
+      setTelegramUrl(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent('Check out our compost bin on CompostKaki!')}`);
+      setShowShare(true);
+    } else {
+      alert('No bins to share!');
+    }
+  };
+  const handleShowQR = () => {
+    if (filteredBins.length > 0) {
+      const url = `${window.location.origin}/bin/${filteredBins[0].id}`;
+      setShareUrl(url);
+      setShowQR(true);
+    } else {
+      alert('No bins to show QR for!');
+    }
+  };
+
+  const handleJoinInput = (val: string) => {
+    setJoinInput(val);
+    // Strict UUID regex
+    const uuidRegex = /([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/;
+    let match = val.match(uuidRegex);
+    if (match) {
+      setJoinBinId(match[1]);
+    } else {
+      setJoinBinId("");
+    }
+  };
+  const handleJoinConfirm = async () => {
+    setJoinLoading(true);
+    setJoinError("");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch('/api/bins/join', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ binId: joinBinId })
+      });
+      const result = await res.json();
+      if (!res.ok || result.error) throw new Error(result.error || 'Failed to join bin');
+      setShowJoinModal(false);
+      setJoinInput("");
+      setJoinBinId("");
+      setJoinPrompt(false);
+      // Refresh bins
+      if (typeof fetchBins === 'function') fetchBins();
+      else window.location.reload();
+    } catch (e: any) {
+      setJoinError(e.message || "Failed to join bin");
+    }
+    setJoinLoading(false);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
+    <div className="min-h-screen bg-white">
       <div className="relative max-w-md mx-auto">
-        {/* Header */}
-        <div className="bg-white/80 backdrop-blur-sm border-b border-green-100 p-4 sticky top-0 z-10">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-[#556B2F] to-[#7BAE52] bg-clip-text text-transparent">
-                CompostConnect
-              </h1> 
-              <p className="text-sm font-medium bg-gradient-to-r from-[#7BAE52] to-[#A3C585] bg-clip-text text-transparent">
-                Singapore Community Network
-              </p>
-
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" className="relative">
-                <Bell className="w-10 h-10 text-green-700" />
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] text-white font-bold">
-                  {notificationCount}
-                </span>
-              </Button> 
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push("/profile-settings")}
-                className="p-0 hover:bg-gray-300/50 transition"
-              >
-                <div className="w-8 h-8 rounded-full bg-gray-200" />
-              </Button>
+        <div className="bg-[#F3F3F3] border-b border-[#E0E0E0] p-4 sticky top-0 z-10 flex items-center justify-between">
+          <div className="flex-1 flex flex-col items-center">
+            <div className="flex items-center gap-2 justify-center">
+              <img src="/favicon.ico" alt="CompostKaki Logo" className="w-8 h-8" />
+              <h1 className="text-2xl font-bold text-[#00796B]">CompostKaki</h1>
             </div>
           </div>
-          <Tabs value={tab} onValueChange={setTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-[#E5F2D9] p-1 rounded-lg h-10">
-            <TabsTrigger
-              value="journal"
-              className="flex items-center justify-center rounded-md text-sm font-medium text-[#3B561E] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-[#3B561E] transition-all h-full"
+          <div className="flex items-center gap-2 ml-2">
+            <Button
+              className="bg-[#00796B] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#005B4F] ml-2"
+              onClick={() => setShowJoinModal(true)}
             >
-              Journal
-            </TabsTrigger>
-            <TabsTrigger
-              value="community"
-              className="flex items-center justify-center rounded-md text-sm font-medium text-[#3B561E] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-[#3B561E] transition-all h-full"
+              Join Bin
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push("/profile-settings")}
+              className="p-0 hover:bg-gray-300/50 transition"
             >
-              Community
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
+              <div className="w-8 h-8 rounded-full bg-gray-200" />
+            </Button>
+          </div>
         </div>
+        <Tabs value={tab} onValueChange={setTab} className="w-full mt-2">
+          <div className="flex w-full justify-center">
+            <TabsList className="flex w-full max-w-xs bg-[#F3F3F3] border border-[#E0E0E0] rounded-full p-1">
+              <TabsTrigger
+                value="journal"
+                className="flex-1 rounded-full px-0 py-2 text-base font-semibold transition-all shadow-none border-none focus:outline-none focus:ring-0 data-[state=active]:bg-white data-[state=active]:text-[#00796B] data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-500"
+              >
+                Journal
+              </TabsTrigger>
+              <TabsTrigger
+                value="community"
+                className="flex-1 rounded-full px-0 py-2 text-base font-semibold transition-all shadow-none border-none focus:outline-none focus:ring-0 data-[state=active]:bg-white data-[state=active]:text-[#00796B] data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-500"
+              >
+                Community
+              </TabsTrigger>
+            </TabsList>
+          </div>
+        </Tabs>
         <Tabs value={tab} onValueChange={setTab} className="w-full">
           <TabsContent value="journal">
-            <div className="p-4 space-y-6">
-
-              {/* Quick Stats */}
+            <div className="p-4 space-y-6 bg-white min-h-screen">
               <div className="grid grid-cols-2 gap-3">
-              <Card className="flex flex-col gap-6 shadow-sm bg-[#FFFFFF] border-[#3B561E] text-[#3B561E] rounded-xl border-2 p-0">
-                <CardContent className="p-3 text-center">
-                  <div className="text-2xl font-bold">{bins.length}</div>
-                  <div className="text-xs text-[#3B561E]/80">Active Bins</div>
-                </CardContent>
-              </Card>
-
-              <Card className="flex flex-col gap-6 shadow-sm bg-[#FFFFFF] border-[#3B561E] text-[#3B561E] rounded-xl border-2 p-0">
-                <CardContent className="p-3 text-center">
-                  <div className="text-2xl font-bold">{userLogCount}</div>
-                  <div className="text-xs text-[#3B561E]/80">Logs</div>
-                </CardContent>
-              </Card>
-            </div>
-
-              {/* Search Bar 
-              <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  placeholder="Search compost bins..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-white/70 backdrop-blur-sm border-green-200 focus:border-green-400"
-                />
-              </div> */}
-              {/* Add Bin Button */}
-              <div className="flex justify-between items-center">
-              <p className="text-[#3B561E] text-base font-semibold flex gap-2 items-center">
-                <TrendingUp className="w-5 h-5" />
-                Your Active Piles
-              </p>
-              
-              <div className="flex justify-end">
-                <Button
-                className="w-8 h-8 rounded-full border-2 border-[#96CC4F] bg-white text-[#96CC4F] flex items-center justify-center hover:bg-[#96CC4F] hover:text-white shadow-[0_0_5px_rgba(150,204,79,0.3)] hover:shadow-[0_0_10px_rgba(150,204,79,0.5)] transition duration-200"
-                onClick={() => router.push('/add-bin')}
-              >
-                <Plus className="w-5 h-5" />
-              </Button>
-              
+                <div className="flex flex-col items-center justify-center bg-[#F3F3F3] rounded-lg p-4">
+                  <div className="text-2xl font-bold text-[#00796B]">{bins.length}</div>
+                  <div className="text-xs text-[#00796B] mt-1">Active Bins</div>
+                </div>
+                <div className="flex flex-col items-center justify-center bg-[#F3F3F3] rounded-lg p-4">
+                  <div className="text-2xl font-bold text-[#00796B]">{userLogCount}</div>
+                  <div className="text-xs text-[#00796B] mt-1">Logs</div>
+                </div>
               </div>
-            </div>                
-              {/* Bin Cards */}
-              <div className="space-y-4">
-                {loading && <div>Loading bins...</div>}
-                {error && <div className="text-red-600 text-sm">{error}</div>}
+              <div className="flex justify-between items-center mt-2 mb-2">
+                <h2 className="text-[#00796B] text-base font-semibold">Active Piles</h2>
+                <Button
+                  className="bg-[#00796B] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#005B4F]"
+                  onClick={() => router.push('/add-bin')}
+                >
+                  Add New Piles
+                </Button>
+              </div>
+              <div className="bg-white rounded-lg border border-[#E0E0E0] divide-y divide-[#F3F3F3]">
+                {loading && <div className="p-4 text-center">Loading bins...</div>}
+                {error && <div className="p-4 text-red-600 text-sm text-center">{error}</div>}
                 {filteredBins.map((bin) => (
-                  
-                  <Card
+                  <div
                     key={bin.id}
-                    className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-white/80 backdrop-blur-sm border-green-100 hover:border-green-200 p-0 "
+                    className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[#F3F3F3] transition"
                     onClick={() => router.push(`/bin/${bin.id}`)}
                   >
-                    <CardContent className="p-0">
-                      <div className="flex">
-                        <img
-                        src={bin.image || "/default_compost_image.jpg"}
-                        alt={bin.name}
-                        className="w-24 sm:w-28 md:w-32 object-cover rounded-l-lg h-auto"
-                        />
-                        <div className="flex-1 p-4">
-                          <div className="flex justify-between items-start mb-2">
-                            <div>
-                              <h4 className="font-semibold text-green-800">{bin.name}</h4>
-                            </div>
-                            <Badge
-                              variant={
-                                bin.health_status === "Healthy"
-                                  ? "default"
-                                  : bin.health_status === "Needs Attention"
-                                  ? "secondary"
-                                  : bin.health_status === "Critical"
-                                  ? "destructive"
-                                  : "outline"
-                              }
-                              className={
-                                bin.health_status === "Healthy"
-                                  ? "bg-[#80B543] text-[#2B2B2B] font-bold"
-                                  : bin.health_status === "Needs Attention"
-                                  ? "bg-[#FFD479] text-[#2B2B2B] font-bold"
-                                  : bin.health_status === "Critical"
-                                  ? "bg-[#E04F4F] text-[#2B2B2B] font-bold"
-                                  : "bg-[#E1E1DA] text-[#2B2B2B] font-bold"
-                              }
-                            >
-                              {bin.health_status === "Healthy"
-                                ? "Healthy"
-                                : bin.health_status === "Needs Attention"
-                                ? "Needs Attention"
-                                : bin.health_status === "Critical"
-                                ? "Critical"
-                                : "Unknown"}
-                            </Badge>
-
-
-                          </div>
-                          
-                            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-sm">
-                            <div className="flex items-center gap-0.5 text-[#E67E22] text-sm">
-                              <Thermometer className="w-5 h-5" />
-                              {bin.latest_temperature || "-"}°C
-                            </div>
-                            <div className="flex items-center gap-0.5 text-[#5DADE2] text-sm">
-                              <Droplets className="w-5 h-5" />
-                              {bin.latest_moisture || "-"}
-                            </div>
-                            <div className="flex items-center gap-0.5 text-[#5A3E1B] text-sm">
-                              <RefreshCw className="w-5 h-5" />
-                              {bin.latest_flips || "0"}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1 text-[#4B5563] justify-end mt-5">
-                            <Users className="w-5 h-5" />
-                            {bin.contributors || 1}
-                          </div>
-
-                          </div>
-                        </div>
-                      
-                    </CardContent>
-                  </Card>
+                    <img
+                      src={bin.image || "/default_compost_image.jpg"}
+                      alt={bin.name}
+                      className="w-10 h-10 object-cover rounded-md border border-[#E0E0E0]"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-[#00796B] truncate">{bin.name}</div>
+                      <div className="text-xs text-gray-500 truncate">{bin.location}</div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="text-xs text-[#00796B] font-medium">{bin.health_status || 'Healthy'}</span>
+                      <span className="text-xs text-gray-400">{bin.latest_temperature ? `${bin.latest_temperature}°C` : '-'}</span>
+                    </div>
+                  </div>
                 ))}
-                {filteredBins.length === 0 && !loading && <div className="text-gray-500 text-center">No bins found.</div>}
-              </div>
-              {/* QR Scanner Button */}
-              <div className="mt-12 flex justify-end items-end ">
-                <button onClick={() => router.push("/scanner")}
-                className="fixed bottom-6 w-16 h-16 rounded-full bg-[#96CC4F] text-white 
-             flex items-center justify-center
-             shadow-[0_0_8px_rgba(150,204,79,0.5)]
-             hover:bg-[#80B543]
-             transition">
-                  <QrCode className="w-6 h-6" />
-                </button>
+                {filteredBins.length === 0 && !loading && <div className="p-4 text-gray-500 text-center">No bins found.</div>}
               </div>
             </div>
           </TabsContent>
           <TabsContent value="community">
-            <div className="p-4 space-y-6">
-              {/* Community Stats */}
-              <Card className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-0">
-                <CardContent className="p-4">
+            <div className="p-4 space-y-4">
+              {communityLoading && <div className="text-center">Loading tasks...</div>}
+              {communityError && <div className="text-red-600 text-center">{communityError}</div>}
+              {!communityLoading && !communityError && communityTasks.length === 0 && (
+                <div className="text-center text-gray-500">No tasks available. Relax for now :)</div>
+              )}
+              {communityTasks.map(task => (
+                <div
+                  key={task.id}
+                  className="bg-white border border-[#E0E0E0] rounded-lg p-4 mb-2 shadow-sm"
+                >
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-2xl font-bold">1,247</div>
-                      <div className="text-sm opacity-90">Active Community Members</div>
+                      <div className="font-semibold text-[#00796B]">{task.description}</div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        Bin: {task.bin_id} &middot; Status: {task.status}
+                      </div>
                     </div>
-                    <Award className="w-8 h-8 opacity-80" />
+                    <span className="ml-2 px-2 py-1 rounded-full text-xs font-medium bg-[#E0F2F1] text-[#00796B]">
+                      {task.urgency}
+                    </span>
                   </div>
-                </CardContent>
-              </Card>
-              {/* Learning Resources */}
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  onClick={() => router.push("/guides")}
-                  className="h-20 bg-gradient-to-br from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white flex-col gap-2"
-                >
-                  <BookOpen className="w-6 h-6" />
-                  <span className="font-semibold">Guides</span>
-                  <span className="text-xs opacity-90">Step-by-step tutorials</span>
-                </Button>
-                <Button
-                  onClick={() => router.push("/tips")}
-                  className="h-20 bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white flex-col gap-2"
-                >
-                  <Lightbulb className="w-6 h-6" />
-                  <span className="font-semibold">Tips & Tricks</span>
-                  <span className="text-xs opacity-90">Quick solutions</span>
-                </Button>
-              </div>
-              {/* Featured Learning Content */}
-              <div className="space-y-4">
-                <h3 className="font-bold text-green-800 flex items-center gap-2">
-                  <Star className="w-5 h-5" />
-                  Featured This Week
-                </h3>
-                <Card
-                  className="bg-white/80 backdrop-blur-sm border-green-100 hover:shadow-lg transition-shadow cursor-pointer"
-                  onClick={() => router.push("/guides")}
-                >
-                  <CardContent className="p-0">
-                    <div className="flex">
-                      <img
-                        src="/placeholder.svg?height=80&width=120"
-                        alt="Featured guide"
-                        className="w-20 h-20 object-cover rounded-l-lg"
-                      />
-                      <div className="flex-1 p-3">
-                        <Badge className="bg-green-100 text-green-700 mb-1 text-xs">Beginner Guide</Badge>
-                        <h4 className="font-semibold text-green-800 text-sm mb-1">Composting in Singapore</h4>
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <BookOpen className="w-3 h-3" />8 min
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Eye className="w-3 h-3" />1.2k
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <div className="grid grid-cols-1 gap-3">
-                  {tips.slice(0, 2).map((tip: any) => (
-                    <Card
-                      key={tip.id}
-                      className="bg-white/80 backdrop-blur-sm border-green-100 hover:shadow-md transition-shadow cursor-pointer"
-                    >
-                      <CardContent className="p-3">
-                        <div className="flex items-start gap-3">
-                          <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${tip.color} flex items-center justify-center flex-shrink-0`}>
-                            {tip.icon ? <tip.icon className="w-4 h-4 text-white" /> : <Lightbulb className="w-4 h-4 text-white" />}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Badge variant="secondary" className="text-xs">{tip.category}</Badge>
-                              <span className="text-xs text-gray-500">{tip.time}</span>
-                            </div>
-                            <h4 className="font-semibold text-green-800 text-sm mb-1">{tip.title}</h4>
-                            <p className="text-xs text-gray-600 line-clamp-1">{tip.description}</p>
-                            <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                              <span className="flex items-center gap-1">
-                                <Heart className="w-3 h-3" />{tip.likes}
-                              </span>
-                              <Badge variant="outline" className="text-xs">{tip.difficulty}</Badge>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
                 </div>
-              </div>
-              <Separator />
-              {/* Forum Section */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-green-800 flex items-center gap-2">
-                    <MessageCircle className="w-5 h-5" />
-                    Community Discussions
-                  </h3>
-                  <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                    <Plus className="w-4 h-4 mr-1" />Ask
-                  </Button>
-                </div>
-                {/* Quick Category Buttons */}
-                <div className="grid grid-cols-3 gap-2">
-                  <Button variant="outline" size="sm" className="h-auto py-2 flex-col gap-1 bg-white/70 text-xs">
-                    <HelpCircle className="w-3 h-3 text-blue-600" />
-                    <span>Get Help</span>
-                  </Button>
-                  <Button variant="outline" size="sm" className="h-auto py-2 flex-col gap-1 bg-white/70 text-xs">
-                    <Lightbulb className="w-3 h-3 text-amber-600" />
-                    <span>Share Tips</span>
-                  </Button>
-                  <Button variant="outline" size="sm" className="h-auto py-2 flex-col gap-1 bg-white/70 text-xs">
-                    <Users className="w-3 h-3 text-green-600" />
-                    <span>Connect</span>
-                  </Button>
-                </div>
-                {/* Search */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    placeholder="Search discussions..."
-                    className="pl-10 bg-white/70 backdrop-blur-sm border-green-200 focus:border-green-400"
-                  />
-                </div>
-                {/* Forum Posts */}
-                {forumLoading && <div>Loading discussions...</div>}
-                {forumError && <div className="text-red-600 text-sm">{forumError}</div>}
-                {forumPosts.map((post: any) => (
-                  <Card
-                    key={post.id}
-                    className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-white/80 backdrop-blur-sm border-green-100"
-                    onClick={() => router.push(`/community/posts/${post.id}`)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <Avatar className="w-10 h-10">
-                          <AvatarImage src={post.authorAvatar || "/placeholder.svg"} />
-                          <AvatarFallback className="bg-green-100 text-green-700">{post.author?.[0] || "U"}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold text-green-800 text-sm line-clamp-1">{post.title}</h4>
-                            {post.isAnswered && <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />}
-                          </div>
-                          <p className="text-xs text-gray-600 mb-2 line-clamp-2">{post.excerpt}</p>
-                          <div className="flex flex-wrap gap-1 mb-2">
-                            {post.tags?.map((tag: string) => (
-                              <Badge key={tag} variant="secondary" className="text-xs px-2 py-0">{tag}</Badge>
-                            ))}
-                          </div>
-                          <div className="flex items-center justify-between text-xs text-gray-500">
-                            <div className="flex items-center gap-3">
-                              <span>{post.author}</span>
-                              <span>{post.time}</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span className="flex items-center gap-1">
-                                <Heart className="w-3 h-3" />{post.votes}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <MessageCircle className="w-3 h-3" />{post.replies}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Eye className="w-3 h-3" />{post.views}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              ))}
             </div>
           </TabsContent>
         </Tabs>
       </div>
+      {showQR && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl p-6 shadow-lg max-w-md w-full relative flex flex-col items-center">
+            <button
+              className="absolute top-3 right-3 text-3xl text-gray-500 hover:text-gray-800 focus:outline-none"
+              onClick={() => setShowQR(false)}
+              aria-label="Close"
+              style={{ fontSize: '2rem', lineHeight: '2rem' }}
+            >
+              ×
+            </button>
+            <h2 className="text-xl font-bold mb-4 text-[#00796B]">Share Bin QR Code</h2>
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shareUrl)}`}
+              alt="QR Code"
+              className="mb-4"
+            />
+            <div className="text-center text-sm text-gray-600 break-all">{shareUrl}</div>
+          </div>
+        </div>
+      )}
+      {showShare && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl p-6 shadow-lg max-w-md w-full relative flex flex-col items-center">
+            <button
+              className="absolute top-3 right-3 text-3xl text-gray-500 hover:text-gray-800 focus:outline-none"
+              onClick={() => setShowShare(false)}
+              aria-label="Close"
+              style={{ fontSize: '2rem', lineHeight: '2rem' }}
+            >
+              ×
+            </button>
+            <h2 className="text-xl font-bold mb-4 text-[#00796B]">Share Bin</h2>
+            <div className="flex gap-4 mb-4">
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-[#25D366] text-white px-4 py-2 rounded-lg font-semibold flex items-center"
+              >
+                WhatsApp
+              </a>
+              <a
+                href={telegramUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-[#0088cc] text-white px-4 py-2 rounded-lg font-semibold flex items-center"
+              >
+                Telegram
+              </a>
+            </div>
+            <div className="text-center text-sm text-gray-600 break-all">{shareUrl}</div>
+          </div>
+        </div>
+      )}
+      {showJoinModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl p-6 shadow-lg max-w-md w-full relative flex flex-col items-center">
+            <button
+              className="absolute top-3 right-3 text-3xl text-gray-500 hover:text-gray-800 focus:outline-none"
+              onClick={() => setShowJoinModal(false)}
+              aria-label="Close"
+              style={{ fontSize: '2rem', lineHeight: '2rem' }}
+            >
+              ×
+            </button>
+            <h2 className="text-xl font-bold mb-4 text-[#00796B]">Join a Bin</h2>
+            <input
+              className="w-full border-2 border-[#00796B] rounded-xl px-4 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#00796B] bg-white text-[#00796B] placeholder:text-gray-400 mb-4"
+              placeholder="Paste bin link or scan QR code"
+              value={joinInput}
+              onChange={e => handleJoinInput(e.target.value)}
+            />
+            {joinBinId && !joinPrompt && (
+              <Button className="bg-[#00796B] text-white rounded-lg py-2 font-semibold text-base w-full" onClick={() => setJoinPrompt(true)}>
+                Join Bin
+              </Button>
+            )}
+            {joinPrompt && (
+              <div className="w-full flex flex-col items-center">
+                <div className="mb-2 text-[#00796B]">Join bin <span className="font-bold">{joinBinId}</span>?</div>
+                <Button className="bg-[#00796B] text-white rounded-lg py-2 font-semibold text-base w-full mb-2" onClick={handleJoinConfirm} disabled={joinLoading}>
+                  {joinLoading ? 'Joining...' : 'Confirm'}
+                </Button>
+                <Button variant="outline" className="w-full" onClick={() => setJoinPrompt(false)} disabled={joinLoading}>Cancel</Button>
+              </div>
+            )}
+            {joinError && <div className="text-red-600 text-sm mt-2">{joinError}</div>}
+          </div>
+        </div>
+      )}
     </div>
   );
 } 
