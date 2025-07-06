@@ -53,7 +53,7 @@ export default function AddBinPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50">
+    <div className="min-h-screen bg-[#F3F3F3] py-8">
       {/* Sticky header */}
       <div className="bg-white/80 backdrop-blur-sm border-b border-green-100 p-4 sticky top-0 z-10 w-full max-w-md mx-auto flex items-center gap-3">
         <Button variant="ghost" size="sm" onClick={() => router.push("/main")}>
@@ -64,7 +64,11 @@ export default function AddBinPage() {
         </span>
       </div>
 
-      <Card className="max-w-md w-full p-6 mt-8 border border-green-100 shadow-sm">
+      <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg px-4 py-3 mb-4 text-center text-base font-medium max-w-xl mx-auto">
+        If your community already has a bin, try <span className="font-semibold">joining it instead!</span>
+      </div>
+
+      <Card className="bg-white rounded-xl shadow-md p-8 max-w-xl mx-auto">
         <CardHeader>
           <h2 className="text-xl font-bold mb-6 text-green-800">Bin Details</h2>
           <p className="text-[#5F9133] text-sm mb-4">
@@ -92,13 +96,9 @@ export default function AddBinPage() {
             >
               {loading ? "Creating..." : "Create Bin"}
             </Button>
-            <div className="text-xs text-gray-500 mt-2">
-              Note: If you see a QR code error, make sure you have installed the <code>qrcode</code> package.
-            </div>
           </form>
         </CardContent>
       </Card>
     </div>
-
   );
 }

@@ -190,13 +190,13 @@ export default function BinDetailPage() {
 
   // Share handlers
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-  const shareText = bin ? `Check out our compost bin '${bin.name}' on CompostConnect!` : "Check out this compost bin!";
+  const shareText = bin ? `Check out our compost bin '${bin.name || 'Bin'}' on CompostConnect!` : "Check out this compost bin!";
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`;
   const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`;
 
   // Stat tile helpers
-  const temp = bin?.latest_temperature;
-  const moisture = bin?.latest_moisture;
+  const temp = bin?.latest_temperature ?? '-';
+  const moisture = bin?.latest_moisture ?? '-';
 
   let tempColor = "bg-[#80B543] border-green-700 text-[#2B2B2B]";
   let tempWarning = "";
@@ -256,6 +256,11 @@ export default function BinDetailPage() {
     if (match) setJoinBinId(match[1]);
     else setJoinBinId("");
   };
+
+  // Add robust loading/error/null handling
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-lg">Loading...</div>;
+  if (error) return <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">{error}</div>;
+  if (!bin) return <div className="min-h-screen flex items-center justify-center text-gray-500 text-lg">Bin not found or still loading.</div>;
 
   return (
     <div className="min-h-screen bg-white">
@@ -566,20 +571,30 @@ export default function BinDetailPage() {
               alt="QR Code"
               className="mb-4"
             />
+            <div className="text-xs text-gray-500 mb-2">On mobile, tap and hold the QR code to save it.</div>
             <button
               className="mb-4 flex items-center gap-2 bg-[#00796B] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#005B4F]"
               onClick={async () => {
                 const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shareUrl)}`;
-                const response = await fetch(qrUrl);
-                const blob = await response.blob();
-                const blobUrl = window.URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = blobUrl;
-                link.download = 'compost-bin-qr.png';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                window.URL.revokeObjectURL(blobUrl);
+                const isMobile = /Mobi|Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+                if (isMobile) {
+                  window.open(qrUrl, '_blank');
+                  return;
+                }
+                try {
+                  const response = await fetch(qrUrl);
+                  const blob = await response.blob();
+                  const blobUrl = window.URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = blobUrl;
+                  link.download = 'compost-bin-qr.png';
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  window.URL.revokeObjectURL(blobUrl);
+                } catch (e) {
+                  window.open(qrUrl, '_blank');
+                }
               }}
             >
               <Download className="w-4 h-4" /> Download QR Code

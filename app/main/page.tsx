@@ -349,13 +349,8 @@ export default function MainPage() {
       });
       const result = await res.json();
       if (!res.ok || result.error) throw new Error(result.error || 'Failed to join bin');
-      setShowJoinModal(false);
-      setJoinInput("");
-      setJoinBinId("");
-      setJoinPrompt(false);
-      // Refresh bins
-      if (typeof fetchBins === 'function') fetchBins();
-      else window.location.reload();
+      // Force a full reload after joining
+      window.location.reload();
     } catch (e: any) {
       setJoinError(e.message || "Failed to join bin");
     }
@@ -579,7 +574,7 @@ export default function MainPage() {
                     className="bg-[#00796B] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#005B4F]"
                     onClick={() => router.push('/add-bin')}
                   >
-                    Add New Piles
+                    Add New Bin
                   </Button>
                 )}
               </div>
