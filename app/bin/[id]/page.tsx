@@ -72,6 +72,10 @@ export default function BinDetailPage() {
   const [copiedQR, setCopiedQR] = useState(false);
   const [copiedShare, setCopiedShare] = useState(false);
 
+  // Add state for delete loading and error
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
   const handleHelpPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setHelpPhoto(e.target.files[0]);
@@ -268,6 +272,31 @@ export default function BinDetailPage() {
   if (error) return <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">{error}</div>;
   if (!bin) return <div className="min-h-screen flex items-center justify-center text-gray-500 text-lg">Bin not found or still loading.</div>;
 
+  // Delete bin handler
+  const handleDeleteBin = async () => {
+    if (!window.confirm("Are you sure you want to delete this bin? This action cannot be undone.")) return;
+    setDeleteLoading(true);
+    setDeleteError("");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch(`/api/bins/${binId}`, {
+        method: 'DELETE',
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
+      });
+      if (!res.ok) {
+        const result = await res.json();
+        throw new Error(result.error || 'Failed to delete bin');
+      }
+      router.push('/main');
+    } catch (e: any) {
+      setDeleteError(e.message || 'Failed to delete bin');
+    }
+    setDeleteLoading(false);
+  };
+
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-md mx-auto">
@@ -344,7 +373,13 @@ export default function BinDetailPage() {
               {/* Vertical line */}
               <div className="absolute left-0 top-0 w-0.5 h-full bg-gray-200" style={{ zIndex: 0 }} />
               <div className="flex flex-col gap-8">
-                {activities.length === 0 && !loading && <div className="text-gray-500">No activities yet.</div>}
+                {activities.length === 0 && !loading && (
+                  <div className="flex flex-col items-center justify-center py-12 w-full">
+                    <div className="text-base text-[#00796B] text-center max-w-md font-normal">
+                      No activities logged. Click on <span className="underline">+Activity</span> button to log an activity or on the <span className="underline">💪 Ask for Help</span> button to ask for help.
+                    </div>
+                  </div>
+                )}
                 {activities.map((entry: any, idx: number) => (
                   <div key={entry.id} className="relative flex items-start gap-4">
                     {/* Dot - perfectly aligned to the line */}
@@ -410,7 +445,9 @@ export default function BinDetailPage() {
                         >
                           ×
                         </button>
-                    <div className="mb-2 text-xs text-gray-400">{new Date(entry.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                    <div className="mb-2 text-xs text-gray-400">
+                      {new Date(entry.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}, {new Date(entry.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                    </div>
                     {/* Posted by and avatar in modal */}
                     <div className="flex items-center gap-2 mb-3">
                       <Avatar className="w-8 h-8">
@@ -663,6 +700,19 @@ export default function BinDetailPage() {
               )}
             </div>
           </div>
+        </div>
+      )}
+      {bin && currentUserId && bin.user_id === currentUserId && (
+        <div className="flex flex-col items-center my-8">
+          <Button
+            className="bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg px-6 py-3 shadow"
+            onClick={handleDeleteBin}
+            disabled={deleteLoading}
+            variant="destructive"
+          >
+            {deleteLoading ? 'Deleting...' : 'Delete Bin'}
+          </Button>
+          {deleteError && <div className="text-red-600 text-sm mt-2">{deleteError}</div>}
         </div>
       )}
     </div>

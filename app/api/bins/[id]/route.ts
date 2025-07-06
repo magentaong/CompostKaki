@@ -45,3 +45,25 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
 }
+
+export async function DELETE(req: NextRequest) {
+  const user = await requireUser(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const id = extractIdFromUrl(req);
+  if (!id) return NextResponse.json({ error: 'Missing bin ID' }, { status: 400 });
+
+  // Check if the user is the creator of the bin
+  const { data: bin, error: binError } = await supabase.from('bins').select('user_id').eq('id', id).single();
+  if (binError || !bin) return NextResponse.json({ error: 'Bin not found' }, { status: 404 });
+  if (bin.user_id !== user.id) return NextResponse.json({ error: 'Forbidden: Only the creator can delete this bin' }, { status: 403 });
+
+  // Optionally: delete related data (bin_members, bin_logs, etc.)
+  await supabase.from('bin_members').delete().eq('bin_id', id);
+  await supabase.from('bin_logs').delete().eq('bin_id', id);
+
+  // Delete the bin
+  const { error: deleteError } = await supabase.from('bins').delete().eq('id', id);
+  if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 });
+
+  return NextResponse.json({ success: true });
+}

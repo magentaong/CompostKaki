@@ -71,13 +71,25 @@ export default function AddBinPage() {
         </span>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg px-4 py-3 mb-4 text-center text-base font-medium max-w-xl mx-auto">
-        If your community already has a bin, try <span className="font-semibold">joining it instead!</span>
+      <div className="bg-[#E6FFF3] border border-[#00796B] text-[#00796B] rounded-lg px-4 py-3 mb-0 text-center text-base font-medium w-full max-w-md mx-auto flex items-center justify-center gap-2">
+        <span role="img" aria-label="plant">🪴</span>
+        <span>
+          If your community already has a bin, try <span className="font-semibold">joining it instead!</span>
+        </span>
+        <button
+          className="ml-3 bg-[#00796B] text-white rounded-lg px-4 py-2 font-semibold text-sm shadow hover:bg-[#005B4F] transition whitespace-nowrap"
+          onClick={() => router.push('/main?join=1')}
+          type="button"
+        >
+          Join Bin
+        </button>
       </div>
 
-      <Card className="bg-white rounded-xl shadow-md p-8 max-w-xl mx-auto">
+      <Card className="bg-white rounded-xl shadow-md p-8 w-full max-w-md mx-auto">
         <CardHeader>
-          <h2 className="text-xl font-bold mb-6 text-green-800">Bin Details</h2>
+          <h1 className="text-2xl font-bold text-[#00796B] mb-4 flex items-center gap-2">
+            <span className="mr-1">Add New Bin</span>
+          </h1>
           <p className="text-[#5F9133] text-sm mb-4">
             Tip: Name your bin after its location, e.g., <span className="font-semibold">Dakota Crescent</span>
           </p>
@@ -96,11 +108,7 @@ export default function AddBinPage() {
               />
             </div>
             {error && <div className="text-[#C0392B] text-sm">{error}</div>}
-            <Button
-              type="submit"
-              className="w-full bg-[#96CC4F] text-white hover:bg-[#7CAB38]"
-              disabled={loading || !name.trim()}
-            >
+            <Button className="w-full bg-[#00796B] text-white hover:bg-[#005A4B] transition font-semibold rounded-lg py-3 mt-4" type="submit" disabled={loading}>
               {loading ? "Creating..." : "Create Bin"}
             </Button>
           </form>

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import { apiFetch } from "@/lib/apiFetch";
 
 export default function MainPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [bins, setBins] = useState<any[]>([]);
   const [userLogCount, setUserLogCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
@@ -81,6 +82,12 @@ export default function MainPage() {
       if (!data.user) router.replace("/");
     });
   }, [router]);
+
+  useEffect(() => {
+    if (searchParams.get("join") === "1") {
+      setShowJoinModal(true);
+    }
+  }, [searchParams]);
 
   // Start camera scan
   const startCamera = async () => {
