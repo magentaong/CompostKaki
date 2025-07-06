@@ -431,6 +431,16 @@ export default function MainPage() {
     setTimeout(() => setCopiedShare(false), 1200);
   };
 
+  // Add state for community intro modal
+  const [showCommunityIntro, setShowCommunityIntro] = useState(false);
+  const prevTab = useRef(tab);
+  useEffect(() => {
+    if (filteredBins.length === 0 && tab === 'community' && prevTab.current !== 'community') {
+      setShowCommunityIntro(true);
+    }
+    prevTab.current = tab;
+  }, [tab, filteredBins.length]);
+
   return (
     <div className="min-h-screen bg-white">
       <div className="relative max-w-md mx-auto">
@@ -441,25 +451,28 @@ export default function MainPage() {
               <h1 className="text-2xl font-bold text-[#00796B]">CompostKaki</h1>
             </div>
           </div>
-          <div className="flex items-center gap-2 ml-2">
-            <Button
-              className="bg-[#00796B] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#005B4F] ml-2"
-              onClick={() => setShowJoinModal(true)}
-            >
-              Join Bin
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push("/profile-settings")}
-              className="p-0 hover:bg-gray-300/50 transition"
-            >
-              <Avatar className="w-8 h-8 border-2 border-[#00796B] rounded-full">
-                <AvatarImage src={currentUserProfile?.avatar_url || "/default-profile.png"} alt="Profile" />
-                <AvatarFallback><User className="w-5 h-5 text-gray-400" /></AvatarFallback>
-              </Avatar>
-            </Button>
-          </div>
+          {/* Only show header buttons if user has bins */}
+          {filteredBins.length > 0 && (
+            <div className="flex items-center gap-2 ml-2">
+              <Button
+                className="bg-[#00796B] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#005B4F] ml-2"
+                onClick={() => setShowJoinModal(true)}
+              >
+                Join Bin
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push("/profile-settings")}
+                className="p-0 hover:bg-gray-300/50 transition"
+              >
+                <Avatar className="w-8 h-8 border-2 border-[#00796B] rounded-full">
+                  <AvatarImage src={currentUserProfile?.avatar_url || "/default-profile.png"} alt="Profile" />
+                  <AvatarFallback><User className="w-5 h-5 text-gray-400" /></AvatarFallback>
+                </Avatar>
+              </Button>
+            </div>
+          )}
         </div>
         <Tabs value={tab} onValueChange={handleTabChange} className="w-full mt-2">
           <div className="flex w-full justify-center">
@@ -494,12 +507,15 @@ export default function MainPage() {
               </div>
               <div className="flex justify-between items-center mt-2 mb-2">
                 <h2 className="text-[#00796B] text-base font-semibold">Active Piles</h2>
-                <Button
-                  className="bg-[#00796B] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#005B4F]"
-                  onClick={() => router.push('/add-bin')}
-                >
-                  Add New Piles
-                </Button>
+                {/* Only show Add New Piles if user has bins */}
+                {filteredBins.length > 0 && (
+                  <Button
+                    className="bg-[#00796B] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#005B4F]"
+                    onClick={() => router.push('/add-bin')}
+                  >
+                    Add New Piles
+                  </Button>
+                )}
               </div>
               <div className="bg-white rounded-lg border border-[#E0E0E0] divide-y divide-[#F3F3F3]">
                 {loading && <div className="p-4 text-center">Loading bins...</div>}
@@ -525,7 +541,36 @@ export default function MainPage() {
                     </div>
                   </div>
                 ))}
-                {filteredBins.length === 0 && !loading && <div className="p-4 text-gray-500 text-center">No bins found.</div>}
+                {filteredBins.length === 0 && !loading && (
+                  <div className="flex flex-col items-center justify-center py-16 gap-6 min-h-[350px]">
+                    <img
+                      src="/default_compost_image.jpg"
+                      alt="Wow, it's empty!"
+                      className="w-32 h-32 object-contain mb-2 opacity-80"
+                    />
+                    <div className="text-xl font-bold text-[#00796B] mb-1">Wow, it's empty!</div>
+                    <div className="text-gray-500 text-center max-w-xs mb-4">
+                      You don't have any compost bins yet.<br/>
+                      <span className="font-semibold">Get started by joining an existing bin or creating a new one!</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-2 w-full max-w-xs">
+                      <Button
+                        className="bg-[#00796B] text-white rounded-lg py-2 font-semibold text-base w-full"
+                        onClick={() => setShowJoinModal(true)}
+                      >
+                        Join an Existing Bin
+                      </Button>
+                      <div className="text-gray-400 font-semibold my-1">OR</div>
+                      <Button
+                        variant="outline"
+                        className="border-[#00796B] text-[#00796B] rounded-lg py-2 font-semibold text-base w-full bg-transparent hover:bg-[#F3F3F3]"
+                        onClick={() => router.push('/add-bin')}
+                      >
+                        Create a New Bin
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </TabsContent>
@@ -763,6 +808,29 @@ export default function MainPage() {
                 Close
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Community Intro Modal */}
+      {showCommunityIntro && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl p-6 shadow-lg max-w-md w-full relative flex flex-col items-center">
+            <button
+              className="absolute top-3 right-3 text-3xl text-gray-500 hover:text-gray-800 focus:outline-none"
+              onClick={() => setShowCommunityIntro(false)}
+              aria-label="Close"
+              style={{ fontSize: '2rem', lineHeight: '2rem' }}
+            >
+              ×
+            </button>
+            <h2 className="text-xl font-bold mb-4 text-[#00796B]">Welcome to the Community!</h2>
+            <div className="text-gray-700 text-base mb-6 text-center">
+              Here you can help other composters by accepting and completing tasks, or post your own tasks for others to assist with.<br/>
+              <span className="font-semibold">Join or create a bin to start participating!</span>
+            </div>
+            <Button className="bg-[#00796B] text-white rounded-lg py-2 font-semibold text-base w-full" onClick={() => setShowCommunityIntro(false)}>
+              Got it!
+            </Button>
           </div>
         </div>
       )}
