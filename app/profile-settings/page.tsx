@@ -66,6 +66,13 @@ export default function ProfileSettings() {
     getUser();
   }, []);
 
+  // Redirect not-logged-in users to /
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) router.replace('/');
+    });
+  }, [router]);
+
   const handleFirstNameChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFirstName(e.target.value);
   };

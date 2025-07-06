@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Html5Qrcode } from "html5-qrcode";
+import { apiFetch } from "@/lib/apiFetch";
 
 export default function MainPage() {
   const router = useRouter();
@@ -74,6 +75,12 @@ export default function MainPage() {
   const confettiRef = useRef<HTMLDivElement>(null);
   const actionButtonsRef = useRef<HTMLDivElement>(null);
   const [spotlightRect, setSpotlightRect] = useState<{top:number,left:number,width:number,height:number}|null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) router.replace("/");
+    });
+  }, [router]);
 
   // Start camera scan
   const startCamera = async () => {

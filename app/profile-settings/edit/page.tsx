@@ -54,6 +54,13 @@ export default function EditProfile() {
     getUser();
   }, []);
 
+  // Redirect not-logged-in users to /
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) router.replace('/');
+    });
+  }, [router]);
+
   const handleAvatarChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;

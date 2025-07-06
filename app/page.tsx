@@ -139,6 +139,13 @@ export default function CompostConnect() {
   const [showNotifications, setShowNotifications] = useState(false);
   const router = useRouter();
 
+  // Redirect logged-in users to /main
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) router.replace('/main');
+    });
+  }, [router]);
+
   const handleSignUp = async () => {
     setIsLoading(true)
     setAuthError("")

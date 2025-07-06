@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireUser } from '@/lib/requireUser';
 
 export async function POST(req: NextRequest) {
+  const user = await requireUser(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     const { bin_id, urgency, effort, description, is_time_sensitive, due_date, photo_url } = await req.json();
     const token = req.headers.get('authorization')?.replace('Bearer ', '');
@@ -12,12 +15,6 @@ export async function POST(req: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       { global: { headers: { Authorization: `Bearer ${token}` } } }
     );
-
-    // Get user from token
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
 
     // Insert into tasks table
     const { data, error } = await supabase.from('tasks').insert([
@@ -51,6 +48,8 @@ export function PUT() {
 }
 
 export async function DELETE(req: NextRequest) {
+  const user = await requireUser(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     const url = new URL(req.url);
     const taskId = url.searchParams.get('id');
@@ -61,10 +60,6 @@ export async function DELETE(req: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       { global: { headers: { Authorization: `Bearer ${token}` } } }
     );
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
     // Only allow delete if user is the owner
     const { data: task, error: fetchError } = await supabase.from('tasks').select('user_id').eq('id', taskId).single();
     if (fetchError || !task) {

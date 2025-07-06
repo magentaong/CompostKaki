@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { requireUser } from '@/lib/requireUser';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string
 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
 
 export async function GET(req: NextRequest) {
+  const user = await requireUser(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { searchParams } = new URL(req.url)
   const binId = searchParams.get('bin_id')
   if (!binId) return NextResponse.json({ error: 'Missing bin_id' }, { status: 400 })
@@ -21,14 +24,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const authHeader = req.headers.get('authorization')
-  console.log("Auth header:", authHeader); // Add this line for debugging
-  const jwt = authHeader?.replace('Bearer ', '')
-  if (!jwt) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { data: { user }, error: userError } = await supabase.auth.getUser(jwt)
-  if (userError || !user) return NextResponse.json({ error: 'Invalid user' }, { status: 401 })
-
+  const user = await requireUser(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const body = await req.json()
   const { bin_id, content, temperature, moisture, type, image } = body
   if (!bin_id || !content) return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })

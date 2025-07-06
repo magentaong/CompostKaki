@@ -1,6 +1,5 @@
 "use client";
-import React from "react";
-import { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeft, Share2, Thermometer, Droplets, RefreshCw, Users, Calendar, Plus, Clock, Filter, Send, QrCode, Shovel, Leaf, Copy, Download } from "lucide-react";
 import { differenceInDays, formatDistanceToNow } from 'date-fns';
+import { apiFetch } from "@/lib/apiFetch";
 
 function getHealthColor(status: string) {
   switch (status) {
@@ -150,7 +150,7 @@ export default function BinDetailPage() {
     setLoading(true);
     setError("");
     // Fetch bin details
-    fetch(`/api/bins/${binId}`)
+    apiFetch(`/api/bins/${binId}`)
       .then(res => res.json())
       .then(data => {
         if (data.error) throw new Error(data.error);
@@ -158,7 +158,7 @@ export default function BinDetailPage() {
       })
       .catch(e => setError(e.message || "Failed to load bin"));
     // Fetch bin activities (logs)
-    fetch(`/api/bins/logs?bin_id=${binId}`)
+    apiFetch(`/api/bins/logs?bin_id=${binId}`)
       .then(async res => {
         try {
           const data = await res.json();
@@ -256,6 +256,12 @@ export default function BinDetailPage() {
     if (match) setJoinBinId(match[1]);
     else setJoinBinId("");
   };
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) router.replace("/");
+    });
+  }, [router]);
 
   // Add robust loading/error/null handling
   if (loading) return <div className="min-h-screen flex items-center justify-center text-lg">Loading...</div>;
