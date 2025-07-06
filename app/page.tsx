@@ -139,21 +139,6 @@ export default function CompostConnect() {
   const [showNotifications, setShowNotifications] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    const getSession = async () => {
-      const { data, error } = await supabase.auth.getSession()
-      if (data?.session) setSession(data.session)
-      if (data?.session) router.push("/main")
-    }
-    getSession()
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-    })
-    return () => {
-      listener?.subscription.unsubscribe()
-    }
-  }, [])
-
   const handleSignUp = async () => {
     setIsLoading(true)
     setAuthError("")

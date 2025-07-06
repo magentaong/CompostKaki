@@ -1,13 +1,11 @@
 "use client";
 import { useState, useEffect, ChangeEvent, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { Pencil } from "lucide-react";
 
 function getInitials(name?: string, email?: string) {
   if (name && name.trim().length > 0) {
@@ -23,21 +21,18 @@ function getInitials(name?: string, email?: string) {
   return 'U';
 }
 
-export default function ProfileSettings() {
+export default function EditProfile() {
   const [user, setUser] = useState<any>(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string>("");
   const [email, setEmail] = useState("");
-  const [notifications, setNotifications] = useState(true);
+  const [password, setPassword] = useState("");
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
-  const [editing, setEditing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  const [logCount, setLogCount] = useState(0);
-  const [taskCount, setTaskCount] = useState(0);
 
   useEffect(() => {
     const getUser = async () => {
@@ -47,7 +42,6 @@ export default function ProfileSettings() {
       setLastName(data.user?.user_metadata?.last_name || "");
       setAvatarUrl(data.user?.user_metadata?.avatar_url || "");
       setEmail(data.user?.email || "");
-      setNotifications(data.user?.user_metadata?.notifications !== false); // default true
       if (data.user?.id) {
         const { data: profile } = await supabase.from('profiles').select('first_name, last_name, avatar_url').eq('id', data.user.id).single();
         if (profile) {
@@ -55,24 +49,10 @@ export default function ProfileSettings() {
           setLastName(profile.last_name || "");
           setAvatarUrl(profile.avatar_url || "");
         }
-        // Fetch log count
-        const { count: logs } = await supabase.from('bin_logs').select('*', { count: 'exact', head: true }).eq('user_id', data.user.id);
-        setLogCount(logs || 0);
-        // Fetch task count
-        const { count: tasks } = await supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('user_id', data.user.id);
-        setTaskCount(tasks || 0);
       }
     };
     getUser();
   }, []);
-
-  const handleFirstNameChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setFirstName(e.target.value);
-  };
-
-  const handleLastNameChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setLastName(e.target.value);
-  };
 
   const handleAvatarChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -109,26 +89,28 @@ export default function ProfileSettings() {
   const handleSave = async () => {
     setError("");
     setSuccess("");
-    const { error: updateError } = await supabase.auth.updateUser({
-      data: { first_name: firstName, last_name: lastName, avatar_url: avatarUrl, notifications },
+    let updateError = null;
+    if (password) {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) updateError = error;
+    }
+    const { error: metaError } = await supabase.auth.updateUser({
+      data: { first_name: firstName, last_name: lastName, avatar_url: avatarUrl },
     });
     if (user?.id) {
       await supabase.from('profiles').upsert({
         id: user.id,
         first_name: firstName,
-        last_name: lastName
+        last_name: lastName,
+        avatar_url: avatarUrl
       });
     }
-    if (updateError) {
+    if (updateError || metaError) {
       setError("Failed to update profile");
     } else {
       setSuccess("Profile updated!");
+      setTimeout(() => router.push('/profile-settings'), 1000);
     }
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/");
   };
 
   return (
@@ -136,7 +118,7 @@ export default function ProfileSettings() {
       <div className="relative w-full max-w-md flex flex-col items-center justify-center min-h-[600px]">
         {/* Back button */}
         <button
-          onClick={() => router.push('/main')}
+          onClick={() => router.push('/profile-settings')}
           className="absolute top-6 left-6 bg-white rounded-full p-2 shadow hover:bg-[#F3F3F3] z-20"
           aria-label="Back"
         >
@@ -144,40 +126,57 @@ export default function ProfileSettings() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        {/* Card with gradient and avatar */}
-        <div className="w-full flex flex-col items-center">
-          <div className="relative w-full flex flex-col items-center">
-            {/* Gradient */}
-            <div className="absolute top-0 left-0 w-full h-36 bg-gradient-to-b from-[#00796B] to-[#43cea2] rounded-t-3xl z-15" />
-            {/* Avatar */}
-            <div className="absolute left-1/2 top-18 transform -translate-x-1/2 -translate-y-1/2 z-20" style={{ marginTop: 0 }}>
-              <Avatar className="w-28 h-28 border-4 border-white shadow-lg">
-                <AvatarImage src={avatarUrl || "/placeholder.svg?height=80&width=80"} />
-                <AvatarFallback className="bg-[#F3F3F3] text-[#00796B] text-3xl">
-                  {getInitials(firstName + ' ' + lastName, email)}
-                </AvatarFallback>
-              </Avatar>
-            </div>
-            {/* Card content */}
-            <div className="bg-white rounded-3xl shadow-xl w-full pt-24 pb-8 px-6 flex flex-col items-center relative z-10 mt-14">
-              <div className="text-2xl font-bold text-[#00796B] mt-2 mb-1 text-center">{firstName} {lastName}</div>
-              <div className="text-gray-500 text-base mb-4 text-center">{email}</div>
-              <div className="flex gap-12 my-4">
-                <div className="flex flex-col items-center">
-                  <span className="text-2xl font-bold text-[#00796B]">{logCount}</span>
-                  <span className="text-sm text-gray-500">Logs</span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <span className="text-2xl font-bold text-[#00796B]">{taskCount}</span>
-                  <span className="text-sm text-gray-500">Tasks</span>
-                </div>
-              </div>
-              <Button className="bg-[#00796B] text-white rounded-full px-8 py-3 font-semibold text-lg mb-4 w-3/4" onClick={() => router.push('/profile-settings/edit')}>
-                Edit Profile
-              </Button>
-              <Button type="button" className="w-3/4 bg-red-500 hover:bg-red-600 text-white rounded-full py-3 font-semibold text-lg" onClick={handleLogout}>Log Out</Button>
-            </div>
+        {/* Avatar with pencil/camera icon */}
+        <div className="flex flex-col items-center w-full mt-16 mb-6">
+          <div className="relative">
+            <Avatar className="w-28 h-28 border-4 border-white shadow-lg">
+              <AvatarImage src={avatarUrl || "/placeholder.svg?height=80&width=80"} />
+              <AvatarFallback className="bg-[#F3F3F3] text-[#00796B] text-3xl">
+                {getInitials(firstName + ' ' + lastName, email)}
+              </AvatarFallback>
+            </Avatar>
+            <button
+              type="button"
+              onClick={handleAvatarButtonClick}
+              className="absolute bottom-2 right-2 bg-[#00796B] rounded-full p-2 shadow hover:bg-[#005B4F]"
+              aria-label="Change profile picture"
+            >
+              <Pencil className="w-5 h-5 text-white" />
+            </button>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarChange}
+              disabled={uploading}
+              ref={fileInputRef}
+              className="hidden"
+            />
           </div>
+          {uploading && <div className="text-xs text-[#00796B] mt-2">Uploading...</div>}
+          {error && <div className="text-red-600 text-sm mt-2">{error}</div>}
+          {success && <div className="text-green-700 text-sm mt-2">{success}</div>}
+        </div>
+        {/* Editable fields */}
+        <div className="bg-white rounded-3xl shadow-xl w-full px-6 py-8 flex flex-col items-center">
+          <div className="w-full mb-4">
+            <label className="block text-[#00796B] font-semibold mb-1">First Name</label>
+            <Input value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="First Name" />
+          </div>
+          <div className="w-full mb-4">
+            <label className="block text-[#00796B] font-semibold mb-1">Last Name</label>
+            <Input value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Last Name" />
+          </div>
+          <div className="w-full mb-4">
+            <label className="block text-[#00796B] font-semibold mb-1">Email</label>
+            <Input value={email} readOnly className="bg-gray-100 cursor-not-allowed" />
+          </div>
+          <div className="w-full mb-6">
+            <label className="block text-[#00796B] font-semibold mb-1">Password</label>
+            <Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="New Password (optional)" />
+          </div>
+          <Button className="bg-[#00796B] text-white rounded-full px-8 py-3 font-semibold text-lg w-full" onClick={handleSave} disabled={uploading}>
+            Save Changes
+          </Button>
         </div>
       </div>
     </div>
