@@ -76,6 +76,10 @@ export default function BinDetailPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
+  // Add state for log pagination
+  const LOGS_PER_PAGE = 7;
+  const [logsToShow, setLogsToShow] = useState(LOGS_PER_PAGE);
+
   const handleHelpPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setHelpPhoto(e.target.files[0]);
@@ -380,7 +384,7 @@ export default function BinDetailPage() {
                     </div>
                   </div>
                 )}
-                {activities.map((entry: any, idx: number) => (
+                {activities.slice(0, logsToShow).map((entry: any, idx: number) => (
                   <div key={entry.id} className="relative flex items-start gap-4">
                     {/* Dot - perfectly aligned to the line */}
                     <div className="relative ml-[-5px] top-[4px] w-3 h-3 rounded-full bg-gray-200 border-2 border-white z-10" />
@@ -421,6 +425,20 @@ export default function BinDetailPage() {
                     </div>
                   </div>
                 ))}
+                {activities.length > logsToShow && (
+                  <div className="flex justify-center my-4">
+                    <Button
+                      variant="outline"
+                      className="border-[#00796B] text-[#00796B] font-semibold rounded-lg px-6 py-2 bg-transparent hover:bg-[#F3F3F3]"
+                      onClick={() => setLogsToShow(logsToShow + LOGS_PER_PAGE)}
+                    >
+                      Load {Math.min(LOGS_PER_PAGE, activities.length - logsToShow)} more logs
+                    </Button>
+                  </div>
+                )}
+                {activities.length > 0 && logsToShow >= activities.length && (
+                  <div className="text-center text-gray-400 my-4">- End of logs -</div>
+                )}
               </div>
             </div>
             {/* Modal for activity details */}
