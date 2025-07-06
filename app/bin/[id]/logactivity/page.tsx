@@ -58,9 +58,12 @@ export default function LogActivityPage() {
 
   // block submit until all checked
   const canSubmit =
-    (type === "Add Materials"
-      ? Object.values(materialsChecked).every(Boolean)
-      : true) && !loading;
+    !!type && // must have selected an activity
+    !loading &&
+    (
+      (type === "Add Materials" && Object.values(materialsChecked).every(Boolean)) ||
+      (type !== "Add Materials")
+    );
 
   // Handle image upload (for now, just store base64 string in a hidden field)
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -168,45 +171,60 @@ export default function LogActivityPage() {
           ))}
         </div>
         <form className="space-y-6" onSubmit={handleSubmit}>
-          {/* Instructions */}
-          {type === "Add Materials" && (
-            <div className="mb-4">
-              <div className="bg-[#F3F3F3] border border-[#B2DFDB] rounded-lg p-4">
-                <div className="font-semibold text-[#00796B] mb-4 text-base flex items-center gap-2">
-                  <Plus className="w-5 h-5 text-[#00796B]" />
-                  I have added the following:
-                </div>
-                <div className="space-y-3">
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={materialsChecked.greens}
-                      onChange={e => setMaterialsChecked(c => ({ ...c, greens: e.target.checked }))}
-                      className="accent-[#00796B] w-5 h-5 rounded border-2 border-[#B2DFDB] group-hover:border-[#00796B] transition"
-                    />
-                    <span className="text-[#00796B] text-base">Greens <span className="text-gray-500 text-sm">(e.g. fresh leaves, compostable food waste)</span></span>
-                  </label>
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={materialsChecked.browns}
-                      onChange={e => setMaterialsChecked(c => ({ ...c, browns: e.target.checked }))}
-                      className="accent-[#00796B] w-5 h-5 rounded border-2 border-[#B2DFDB] group-hover:border-[#00796B] transition"
-                    />
-                    <span className="text-[#00796B] text-base">Browns <span className="text-gray-500 text-sm">(e.g. dry leaves)</span></span>
-                  </label>
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={materialsChecked.water}
-                      onChange={e => setMaterialsChecked(c => ({ ...c, water: e.target.checked }))}
-                      className="accent-[#00796B] w-5 h-5 rounded border-2 border-[#B2DFDB] group-hover:border-[#00796B] transition"
-                    />
-                    <span className="text-[#00796B] text-base">Water</span>
-                  </label>
-                </div>
+        {/* Instructions Section */}
+        {!type && (
+          <div className="mb-6">
+            <div className="flex items-center gap-2 bg-[#F8FAF9] border border-[#E0E0E0] rounded-lg px-4 py-3">
+              <svg width="22" height="22" fill="none" stroke="#7CB8A2" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4" />
+                <path d="M12 8h.01" />
+              </svg>
+              <span className="text-[#4B8378] text-base font-medium">
+                Please select one of the activities above before logging your activity.
+              </span>
+            </div>
+          </div>
+        )}
+        {/* Type Selection */}
+        {type === "Add Materials" && (
+          <div className="mb-4">
+            <div className="bg-[#F3F3F3] border border-[#B2DFDB] rounded-lg p-4">
+              <div className="font-semibold text-[#00796B] mb-4 text-base flex items-center gap-2">
+                <Plus className="w-5 h-5 text-[#00796B]" />
+                I have added the following (must add all three before logging):
+              </div>
+              <div className="space-y-3">
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={materialsChecked.greens}
+                    onChange={e => setMaterialsChecked(c => ({ ...c, greens: e.target.checked }))}
+                    className="accent-[#00796B] w-5 h-5 rounded border-2 border-[#B2DFDB] group-hover:border-[#00796B] transition"
+                  />
+                  <span className="text-[#00796B] text-base">Greens <span className="text-gray-500 text-sm">(e.g. fresh leaves, compostable food waste)</span></span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={materialsChecked.browns}
+                    onChange={e => setMaterialsChecked(c => ({ ...c, browns: e.target.checked }))}
+                    className="accent-[#00796B] w-5 h-5 rounded border-2 border-[#B2DFDB] group-hover:border-[#00796B] transition"
+                  />
+                  <span className="text-[#00796B] text-base">Browns <span className="text-gray-500 text-sm">(e.g. dry leaves)</span></span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={materialsChecked.water}
+                    onChange={e => setMaterialsChecked(c => ({ ...c, water: e.target.checked }))}
+                    className="accent-[#00796B] w-5 h-5 rounded border-2 border-[#B2DFDB] group-hover:border-[#00796B] transition"
+                  />
+                  <span className="text-[#00796B] text-base">Water</span>
+                </label>
               </div>
             </div>
+          </div>
           )}
           {/* Show Temperature and Moisture only if Monitor is selected */}
           {type === "Monitor" && (
