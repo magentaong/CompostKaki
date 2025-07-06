@@ -68,6 +68,13 @@ export default function MainPage() {
   const qrRegionId = "qr-reader-region";
   const html5QrCodeRef = useRef<InstanceType<typeof Html5Qrcode> | null>(null);
 
+  // Welcome modal and spotlight state
+  const [showWelcomeModal, setShowWelcomeModal] = useState(bins.length === 0);
+  const [showSpotlight, setShowSpotlight] = useState(false);
+  const confettiRef = useRef<HTMLDivElement>(null);
+  const actionButtonsRef = useRef<HTMLDivElement>(null);
+  const [spotlightRect, setSpotlightRect] = useState<{top:number,left:number,width:number,height:number}|null>(null);
+
   // Start camera scan
   const startCamera = async () => {
     setScanError("");
@@ -441,6 +448,65 @@ export default function MainPage() {
     prevTab.current = tab;
   }, [tab, filteredBins.length]);
 
+  // Show modal when user has no bins
+  useEffect(() => {
+    if (filteredBins.length === 0) {
+      setShowWelcomeModal(true);
+    } else {
+      setShowWelcomeModal(false);
+      setShowSpotlight(false);
+    }
+  }, [filteredBins.length]);
+
+  // Confetti burst when modal appears (3s, staggered)
+  useEffect(() => {
+    if (showWelcomeModal && confettiRef.current) {
+      const el = confettiRef.current;
+      el.innerHTML = '';
+      for (let i = 0; i < 36; i++) {
+        setTimeout(() => {
+          const span = document.createElement('span');
+          span.textContent = ['🎉','🌱','🥳','🪱','🍃','🪴'][Math.floor(Math.random()*6)];
+          span.style.position = 'absolute';
+          span.style.left = Math.random()*100 + '%';
+          span.style.top = Math.random()*40 + 20 + '%';
+          span.style.fontSize = (Math.random()*1.5+1.5) + 'rem';
+          span.style.transform = `rotate(${Math.random()*360}deg)`;
+          span.style.opacity = '0.85';
+          el.appendChild(span);
+          setTimeout(() => { span.style.transition = 'all 2.2s cubic-bezier(.4,2,.6,1)'; span.style.top = (parseFloat(span.style.top)+30)+'%'; span.style.opacity = '0'; }, 50);
+          setTimeout(() => { el.removeChild(span); }, 2300);
+        }, Math.random()*2200);
+      }
+    }
+  }, [showWelcomeModal]);
+
+  // Calculate spotlight position after modal closes and on scroll/resize
+  useEffect(() => {
+    function updateSpotlight() {
+      if (showSpotlight && actionButtonsRef.current) {
+        const rect = actionButtonsRef.current.getBoundingClientRect();
+        setSpotlightRect({
+          top: rect.top - 24,
+          left: rect.left - 16,
+          width: rect.width + 32,
+          height: rect.height + 48
+        });
+      } else {
+        setSpotlightRect(null);
+      }
+    }
+    updateSpotlight();
+    if (showSpotlight) {
+      window.addEventListener('scroll', updateSpotlight);
+      window.addEventListener('resize', updateSpotlight);
+      return () => {
+        window.removeEventListener('scroll', updateSpotlight);
+        window.removeEventListener('resize', updateSpotlight);
+      };
+    }
+  }, [showSpotlight]);
+
   return (
     <div className="min-h-screen bg-white">
       <div className="relative max-w-md mx-auto">
@@ -542,18 +608,18 @@ export default function MainPage() {
                   </div>
                 ))}
                 {filteredBins.length === 0 && !loading && (
-                  <div className="flex flex-col items-center justify-center py-16 gap-6 min-h-[350px]">
+                  <div className="flex flex-col items-center justify-center pt-2 pb-16 gap-6 min-h-[350px]">
                     <img
                       src="/default_compost_image.jpg"
                       alt="Wow, it's empty!"
-                      className="w-32 h-32 object-contain mb-2 opacity-80"
+                      className="w-80 h-80 object-contain mb-2 opacity-80"
                     />
                     <div className="text-xl font-bold text-[#00796B] mb-1">Wow, it's empty!</div>
                     <div className="text-gray-500 text-center max-w-xs mb-4">
                       You don't have any compost bins yet.<br/>
                       <span className="font-semibold">Get started by joining an existing bin or creating a new one!</span>
                     </div>
-                    <div className="flex flex-col items-center gap-2 w-full max-w-xs">
+                    <div ref={actionButtonsRef} className="flex flex-col items-center gap-2 w-full max-w-xs">
                       <Button
                         className="bg-[#00796B] text-white rounded-lg py-2 font-semibold text-base w-full"
                         onClick={() => setShowJoinModal(true)}
@@ -832,6 +898,50 @@ export default function MainPage() {
               Got it!
             </Button>
           </div>
+        </div>
+      )}
+      {/* Welcome Modal */}
+      {showWelcomeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl p-8 shadow-lg max-w-md w-full relative flex flex-col items-center">
+            <div ref={confettiRef} style={{position:'absolute',left:0,top:0,width:'100%',height:'100%',pointerEvents:'none',zIndex:2}} />
+            <h2 className="text-2xl font-bold mb-4 text-[#00796B] text-center">Welcome to CompostKaki!</h2>
+            <div className="text-gray-700 text-base mb-6 text-center max-w-xs">
+              CompostKaki helps you track, manage, and collaborate on composting projects with your community.<br/><br/>
+              <span className="font-semibold">To get started, join an existing bin or create a new one below!</span>
+            </div>
+            <Button className="bg-[#00796B] text-white rounded-lg py-2 font-semibold text-base w-full z-10" onClick={() => { setShowWelcomeModal(false); setShowSpotlight(true); }}>
+              Let's Go!
+            </Button>
+          </div>
+        </div>
+      )}
+      {/* Spotlight Overlay */}
+      {showSpotlight && filteredBins.length === 0 && spotlightRect && (
+        <div className="fixed inset-0 z-40 pointer-events-auto" onClick={() => setShowSpotlight(false)}>
+          <div style={{
+            position: 'fixed',
+            top: 0, left: 0, width: '100vw', height: '100vh',
+            background: `radial-gradient(circle at ${spotlightRect.left+spotlightRect.width/2}px ${spotlightRect.top+spotlightRect.height/2}px, rgba(0,0,0,0) 0, rgba(0,0,0,0) ${(spotlightRect.width+spotlightRect.height)/3}px, rgba(0,0,0,0.7) ${(spotlightRect.width+spotlightRect.height)/2.2}px, rgba(0,0,0,0.7) 100%)`,
+            transition: 'background 0.3s',
+            pointerEvents: 'auto',
+            zIndex: 40
+          }} />
+          <div style={{
+            position: 'fixed',
+            top: spotlightRect.top,
+            left: spotlightRect.left,
+            width: spotlightRect.width,
+            height: spotlightRect.height,
+            borderRadius: '1rem',
+            border: '4px solid #FFD600',
+            boxShadow: '0 0 32px 8px #FFD60099',
+            pointerEvents: 'none',
+            transition: 'all 0.3s',
+            zIndex: 41,
+            animation: 'pulse 1.2s infinite alternate'
+          }} />
+          <style>{`@keyframes pulse { 0% { box-shadow: 0 0 32px 8px #FFD60099; } 100% { box-shadow: 0 0 48px 16px #FFD60055; } }`}</style>
         </div>
       )}
     </div>
