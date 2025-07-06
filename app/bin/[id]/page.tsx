@@ -190,7 +190,7 @@ export default function BinDetailPage() {
 
   // Share handlers
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-  const shareText = bin ? `Check out our compost bin '${bin.name || 'Bin'}' on CompostConnect!` : "Check out this compost bin!";
+  const shareText = bin ? `Check out our compost bin '${bin.name || 'Bin'}' on CompostKaki!` : "Check out this compost bin!";
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`;
   const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`;
 

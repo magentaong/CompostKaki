@@ -90,7 +90,7 @@ function getInitials(name?: string, email?: string) {
   return 'U';
 }
 
-export default function CompostConnect() {
+export default function CompostKaki() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("home")
   const [selectedPile, setSelectedPile] = useState<string>("")
   const [selectedGuide, setSelectedGuide] = useState<string>("")
@@ -421,120 +421,114 @@ export default function CompostConnect() {
     likes: guideLikes[g.id] !== undefined ? guideLikes[g.id] : g.likes,
   }));
 
-  // In CompostConnect, extract user info from session:
+  // In CompostKaki, extract user info from session:
   const userName = session?.user?.user_metadata?.name;
   const userEmail = session?.user?.email;
   const userAvatar = session?.user?.user_metadata?.avatar_url;
 
   if (!session) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-lime-50 via-emerald-50 to-green-50">
-      <Card className="max-w-sm w-full p-6 border border-green-200 shadow-md">
-        <CardHeader>
-          
-          <h2 className="flex justify-center items-center gap-2 text-xl font-bold mb-2 bg-gradient-to-r from-green-700 to-emerald-600 bg-clip-text text-transparent">
-            <img src="/favicon.ico" alt="Logo" className="w-8 h-8" />
-            CompostConnect
-          </h2>
-            <Tabs
-              value={authView}
-              onValueChange={(v) => setAuthView(v as 'sign-in' | 'sign-up')}
-              className="w-full"
-            >
-              <div className="flex justify-center">
-                <TabsList className="grid grid-cols-2 mb-4 bg-green-100/50 p-1 rounded-lg gap-2">
-                  <TabsTrigger
-                    value="sign-in"
-                    className="data-[state=active]:bg-white data-[state=active]:text-green-800 data-[state=active]:shadow"
-                  >
-                    Sign In
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="sign-up"
-                    className="data-[state=active]:bg-white data-[state=active]:text-green-800 data-[state=active]:shadow"
-                  >
-                    Sign Up
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-            </Tabs>
-          
-        </CardHeader>
-
-        <CardContent>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              authView === 'sign-in' ? handleSignIn() : handleSignUp();
-            }}
-            className="space-y-4"
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#E6FFF3] to-[#F3F3F3]">
+        <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8 flex flex-col items-center">
+          <img src="/favicon.ico" alt="Logo" className="w-8 h-8 mb-2" />
+          <h1 className="text-3xl font-bold text-[#00796B] mb-2">CompostKaki</h1>
+          <div className="text-[#00796B] text-base mb-6 font-medium">Grow your community, one compost at a time!</div>
+          <Tabs
+            value={authView}
+            onValueChange={(v) => setAuthView(v as 'sign-in' | 'sign-up')}
+            className="w-full"
           >
-            {authView === 'sign-up' && (
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <Label htmlFor="firstName">First Name</Label>
-                  <Input
-                    id="firstName"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    required
-                    placeholder="First Name"
-                  />
-                </div>
-                <div className="flex-1">
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input
-                    id="lastName"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    required
-                    placeholder="Last Name"
-                  />
-                </div>
-              </div>
-            )}
-
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoFocus
-              />
+            <div className="flex justify-center">
+              <TabsList className="grid grid-cols-2 mb-4 bg-[#F3F3F3] border border-[#E0E0E0] rounded-full p-1 gap-2">
+                <TabsTrigger
+                  value="sign-in"
+                  className="data-[state=active]:bg-[#00796B] data-[state=active]:text-white"
+                >
+                  Sign In
+                </TabsTrigger>
+                <TabsTrigger
+                  value="sign-up"
+                  className="data-[state=active]:bg-[#00796B] data-[state=active]:text-white"
+                >
+                  Sign Up
+                </TabsTrigger>
+              </TabsList>
             </div>
+          </Tabs>
 
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-
-            {authError && (
-              <div className="text-sm text-red-600 bg-red-50 px-2 py-1 rounded">
-                {authError}
-              </div>
-            )}
-
-            <Button
-              type="submit"
-              className="w-full bg-[#96CC4F] text-white hover:bg-[#7AA840] transition font-semibold"
-              disabled={isLoading}
+          <CardContent>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                authView === 'sign-in' ? handleSignIn() : handleSignUp();
+              }}
+              className="space-y-4"
             >
-              {isLoading ? 'Loading...' : authView === 'sign-in' ? 'Sign In' : 'Sign Up'}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+              {authView === 'sign-up' && (
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Label htmlFor="firstName">First Name</Label>
+                    <Input
+                      id="firstName"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      required
+                      placeholder="First Name"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <Label htmlFor="lastName">Last Name</Label>
+                    <Input
+                      id="lastName"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      required
+                      placeholder="Last Name"
+                    />
+                  </div>
+                </div>
+              )}
 
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+
+              {authError && (
+                <div className="text-sm text-red-600 bg-red-50 px-2 py-1 rounded">
+                  {authError}
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                className="w-full bg-[#00796B] text-white hover:bg-[#005A4B] transition font-semibold"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Loading...' : authView === 'sign-in' ? 'Sign In' : 'Sign Up'}
+              </Button>
+            </form>
+          </CardContent>
+        </div>
+      </div>
     )
   }
 
@@ -546,7 +540,7 @@ export default function CompostConnect() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-green-700 to-emerald-600 bg-clip-text text-transparent">
-                CompostConnect
+                CompostKaki
               </h1>
               <p className="text-sm text-green-600 font-medium">Singapore Community Network</p>
             </div>
@@ -934,13 +928,13 @@ export default function CompostConnect() {
               <h3 className="text-lg font-bold text-green-800">Notifications</h3>
               <Button variant="ghost" size="sm" onClick={() => setShowNotifications(false)}>
                 Close
-            </Button>
+              </Button>
             </div>
             <div className="text-gray-600 text-center">No notifications yet</div>
           </div>
-            </div>
+        </div>
       )}
-            </div>
+    </div>
   )
 
   const renderGuidesScreen = () => (
@@ -961,8 +955,8 @@ export default function CompostConnect() {
           onLike={(id: string) => handleGuideLike(id)}
           onBack={() => setCurrentScreen("home")}
         />
-                  </div>
-                  </div>
+      </div>
+    </div>
   );
 
   const renderGuideDetailScreen = () => {
@@ -1326,7 +1320,7 @@ export default function CompostConnect() {
                               {entry.user?.split(" ").map((n: string) => n[0]).join("") || "U"}
                             </AvatarFallback>
                           </Avatar>
-                          </div>
+                        </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-start mb-2">
                             <div>
@@ -1337,8 +1331,8 @@ export default function CompostConnect() {
                           </div>
                           <p className="text-sm text-gray-700 mb-3">{entry.details || entry.content}</p>
                           {/* Add more fields as needed */}
-                            </div>
-                            </div>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -1372,12 +1366,12 @@ export default function CompostConnect() {
               <h3 className="font-semibold text-green-800">What did you do today?</h3>
             </CardHeader>
             <CardContent>
-                  <Textarea
+              <Textarea
                 placeholder="Describe your composting activity..."
                 value={newEntryContent}
                 onChange={e => setNewEntryContent(e.target.value)}
-                    className="bg-white/70 border-green-200 focus:border-green-400 min-h-[80px]"
-                  />
+                className="bg-white/70 border-green-200 focus:border-green-400 min-h-[80px]"
+              />
               {journalError && <div className="text-red-600 text-sm mt-2">{journalError}</div>}
               <div className="space-y-3 mt-4">
                 <Button
