@@ -221,15 +221,14 @@ export default function LogActivityPage() {
                   min={0}
                   max={100}
                   step={1}
-                  className="w-full border-2 border-[#00796B] rounded-xl px-4 py-3 text-2xl text-center focus:outline-none focus:ring-2 focus:ring-[#00796B] bg-[#F3F3F3] text-[#00796B]"
-                  style={{ fontSize: "2rem" }}
+                  className="w-full border-2 border-[#00796B] rounded-xl px-4 py-3 text-2xl text-center focus:outline-none focus:ring-2 focus:ring-[#00796B] bg-[#F3F3F3] text-[#00796B] h-14"
                   required
                 />
               </div>
               <div>
                 <label className="block text-[#00796B] font-semibold mb-1 text-lg">Moisture Level</label>
                 <select
-                  className="w-full border-2 border-[#00796B] rounded-xl px-4 py-3 text-2xl text-center focus:outline-none focus:ring-2 focus:ring-[#00796B] bg-[#F3F3F3] text-[#00796B]"
+                  className="w-full border-2 border-[#00796B] rounded-xl px-4 py-3 text-2xl text-center focus:outline-none focus:ring-2 focus:ring-[#00796B] bg-[#F3F3F3] text-[#00796B] h-14"
                   value={moisture}
                   onChange={e => setMoisture(e.target.value)}
                   required
