@@ -69,7 +69,7 @@ export default function MainPage() {
   const html5QrCodeRef = useRef<InstanceType<typeof Html5Qrcode> | null>(null);
 
   // Welcome modal and spotlight state
-  const [showWelcomeModal, setShowWelcomeModal] = useState(bins.length === 0);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [showSpotlight, setShowSpotlight] = useState(false);
   const confettiRef = useRef<HTMLDivElement>(null);
   const actionButtonsRef = useRef<HTMLDivElement>(null);
@@ -448,15 +448,15 @@ export default function MainPage() {
     prevTab.current = tab;
   }, [tab, filteredBins.length]);
 
-  // Show modal when user has no bins
+  // Show modal when user has no bins (but only after loading is false)
   useEffect(() => {
-    if (filteredBins.length === 0) {
+    if (!loading && filteredBins.length === 0) {
       setShowWelcomeModal(true);
     } else {
       setShowWelcomeModal(false);
       setShowSpotlight(false);
     }
-  }, [filteredBins.length]);
+  }, [loading, filteredBins.length]);
 
   // Confetti burst when modal appears (3s, staggered)
   useEffect(() => {
@@ -901,7 +901,7 @@ export default function MainPage() {
         </div>
       )}
       {/* Welcome Modal */}
-      {showWelcomeModal && (
+      {!loading && showWelcomeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl p-8 shadow-lg max-w-md w-full relative flex flex-col items-center">
             <div ref={confettiRef} style={{position:'absolute',left:0,top:0,width:'100%',height:'100%',pointerEvents:'none',zIndex:2}} />
