@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Card, CardContent } from "@/components/ui/card";
@@ -66,6 +66,8 @@ export default function BinDetailPage() {
 
   const [joinInput, setJoinInput] = useState("");
   const [joinBinId, setJoinBinId] = useState("");
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleHelpPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -254,11 +256,11 @@ export default function BinDetailPage() {
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="icon" onClick={() => setShowShare(true)}>
                   <Share2 className="w-6 h-6 text-[#00796B]" />
-                </Button>
+              </Button>
                 <Button variant="ghost" size="icon" onClick={() => setShowQR(true)}>
                   <QrCode className="w-6 h-6 text-[#00796B]" />
-                </Button>
-              </div>
+                  </Button>
+                </div>
             </div>
             <img
               src={bin?.image || "/default_compost_image.jpg"}
@@ -324,9 +326,29 @@ export default function BinDetailPage() {
                     <div className="flex-1 pl-3">
                       <div className="text-xs text-gray-400 mb-1">
                         {new Date(entry.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}, {new Date(entry.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-                                </div>
+                      </div>
                       <div className="text-lg font-semibold text-gray-900 mb-1">{entry.type || entry.action || entry.content}</div>
+                      {/* Posted by and avatar */}
+                      <div className="flex items-center gap-2 mb-2">
+                        <Avatar className="w-7 h-7">
+                          <AvatarImage src={entry.profiles?.avatar_url || undefined} />
+                          <AvatarFallback className="bg-[#F3F3F3] text-[#00796B] text-base">
+                            {((entry.profiles?.first_name || '') + ' ' + (entry.profiles?.last_name || '')).split(' ').map(n => n[0]).join('').toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                        <span className="text-sm text-gray-700 font-medium">
+                          Posted by {entry.profiles?.first_name || 'Unknown'} {entry.profiles?.last_name || ''}
+                            </span>
+                          </div>
                       <div className="text-base text-gray-600 mb-2">{entry.content}</div>
+                      {/* Show log image if present */}
+                      {entry.image && (
+                        Array.isArray(entry.image) ? (
+                          entry.image.length > 0 ? <img src={entry.image[0]} alt="Log" className="w-full max-h-48 object-contain rounded-lg border mb-2" /> : null
+                        ) : (
+                          <img src={entry.image} alt="Log" className="w-full max-h-48 object-contain rounded-lg border mb-2" />
+                        )
+                      )}
                       <Button 
                         variant="outline" 
                         size="sm" 
@@ -363,6 +385,18 @@ export default function BinDetailPage() {
                           ×
                         </button>
                     <div className="mb-2 text-xs text-gray-400">{new Date(entry.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                    {/* Posted by and avatar in modal */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <Avatar className="w-8 h-8">
+                        <AvatarImage src={entry.profiles?.avatar_url || undefined} />
+                        <AvatarFallback className="bg-[#F3F3F3] text-[#00796B] text-base">
+                          {((entry.profiles?.first_name || '') + ' ' + (entry.profiles?.last_name || '')).split(' ').map(n => n[0]).join('').toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm text-gray-700 font-medium">
+                        Posted by {entry.profiles?.first_name || 'Unknown'} {entry.profiles?.last_name || ''}
+                      </span>
+                        </div>
                     <div className="mb-2 text-xl font-semibold text-gray-900">{entry.type || entry.action || entry.content}</div>
                     <div className="mb-3 text-base text-gray-700">{entry.content}</div>
                         {imageUrl && (
@@ -455,8 +489,26 @@ export default function BinDetailPage() {
               {/* Photo Upload */}
               <div>
                 <label className="block text-[#00796B] font-semibold mb-1">Add Photo (Optional)</label>
-                <input type="file" accept="image/*" onChange={handleHelpPhotoChange} className="block w-full" />
-                {helpPhoto && <div className="text-xs text-[#00796B] mt-1">Selected: {helpPhoto.name}</div>}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-2 px-4 py-2 border border-[#00796B] rounded-lg text-[#00796B] font-medium bg-white hover:bg-[#F3F3F3] transition"
+                >
+                  <span role="img" aria-label="camera">📷</span> Choose Image
+                </button>
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  onChange={handleHelpPhotoChange}
+                  className="hidden"
+                />
+                {helpPhoto && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <img src={URL.createObjectURL(helpPhoto)} alt="Preview" className="w-12 h-12 object-cover rounded border" />
+                    <span className="text-xs text-[#00796B]">{helpPhoto.name}</span>
+                  </div>
+                )}
               </div>
               {helpError && <div className="text-red-600 text-sm">{helpError}</div>}
               {helpSuccess && <div className="text-green-700 font-bold text-center">Help request posted!</div>}
@@ -533,8 +585,8 @@ export default function BinDetailPage() {
               </a>
             </div>
             <div className="text-center text-sm text-gray-600 break-all">{shareUrl}</div>
-          </div>
         </div>
+      </div>
       )}
     </div>
   );

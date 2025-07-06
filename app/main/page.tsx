@@ -210,29 +210,39 @@ export default function MainPage() {
       .from("bin_members")
       .select("bin_id")
       .eq("user_id", user.data.user.id);
-    if (memberError) {
-      setCommunityError(memberError.message);
-      setCommunityLoading(false);
-      return;
-    }
     const binIds = memberships?.map((m: any) => m.bin_id) || [];
-    if (binIds.length === 0) {
-      setCommunityTasks([]);
-      setCommunityLoading(false);
-      return;
-    }
     // Get tasks for those bins
-    const { data: tasks, error: taskError } = await supabase
+    let tasks: any[] = [];
+    if (binIds.length > 0) {
+      const { data: binTasks, error: taskError } = await supabase
+        .from("tasks")
+        .select("*, profiles:user_id(id, first_name, last_name)")
+        .in("bin_id", binIds)
+        .order("created_at", { ascending: false });
+      if (taskError) {
+        setCommunityError(taskError.message);
+        setCommunityLoading(false);
+        return;
+      }
+      tasks = binTasks || [];
+    }
+    // Always fetch all tasks posted by the user, regardless of membership
+    const { data: myTasks, error: myTasksError } = await supabase
       .from("tasks")
       .select("*, profiles:user_id(id, first_name, last_name)")
-      .in("bin_id", binIds)
+      .eq("user_id", user.data.user.id)
       .order("created_at", { ascending: false });
-    if (taskError) {
-      setCommunityError(taskError.message);
+    if (myTasksError) {
+      setCommunityError(myTasksError.message);
       setCommunityLoading(false);
       return;
     }
-    setCommunityTasks(tasks || []);
+    // Merge and deduplicate by task id
+    const allTasks = [...tasks, ...myTasks].reduce((acc, t) => {
+      if (!acc.find((x: any) => x.id === t.id)) acc.push(t);
+      return acc;
+    }, []);
+    setCommunityTasks(allTasks);
     setCommunityLoading(false);
   };
 
@@ -313,6 +323,24 @@ export default function MainPage() {
   // Split tasks
   const newTasks = communityTasks.filter(t => t.status === 'open');
   const ongoingTasks = communityTasks.filter(t => t.status === 'accepted' && t.accepted_by === currentUserId);
+
+  // 1. Add a helper to filter tasks posted by the current user
+  const myTasks = communityTasks.filter(t => t.user_id === currentUserId);
+
+  // 2. Add a delete handler
+  const handleDeleteTask = async (taskId: string) => {
+    if (!window.confirm('Are you sure you want to delete this task? This action cannot be undone.')) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    await fetch(`/api/tasks?id=${taskId}`, {
+      method: 'DELETE',
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      }
+    });
+    if (tab === 'community') fetchCommunityTasks();
+    setOpenTask(null);
+  };
 
   // Add logic to fetch currentUserProfile (if you have profile info)
   useEffect(() => {
@@ -492,6 +520,36 @@ export default function MainPage() {
                   );
                 })}
               </div>
+              {/* Tasks posted by me Section */}
+              <div>
+                <h3 className="text-lg font-bold mb-2 text-[#00796B]">Tasks posted by me</h3>
+                {myTasks.length === 0 && <div className="text-gray-400 text-sm">You haven't posted any tasks.</div>}
+                {myTasks.map(task => {
+                  const bin = bins.find(b => b.id === task.bin_id);
+                  return (
+                    <div
+                      key={task.id}
+                      className="bg-white border border-[#E0E0E0] rounded-lg p-4 mb-2 shadow-sm cursor-pointer hover:shadow-md transition flex items-center justify-between"
+                      onClick={() => setOpenTask(task)}
+                    >
+                      <div>
+                        <div className="font-semibold text-[#00796B]">{task.description}</div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Bin: {bin ? bin.name : 'Unknown'} &middot; Status: <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor(task.status)}`}>{capitalize(task.status)}</span>
+                        </div>
+                      </div>
+                      {/* Show dustbin icon for all tasks */}
+                      <button
+                        className="ml-2 text-red-500 hover:text-red-700"
+                        title="Delete Task"
+                        onClick={e => { e.stopPropagation(); handleDeleteTask(task.id); }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </TabsContent>
         </Tabs>
@@ -603,8 +661,17 @@ export default function MainPage() {
             <div className="mb-2 text-gray-600 text-sm">Urgency: {openTask.urgency}</div>
             <div className="mb-2 text-gray-600 text-sm">Effort: {openTask.effort}</div>
             <div className="mb-2 text-gray-600 text-sm">Status: <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor(openTask.status)}`}>{capitalize(openTask.status)}</span></div>
+            <div className="mb-2 text-gray-600 text-sm">Posted: {openTask.created_at ? new Date(openTask.created_at).toLocaleString() : 'Unknown'}</div>
             <div className="mb-2 text-gray-600 text-sm">Posted by: {openTask.profiles?.first_name || 'Unknown'}</div>
-            {openTask.accepted_by && <div className="mb-2 text-gray-600 text-sm">Accepted by: {openTask.accepted_by === currentUserId ? 'You' : openTask.accepted_by}</div>}
+            {openTask.accepted_by && openTask.accepted_at && (
+              <div className="mb-2 text-gray-600 text-sm">
+                Accepted by: {
+                  openTask.accepted_by === currentUserId
+                    ? 'You'
+                    : (openTask.accepted_by_profile?.first_name || openTask.accepted_by)
+                } on {new Date(openTask.accepted_at).toLocaleString()}
+              </div>
+            )}
             {openTask.photo_url && <img src={openTask.photo_url} alt="Task" className="mb-2 rounded-lg max-h-40" />}
             <div className="flex gap-2 mt-4">
               {openTask.status === 'open' && openTask.accepted_by !== currentUserId && (
@@ -615,6 +682,12 @@ export default function MainPage() {
               {openTask.status === 'accepted' && openTask.accepted_by === currentUserId && (
                 <Button className="bg-green-700 text-white rounded-lg py-2 font-semibold text-base" onClick={() => { handleCompleteTask(openTask.id); setOpenTask(null); }}>
                   Mark as Completed
+                </Button>
+              )}
+              {/* Show Delete button for any status if user is owner */}
+              {openTask.user_id === currentUserId && (
+                <Button className="bg-red-600 text-white rounded-lg py-2 font-semibold text-base" onClick={() => handleDeleteTask(openTask.id)}>
+                  Delete
                 </Button>
               )}
               <Button variant="outline" className="rounded-lg py-2 font-semibold text-base" onClick={() => setOpenTask(null)}>
