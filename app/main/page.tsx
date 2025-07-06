@@ -44,6 +44,8 @@ export default function MainPage() {
   const [joinPrompt, setJoinPrompt] = useState(false);
   const [joinLoading, setJoinLoading] = useState(false);
   const [joinError, setJoinError] = useState("");
+  // Add state for task modal
+  const [openTask, setOpenTask] = useState<any | null>(null);
 
   const fetchBins = async () => {
     setLoading(true);
@@ -142,59 +144,83 @@ export default function MainPage() {
 
   useEffect(() => {
     if (tab === "community") {
-      setCommunityLoading(true);
-      setCommunityError("");
-      // Get current user and their bin memberships
-      (async () => {
-        const user = await supabase.auth.getUser();
-        setCurrentUserId(user.data.user?.id || null);
-        if (!user.data.user) {
-          setCommunityError("Not logged in");
-          setCommunityLoading(false);
-          return;
-        }
-        // Get bins user is a member of
-        const { data: memberships, error: memberError } = await supabase
-          .from("bin_members")
-          .select("bin_id")
-          .eq("user_id", user.data.user.id);
-        if (memberError) {
-          setCommunityError(memberError.message);
-          setCommunityLoading(false);
-          return;
-        }
-        const binIds = memberships?.map((m: any) => m.bin_id) || [];
-        if (binIds.length === 0) {
-          setCommunityTasks([]);
-          setCommunityLoading(false);
-          return;
-        }
-        // Get tasks for those bins
-        const { data: tasks, error: taskError } = await supabase
-          .from("tasks")
-          .select("*, profiles:user_id(id, first_name, last_name)")
-          .in("bin_id", binIds)
-          .order("created_at", { ascending: false });
-        if (taskError) {
-          setCommunityError(taskError.message);
-          setCommunityLoading(false);
-          return;
-        }
-        setCommunityTasks(tasks || []);
-        setCommunityLoading(false);
-      })();
+      fetchCommunityTasks();
     }
   }, [tab]);
 
+  // Helper to capitalize status
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  // Helper to get status color
+  const statusColor = (status: string) => {
+    if (status === 'open') return 'bg-pink-100 text-pink-700';
+    if (status === 'accepted') return 'bg-green-100 text-green-700';
+    return 'bg-gray-200 text-gray-700';
+  };
+
   // Accept/Complete logic (API calls)
   const handleAcceptTask = async (taskId: string) => {
-    // Call API to update task status and accepted_by
-    await fetch(`/api/tasks/${taskId}/accept`, { method: 'POST' });
-    setCommunityTasks(tasks => tasks.map(t => t.id === taskId ? { ...t, status: 'accepted', accepted_by: currentUserId } : t));
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    await fetch(`/api/tasks/${taskId}/accept`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      }
+    });
+    if (tab === 'community') fetchCommunityTasks();
   };
   const handleCompleteTask = async (taskId: string) => {
-    await fetch(`/api/tasks/${taskId}/complete`, { method: 'POST' });
-    setCommunityTasks(tasks => tasks.map(t => t.id === taskId ? { ...t, status: 'completed' } : t));
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    await fetch(`/api/tasks/${taskId}/complete`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      }
+    });
+    if (tab === 'community') fetchCommunityTasks();
+  };
+
+  // Add fetchCommunityTasks function
+  const fetchCommunityTasks = async () => {
+    setCommunityLoading(true);
+    setCommunityError("");
+    const user = await supabase.auth.getUser();
+    setCurrentUserId(user.data.user?.id || null);
+    if (!user.data.user) {
+      setCommunityError("Not logged in");
+      setCommunityLoading(false);
+      return;
+    }
+    // Get bins user is a member of
+    const { data: memberships, error: memberError } = await supabase
+      .from("bin_members")
+      .select("bin_id")
+      .eq("user_id", user.data.user.id);
+    if (memberError) {
+      setCommunityError(memberError.message);
+      setCommunityLoading(false);
+      return;
+    }
+    const binIds = memberships?.map((m: any) => m.bin_id) || [];
+    if (binIds.length === 0) {
+      setCommunityTasks([]);
+      setCommunityLoading(false);
+      return;
+    }
+    // Get tasks for those bins
+    const { data: tasks, error: taskError } = await supabase
+      .from("tasks")
+      .select("*, profiles:user_id(id, first_name, last_name)")
+      .in("bin_id", binIds)
+      .order("created_at", { ascending: false });
+    if (taskError) {
+      setCommunityError(taskError.message);
+      setCommunityLoading(false);
+      return;
+    }
+    setCommunityTasks(tasks || []);
+    setCommunityLoading(false);
   };
 
   // Filter bins by search
@@ -270,6 +296,10 @@ export default function MainPage() {
     }
     setJoinLoading(false);
   };
+
+  // Split tasks
+  const newTasks = communityTasks.filter(t => t.status === 'open');
+  const ongoingTasks = communityTasks.filter(t => t.status === 'accepted' && t.accepted_by === currentUserId);
 
   return (
     <div className="min-h-screen bg-white">
@@ -367,30 +397,72 @@ export default function MainPage() {
             </div>
           </TabsContent>
           <TabsContent value="community">
-            <div className="p-4 space-y-4">
-              {communityLoading && <div className="text-center">Loading tasks...</div>}
-              {communityError && <div className="text-red-600 text-center">{communityError}</div>}
-              {!communityLoading && !communityError && communityTasks.length === 0 && (
-                <div className="text-center text-gray-500">No tasks available. Relax for now :)</div>
-              )}
-              {communityTasks.map(task => (
-                <div
-                  key={task.id}
-                  className="bg-white border border-[#E0E0E0] rounded-lg p-4 mb-2 shadow-sm"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-semibold text-[#00796B]">{task.description}</div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        Bin: {task.bin_id} &middot; Status: {task.status}
+            <div className="p-4 space-y-8">
+              {/* Instruction */}
+              <div className="text-xs text-gray-500 mb-2">Click on a task to see more details.</div>
+              {/* New Tasks Section */}
+              <div>
+                <h3 className="text-lg font-bold mb-2 text-[#00796B]">New Tasks</h3>
+                {newTasks.length === 0 && <div className="text-gray-400 text-sm">No new tasks.</div>}
+                {newTasks.map(task => {
+                  const bin = bins.find(b => b.id === task.bin_id);
+                  return (
+                    <div
+                      key={task.id}
+                      className="bg-white border border-[#E0E0E0] rounded-lg p-4 mb-2 shadow-sm cursor-pointer hover:shadow-md transition"
+                      onClick={() => setOpenTask(task)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-semibold text-[#00796B]">{task.description}</div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            Bin: {bin ? bin.name : 'Unknown'} &middot; Status: <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor(task.status)}`}>{capitalize(task.status)}</span>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">Posted by: {task.profiles?.first_name || 'Unknown'}</div>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-xs text-gray-400 mb-1">Urgency:</span>
+                          <span className="ml-2 px-2 py-1 rounded-full text-xs font-medium bg-[#E0F2F1] text-[#00796B]">
+                            {task.urgency}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <span className="ml-2 px-2 py-1 rounded-full text-xs font-medium bg-[#E0F2F1] text-[#00796B]">
-                      {task.urgency}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                  );
+                })}
+              </div>
+              {/* Ongoing Tasks Section */}
+              <div>
+                <h3 className="text-lg font-bold mb-2 text-[#00796B]">Ongoing Tasks</h3>
+                {ongoingTasks.length === 0 && <div className="text-gray-400 text-sm">No ongoing tasks.</div>}
+                {ongoingTasks.map(task => {
+                  const bin = bins.find(b => b.id === task.bin_id);
+                  return (
+                    <div
+                      key={task.id}
+                      className="bg-white border border-[#E0E0E0] rounded-lg p-4 mb-2 shadow-sm cursor-pointer hover:shadow-md transition"
+                      onClick={() => setOpenTask(task)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-semibold text-[#00796B]">{task.description}</div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            Bin: {bin ? bin.name : 'Unknown'} &middot; Status: <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor(task.status)}`}>{capitalize(task.status)}</span>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">Posted by: {task.profiles?.first_name || 'Unknown'}</div>
+                          <div className="text-xs text-gray-500 mt-1">Accepted by: You</div>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-xs text-gray-400 mb-1">Urgency:</span>
+                          <span className="ml-2 px-2 py-1 rounded-full text-xs font-medium bg-[#E0F2F1] text-[#00796B]">
+                            {task.urgency}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </TabsContent>
         </Tabs>
@@ -483,6 +555,43 @@ export default function MainPage() {
               </div>
             )}
             {joinError && <div className="text-red-600 text-sm mt-2">{joinError}</div>}
+          </div>
+        </div>
+      )}
+      {openTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl p-6 shadow-lg max-w-md w-full relative flex flex-col items-center">
+            <button
+              className="absolute top-3 right-3 text-3xl text-gray-500 hover:text-gray-800 focus:outline-none"
+              onClick={() => setOpenTask(null)}
+              aria-label="Close"
+              style={{ fontSize: '2rem', lineHeight: '2rem' }}
+            >
+              ×
+            </button>
+            <h2 className="text-xl font-bold mb-2 text-[#00796B]">{openTask.description}</h2>
+            <div className="mb-2 text-gray-600 text-sm">Bin: {bins.find(b => b.id === openTask.bin_id)?.name || 'Unknown'}</div>
+            <div className="mb-2 text-gray-600 text-sm">Urgency: {openTask.urgency}</div>
+            <div className="mb-2 text-gray-600 text-sm">Effort: {openTask.effort}</div>
+            <div className="mb-2 text-gray-600 text-sm">Status: <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor(openTask.status)}`}>{capitalize(openTask.status)}</span></div>
+            <div className="mb-2 text-gray-600 text-sm">Posted by: {openTask.profiles?.first_name || 'Unknown'}</div>
+            {openTask.accepted_by && <div className="mb-2 text-gray-600 text-sm">Accepted by: {openTask.accepted_by === currentUserId ? 'You' : openTask.accepted_by}</div>}
+            {openTask.photo_url && <img src={openTask.photo_url} alt="Task" className="mb-2 rounded-lg max-h-40" />}
+            <div className="flex gap-2 mt-4">
+              {openTask.status === 'open' && openTask.accepted_by !== currentUserId && (
+                <Button className="bg-[#00796B] text-white rounded-lg py-2 font-semibold text-base" onClick={() => { handleAcceptTask(openTask.id); setOpenTask(null); }}>
+                  Accept
+                </Button>
+              )}
+              {openTask.status === 'accepted' && openTask.accepted_by === currentUserId && (
+                <Button className="bg-green-700 text-white rounded-lg py-2 font-semibold text-base" onClick={() => { handleCompleteTask(openTask.id); setOpenTask(null); }}>
+                  Mark as Completed
+                </Button>
+              )}
+              <Button variant="outline" className="rounded-lg py-2 font-semibold text-base" onClick={() => setOpenTask(null)}>
+                Close
+              </Button>
+            </div>
           </div>
         </div>
       )}
