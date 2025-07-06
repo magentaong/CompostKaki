@@ -21,12 +21,14 @@ export async function GET(req: NextRequest) {
   const { data, error } = await supabase.from('bins').select('*').eq('id', id).single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const { data: contributors } = await supabase
+  // Fetch bin members
+  const { data: members, error: membersError } = await supabase
     .from('bin_members')
     .select('user_id')
-    .eq('bin_id', id)
+    .eq('bin_id', id);
 
-  const contributors_list = contributors ? contributors.map((c: any) => c.user_id) : []
+  const contributors_list = members ? members.map((m: any) => m.user_id) : [];
+
   return NextResponse.json({ bin: { ...data, contributors_list } })
 }
 

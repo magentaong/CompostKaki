@@ -80,6 +80,13 @@ export default function BinDetailPage() {
   const LOGS_PER_PAGE = 7;
   const [logsToShow, setLogsToShow] = useState(LOGS_PER_PAGE);
 
+  const [canView, setCanView] = useState(false);
+  const [showJoinPrompt, setShowJoinPrompt] = useState(false);
+
+  // Add state for join loading and error
+  const [joinLoading, setJoinLoading] = useState(false);
+  const [joinError, setJoinError] = useState("");
+
   const handleHelpPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setHelpPhoto(e.target.files[0]);
@@ -271,6 +278,43 @@ export default function BinDetailPage() {
     });
   }, [router]);
 
+  useEffect(() => {
+    if (!bin || !currentUserId) return;
+    const isCreator = bin.user_id === currentUserId;
+    const isMember = (bin.contributors_list || []).includes(currentUserId);
+    if (isCreator || isMember) {
+      setCanView(true);
+      setShowJoinPrompt(false);
+    } else {
+      setCanView(false);
+      setShowJoinPrompt(true);
+    }
+  }, [bin, currentUserId]);
+
+  // Join bin handler
+  const handleJoinBin = async () => {
+    setJoinLoading(true);
+    setJoinError("");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch('/api/bins/join', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ binId })
+      });
+      const result = await res.json();
+      if (!res.ok || result.error) throw new Error(result.error || 'Failed to join bin');
+      window.location.reload();
+    } catch (e: any) {
+      setJoinError(e.message || 'Failed to join bin');
+    }
+    setJoinLoading(false);
+  };
+
   // Add robust loading/error/null handling
   if (loading) return <div className="min-h-screen flex items-center justify-center text-lg">Loading...</div>;
   if (error) return <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">{error}</div>;
@@ -300,6 +344,37 @@ export default function BinDetailPage() {
     }
     setDeleteLoading(false);
   };
+
+  if (showJoinPrompt) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
+        <div className="bg-white rounded-xl p-8 shadow-lg max-w-md w-full text-center">
+          <h2 className="text-xl font-bold mb-4 text-[#00796B]">Join this Bin</h2>
+          <p className="mb-6">You are not a member of this bin. Would you like to join?</p>
+          <div className="flex gap-4 justify-center">
+            <button
+              className="bg-[#00796B] text-white rounded-lg px-6 py-2 font-semibold disabled:opacity-60"
+              onClick={handleJoinBin}
+              disabled={joinLoading}
+            >
+              {joinLoading ? 'Joining...' : 'Join Bin'}
+            </button>
+            <button
+              className="bg-gray-200 text-[#00796B] rounded-lg px-6 py-2 font-semibold"
+              onClick={() => router.push('/main')}
+              disabled={joinLoading}
+            >
+              Cancel
+            </button>
+          </div>
+          {joinError && <div className="text-red-600 text-sm mt-4">{joinError}</div>}
+        </div>
+      </div>
+    );
+  }
+  if (!canView) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-white">
