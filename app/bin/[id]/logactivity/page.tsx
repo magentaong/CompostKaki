@@ -58,11 +58,12 @@ export default function LogActivityPage() {
 
   // block submit until all checked
   const canSubmit =
-    !!type && // must have selected an activity
+    !!type &&
     !loading &&
     (
       (type === "Add Materials" && Object.values(materialsChecked).every(Boolean)) ||
-      (type !== "Add Materials")
+      (type === "Monitor" && temperature && moisture) ||
+      (type !== "Add Materials" && type !== "Monitor")
     );
 
   // Handle image upload (for now, just store base64 string in a hidden field)
@@ -171,28 +172,13 @@ export default function LogActivityPage() {
           ))}
         </div>
         <form className="space-y-6" onSubmit={handleSubmit}>
-        {/* Instructions Section */}
-        {!type && (
-          <div className="mb-6">
-            <div className="flex items-center gap-2 bg-[#F8FAF9] border border-[#E0E0E0] rounded-lg px-4 py-3">
-              <svg width="22" height="22" fill="none" stroke="#7CB8A2" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 16v-4" />
-                <path d="M12 8h.01" />
-              </svg>
-              <span className="text-[#4B8378] text-base font-medium">
-                Please select one of the activities above before logging your activity.
-              </span>
-            </div>
-          </div>
-        )}
         {/* Type Selection */}
         {type === "Add Materials" && (
           <div className="mb-4">
             <div className="bg-[#F3F3F3] border border-[#B2DFDB] rounded-lg p-4">
               <div className="font-semibold text-[#00796B] mb-4 text-base flex items-center gap-2">
                 <Plus className="w-5 h-5 text-[#00796B]" />
-                I have added the following (must add all three before logging):
+                I have added the following:
               </div>
               <div className="space-y-3">
                 <label className="flex items-center gap-3 cursor-pointer group">
@@ -283,6 +269,37 @@ export default function LogActivityPage() {
           {success && (
             <div className="flex items-center justify-center text-green-700 font-bold text-lg">
               ✓ Activity logged!
+            </div>
+          )}
+          {(!type && !Object.values(materialsChecked).every(Boolean)) && (
+            <div className="mb-2 flex items-center gap-2 bg-[#FFF7E6] border border-[#FFD59E] rounded-lg px-4 py-3 text-[#B26B00] text-sm font-medium">
+              <svg width="18" height="18" fill="none" stroke="#B26B00" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4" />
+                <path d="M12 8h.01" />
+              </svg>
+              Please select one of the 4 activities above before logging your activity.
+            </div>
+          )}
+          {(type === "Add Materials" && !Object.values(materialsChecked).every(Boolean)) && (
+            <div className="mb-2 flex items-center gap-2 bg-[#FFF7E6] border border-[#FFD59E] rounded-lg px-4 py-3 text-[#B26B00] text-sm font-medium">
+              <svg width="18" height="18" fill="none" stroke="#B26B00" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4" />
+                <path d="M12 8h.01" />
+              </svg>
+              Please ensure all 3: Greens, Browns, and Water have been added.
+            </div>
+          )}
+
+          {(type === "Monitor" && (!temperature || !moisture)) && (
+            <div className="mb-2 flex items-center gap-2 bg-[#FFF7E6] border border-[#FFD59E] rounded-lg px-4 py-3 text-[#B26B00] text-sm font-medium">
+              <svg width="18" height="18" fill="none" stroke="#B26B00" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4" />
+                <path d="M12 8h.01" />
+              </svg>
+              Please enter both temperature and moisture level before logging this activity.
             </div>
           )}
           <div className="flex flex-col gap-2">
