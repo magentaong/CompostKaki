@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { MapPin, TrendingUp, Filter, QrCode, Plus, Thermometer, Droplets, Users, Award, BookOpen, Lightbulb, MessageCircle, Star, HelpCircle, Heart, Eye, Search, CheckCircle2, Share2, Bell, RefreshCw } from "lucide-react";
+import { MapPin, TrendingUp, Filter, QrCode, Plus, Thermometer, Droplets, Users, Award, BookOpen, Lightbulb, MessageCircle, Star, HelpCircle, Heart, Eye, Search, CheckCircle2, Share2, Bell, RefreshCw, User } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,7 +19,18 @@ export default function MainPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [tab, setTab] = useState("journal");
+  const [tab, setTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('mainTab') || 'journal';
+    }
+    return 'journal';
+  });
+  const handleTabChange = (val: string) => {
+    setTab(val);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('mainTab', val);
+    }
+  };
   // Community tab state
   const [forumPosts, setForumPosts] = useState<any[]>([]);
   const [forumLoading, setForumLoading] = useState(false);
@@ -46,6 +57,8 @@ export default function MainPage() {
   const [joinError, setJoinError] = useState("");
   // Add state for task modal
   const [openTask, setOpenTask] = useState<any | null>(null);
+  // Add logic to fetch currentUserProfile (if you have profile info)
+  const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
 
   const fetchBins = async () => {
     setLoading(true);
@@ -301,6 +314,19 @@ export default function MainPage() {
   const newTasks = communityTasks.filter(t => t.status === 'open');
   const ongoingTasks = communityTasks.filter(t => t.status === 'accepted' && t.accepted_by === currentUserId);
 
+  // Add logic to fetch currentUserProfile (if you have profile info)
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const user = await supabase.auth.getUser();
+      const userId = user.data.user?.id;
+      if (userId) {
+        const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
+        setCurrentUserProfile(data);
+      }
+    };
+    fetchProfile();
+  }, []);
+
   return (
     <div className="min-h-screen bg-white">
       <div className="relative max-w-md mx-auto">
@@ -324,11 +350,14 @@ export default function MainPage() {
               onClick={() => router.push("/profile-settings")}
               className="p-0 hover:bg-gray-300/50 transition"
             >
-              <div className="w-8 h-8 rounded-full bg-gray-200" />
+              <Avatar className="w-8 h-8 border-2 border-[#00796B] rounded-full">
+                <AvatarImage src={currentUserProfile?.avatar_url || "/default-profile.png"} alt="Profile" />
+                <AvatarFallback><User className="w-5 h-5 text-gray-400" /></AvatarFallback>
+              </Avatar>
             </Button>
           </div>
         </div>
-        <Tabs value={tab} onValueChange={setTab} className="w-full mt-2">
+        <Tabs value={tab} onValueChange={handleTabChange} className="w-full mt-2">
           <div className="flex w-full justify-center">
             <TabsList className="flex w-full max-w-xs bg-[#F3F3F3] border border-[#E0E0E0] rounded-full p-1">
               <TabsTrigger
@@ -346,7 +375,7 @@ export default function MainPage() {
             </TabsList>
           </div>
         </Tabs>
-        <Tabs value={tab} onValueChange={setTab} className="w-full">
+        <Tabs value={tab} onValueChange={handleTabChange} className="w-full">
           <TabsContent value="journal">
             <div className="p-4 space-y-6 bg-white min-h-screen">
               <div className="grid grid-cols-2 gap-3">
