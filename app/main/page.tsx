@@ -1,16 +1,17 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { MapPin, TrendingUp, Filter, QrCode, Plus, Thermometer, Droplets, Users, Award, BookOpen, Lightbulb, MessageCircle, Star, HelpCircle, Heart, Eye, Search, CheckCircle2, Share2, Bell, RefreshCw, User } from "lucide-react";
+import { MapPin, TrendingUp, Filter, QrCode, Plus, Thermometer, Droplets, Users, Award, BookOpen, Lightbulb, MessageCircle, Star, HelpCircle, Heart, Eye, Search, CheckCircle2, Share2, Bell, RefreshCw, User, Camera, Copy } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Html5Qrcode } from "html5-qrcode";
 
 export default function MainPage() {
   const router = useRouter();
@@ -59,6 +60,67 @@ export default function MainPage() {
   const [openTask, setOpenTask] = useState<any | null>(null);
   // Add logic to fetch currentUserProfile (if you have profile info)
   const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
+
+  // QR Scanner states
+  const [showScanner, setShowScanner] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState("");
+  const qrRegionId = "qr-reader-region";
+  const html5QrCodeRef = useRef<InstanceType<typeof Html5Qrcode> | null>(null);
+
+  // Start camera scan
+  const startCamera = async () => {
+    setScanError("");
+    setScanning(true);
+    try {
+      if (!html5QrCodeRef.current) {
+        html5QrCodeRef.current = new Html5Qrcode(qrRegionId);
+      }
+      await html5QrCodeRef.current.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+        },
+        (decodedText: string) => {
+          // Extract bin ID from the scanned URL
+          const match = decodedText.match(/\/bin\/([a-zA-Z0-9\-]+)/);
+          if (match && match[1]) {
+            setJoinBinId(match[1]);
+            setJoinInput(decodedText);
+            setShowScanner(false);
+            setScanning(false);
+            html5QrCodeRef.current?.stop();
+          } else {
+            setScanError("Invalid QR code format");
+            setScanning(false);
+          }
+        },
+        (err: unknown) => {
+          // Ignore scan errors (happens frequently)
+        }
+      );
+    } catch (err: any) {
+      setScanError("Camera error: " + (err?.message || err));
+      setScanning(false);
+    }
+  };
+
+  // Stop camera scan
+  const stopCamera = async () => {
+    setScanning(false);
+    try {
+      await html5QrCodeRef.current?.stop();
+    } catch {}
+  };
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      html5QrCodeRef.current?.stop().catch(() => {});
+      html5QrCodeRef.current?.clear().catch(() => {});
+    };
+  }, []);
 
   const fetchBins = async () => {
     setLoading(true);
@@ -253,33 +315,6 @@ export default function MainPage() {
       bin.location?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const [showQR, setShowQR] = useState(false);
-  const [showShare, setShowShare] = useState(false);
-  const [shareUrl, setShareUrl] = useState("");
-  const [whatsappUrl, setWhatsappUrl] = useState("");
-  const [telegramUrl, setTelegramUrl] = useState("");
-
-  const handleShowShare = () => {
-    if (filteredBins.length > 0) {
-      const url = `${window.location.origin}/bin/${filteredBins[0].id}`;
-      setShareUrl(url);
-      setWhatsappUrl(`https://wa.me/?text=${encodeURIComponent('Check out our compost bin on CompostKaki! ' + url)}`);
-      setTelegramUrl(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent('Check out our compost bin on CompostKaki!')}`);
-      setShowShare(true);
-    } else {
-      alert('No bins to share!');
-    }
-  };
-  const handleShowQR = () => {
-    if (filteredBins.length > 0) {
-      const url = `${window.location.origin}/bin/${filteredBins[0].id}`;
-      setShareUrl(url);
-      setShowQR(true);
-    } else {
-      alert('No bins to show QR for!');
-    }
-  };
-
   const handleJoinInput = (val: string) => {
     setJoinInput(val);
     // Strict UUID regex
@@ -354,6 +389,47 @@ export default function MainPage() {
     };
     fetchProfile();
   }, []);
+
+  // Add a helper to get bin name from ID
+  const [fetchedBinName, setFetchedBinName] = useState<string | null>(null);
+
+  // Watch joinBinId and fetch name if not found locally
+  useEffect(() => {
+    if (!joinBinId) {
+      setFetchedBinName(null);
+      return;
+    }
+    const localName = bins.find(b => b.id === joinBinId)?.name;
+    if (localName) {
+      setFetchedBinName(null);
+      return;
+    }
+    // Fetch from backend
+    const fetchName = async () => {
+      const { data, error } = await supabase.from('bins').select('name').eq('id', joinBinId).single();
+      if (data && data.name) setFetchedBinName(data.name);
+      else setFetchedBinName(null);
+    };
+    fetchName();
+  }, [joinBinId, bins]);
+
+  const getBinNameById = (id: string) => {
+    const bin = bins.find(b => b.id === id);
+    return bin ? bin.name : fetchedBinName;
+  };
+
+  const [copiedQR, setCopiedQR] = useState(false);
+  const [copiedShare, setCopiedShare] = useState(false);
+  const handleCopyQR = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedQR(true);
+    setTimeout(() => setCopiedQR(false), 1200);
+  };
+  const handleCopyShare = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedShare(true);
+    setTimeout(() => setCopiedShare(false), 1200);
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -554,61 +630,6 @@ export default function MainPage() {
           </TabsContent>
         </Tabs>
       </div>
-      {showQR && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl p-6 shadow-lg max-w-md w-full relative flex flex-col items-center">
-            <button
-              className="absolute top-3 right-3 text-3xl text-gray-500 hover:text-gray-800 focus:outline-none"
-              onClick={() => setShowQR(false)}
-              aria-label="Close"
-              style={{ fontSize: '2rem', lineHeight: '2rem' }}
-            >
-              ×
-            </button>
-            <h2 className="text-xl font-bold mb-4 text-[#00796B]">Share Bin QR Code</h2>
-            <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shareUrl)}`}
-              alt="QR Code"
-              className="mb-4"
-            />
-            <div className="text-center text-sm text-gray-600 break-all">{shareUrl}</div>
-          </div>
-        </div>
-      )}
-      {showShare && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl p-6 shadow-lg max-w-md w-full relative flex flex-col items-center">
-            <button
-              className="absolute top-3 right-3 text-3xl text-gray-500 hover:text-gray-800 focus:outline-none"
-              onClick={() => setShowShare(false)}
-              aria-label="Close"
-              style={{ fontSize: '2rem', lineHeight: '2rem' }}
-            >
-              ×
-            </button>
-            <h2 className="text-xl font-bold mb-4 text-[#00796B]">Share Bin</h2>
-            <div className="flex gap-4 mb-4">
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-[#25D366] text-white px-4 py-2 rounded-lg font-semibold flex items-center"
-              >
-                WhatsApp
-              </a>
-              <a
-                href={telegramUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-[#0088cc] text-white px-4 py-2 rounded-lg font-semibold flex items-center"
-              >
-                Telegram
-              </a>
-            </div>
-            <div className="text-center text-sm text-gray-600 break-all">{shareUrl}</div>
-          </div>
-        </div>
-      )}
       {showJoinModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl p-6 shadow-lg max-w-md w-full relative flex flex-col items-center">
@@ -623,10 +644,19 @@ export default function MainPage() {
             <h2 className="text-xl font-bold mb-4 text-[#00796B]">Join a Bin</h2>
             <input
               className="w-full border-2 border-[#00796B] rounded-xl px-4 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#00796B] bg-white text-[#00796B] placeholder:text-gray-400 mb-4"
-              placeholder="Paste bin link or scan QR code"
+              placeholder="Paste bin link here"
               value={joinInput}
               onChange={e => handleJoinInput(e.target.value)}
             />
+            <div className="flex gap-2 mb-4">
+              <Button 
+                className="flex-1 bg-[#00796B] text-white rounded-lg py-2 font-semibold text-base flex items-center justify-center gap-2"
+                onClick={() => setShowScanner(true)}
+              >
+                <Camera className="w-4 h-4" />
+                Scan QR Code
+              </Button>
+            </div>
             {joinBinId && !joinPrompt && (
               <Button className="bg-[#00796B] text-white rounded-lg py-2 font-semibold text-base w-full" onClick={() => setJoinPrompt(true)}>
                 Join Bin
@@ -634,7 +664,12 @@ export default function MainPage() {
             )}
             {joinPrompt && (
               <div className="w-full flex flex-col items-center">
-                <div className="mb-2 text-[#00796B]">Join bin <span className="font-bold">{joinBinId}</span>?</div>
+                <div className="mb-2 text-[#00796B]">
+                  Join bin <span className="font-bold">{getBinNameById(joinBinId) || joinBinId}</span>
+                  {getBinNameById(joinBinId) && (
+                    <span className="text-xs text-gray-500 ml-2">({joinBinId})</span>
+                  )}?
+                </div>
                 <Button className="bg-[#00796B] text-white rounded-lg py-2 font-semibold text-base w-full mb-2" onClick={handleJoinConfirm} disabled={joinLoading}>
                   {joinLoading ? 'Joining...' : 'Confirm'}
                 </Button>
@@ -642,6 +677,40 @@ export default function MainPage() {
               </div>
             )}
             {joinError && <div className="text-red-600 text-sm mt-2">{joinError}</div>}
+          </div>
+        </div>
+      )}
+      {showScanner && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl p-6 shadow-lg max-w-md w-full relative flex flex-col items-center">
+            <button
+              className="absolute top-3 right-3 text-3xl text-gray-500 hover:text-gray-800 focus:outline-none"
+              onClick={() => {
+                setShowScanner(false);
+                stopCamera();
+              }}
+              aria-label="Close"
+              style={{ fontSize: '2rem', lineHeight: '2rem' }}
+            >
+              ×
+            </button>
+            <h2 className="text-xl font-bold mb-4 text-[#00796B]">Scan QR Code</h2>
+            <div className="mb-4">
+              {!scanning ? (
+                <Button className="flex items-center gap-2 justify-center mb-4" onClick={startCamera}>
+                  <Camera className="w-4 h-4" /> Start Camera Scan
+                </Button>
+              ) : (
+                <Button className="flex items-center gap-2 justify-center mb-4" onClick={stopCamera} variant="destructive">
+                  Stop Camera
+                </Button>
+              )}
+            </div>
+            <div id={qrRegionId} className="mb-4 mx-auto" style={{ width: 260, minHeight: 260 }} />
+            {scanError && <div className="text-red-600 text-sm mt-2">{scanError}</div>}
+            <div className="text-center text-sm text-gray-600 mt-2">
+              Point your camera at a compost bin QR code
+            </div>
           </div>
         </div>
       )}

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Share2, Thermometer, Droplets, RefreshCw, Users, Calendar, Plus, Clock, Filter, Send, QrCode, Shovel, Leaf } from "lucide-react";
+import { ArrowLeft, Share2, Thermometer, Droplets, RefreshCw, Users, Calendar, Plus, Clock, Filter, Send, QrCode, Shovel, Leaf, Copy, Download } from "lucide-react";
 import { differenceInDays, formatDistanceToNow } from 'date-fns';
 
 function getHealthColor(status: string) {
@@ -68,6 +68,9 @@ export default function BinDetailPage() {
   const [joinBinId, setJoinBinId] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [copiedQR, setCopiedQR] = useState(false);
+  const [copiedShare, setCopiedShare] = useState(false);
 
   const handleHelpPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -128,6 +131,18 @@ export default function BinDetailPage() {
       setHelpError(err.message || "Failed to create help request");
     }
     setHelpLoading(false);
+  };
+
+  const handleCopyQR = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedQR(true);
+    setTimeout(() => setCopiedQR(false), 1200);
+  };
+
+  const handleCopyShare = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedShare(true);
+    setTimeout(() => setCopiedShare(false), 1200);
   };
 
   useEffect(() => {
@@ -546,11 +561,41 @@ export default function BinDetailPage() {
             </button>
             <h2 className="text-xl font-bold mb-4 text-[#00796B]">Share Bin QR Code</h2>
             <img
+              id="qr-img"
               src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shareUrl)}`}
               alt="QR Code"
               className="mb-4"
             />
-            <div className="text-center text-sm text-gray-600 break-all">{shareUrl}</div>
+            <button
+              className="mb-4 flex items-center gap-2 bg-[#00796B] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#005B4F]"
+              onClick={async () => {
+                const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shareUrl)}`;
+                const response = await fetch(qrUrl);
+                const blob = await response.blob();
+                const blobUrl = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = 'compost-bin-qr.png';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(blobUrl);
+              }}
+            >
+              <Download className="w-4 h-4" /> Download QR Code
+            </button>
+            <div className="flex items-center gap-2 text-center text-sm text-gray-600 break-all min-h-[28px]">
+              {copiedQR ? (
+                <span className="text-green-700 font-bold text-lg w-full text-center">Copied!</span>
+              ) : (
+                <>
+                  <span>{shareUrl}</span>
+                  <button onClick={() => handleCopyQR(shareUrl)} className="ml-1 p-1 hover:bg-gray-200 rounded" title="Copy link">
+                    <Copy className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -584,9 +629,20 @@ export default function BinDetailPage() {
                 Telegram
               </a>
             </div>
-            <div className="text-center text-sm text-gray-600 break-all">{shareUrl}</div>
+            <div className="flex items-center gap-2 text-center text-sm text-gray-600 break-all min-h-[28px]">
+              {copiedShare ? (
+                <span className="text-green-700 font-bold text-lg w-full text-center">Copied!</span>
+              ) : (
+                <>
+                  <span>{shareUrl}</span>
+                  <button onClick={() => handleCopyShare(shareUrl)} className="ml-1 p-1 hover:bg-gray-200 rounded" title="Copy link">
+                    <Copy className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
       )}
     </div>
   );
