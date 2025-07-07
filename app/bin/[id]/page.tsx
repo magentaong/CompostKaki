@@ -427,7 +427,7 @@ export default function BinDetailPage() {
             </div>
             <div className={`flex flex-col items-center justify-center rounded-xl min-h-[90px] min-w-[90px] px-0 py-6 border ${moistureColor}`}>
               <div className="text-3xl text-black">{bin?.latest_moisture ?? '-'}</div>
-              <div className="text-base text-gray-600 mt-1">Moisture Level</div>
+              <div className="text-base text-gray-600 mt-1">Moisture</div>
             </div>
             <div className="flex flex-col items-center justify-center rounded-xl min-h-[90px] min-w-[90px] px-0 py-6" style={{ background: '#F2FF9C' }}>
               <div className="text-3xl text-black">{bin?.latest_flips ?? '-'}</div>
