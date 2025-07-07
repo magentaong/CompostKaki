@@ -141,6 +141,7 @@ export default function BinDetailPage() {
         setHelpPhoto(null);
         setHelpDueDate('');
         setHelpTimeSensitive(false);
+        router.push('/main?tab=community');
       }, 1200);
     } catch (err: any) {
       setHelpError(err.message || "Failed to create help request");

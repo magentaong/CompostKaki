@@ -77,6 +77,33 @@ export default function MainPage() {
   const actionButtonsRef = useRef<HTMLDivElement>(null);
   const [spotlightRect, setSpotlightRect] = useState<{top:number,left:number,width:number,height:number}|null>(null);
 
+  // Filter bins by search
+  const filteredBins = bins.filter(
+    (bin) =>
+      bin.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      bin.location?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Add state for community intro modal
+  const [showCommunityIntro, setShowCommunityIntro] = useState(false);
+  const prevTab = useRef(tab);
+  console.log(filteredBins.length, tab, prevTab.current, communityTasks.length);
+  useEffect(() => {
+    if (
+      !loading &&
+      !communityLoading &&
+      filteredBins.length === 0 &&
+      tab === 'community' &&
+      prevTab.current !== 'community' &&
+      communityTasks.length === 0
+    ) {
+      setShowCommunityIntro(true);
+    } else {
+      setShowCommunityIntro(false);
+    }
+    prevTab.current = tab;
+  }, [tab, filteredBins.length, communityTasks.length, loading, communityLoading]);
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) router.replace("/");
@@ -86,6 +113,16 @@ export default function MainPage() {
   useEffect(() => {
     if (searchParams.get("join") === "1") {
       setShowJoinModal(true);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam && (tabParam === "journal" || tabParam === "community")) {
+      setTab(tabParam);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('mainTab', tabParam);
+      }
     }
   }, [searchParams]);
 
@@ -329,13 +366,6 @@ export default function MainPage() {
     setCommunityLoading(false);
   };
 
-  // Filter bins by search
-  const filteredBins = bins.filter(
-    (bin) =>
-      bin.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      bin.location?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   const handleJoinInput = (val: string) => {
     setJoinInput(val);
     // Strict UUID regex
@@ -446,16 +476,6 @@ export default function MainPage() {
     setCopiedShare(true);
     setTimeout(() => setCopiedShare(false), 1200);
   };
-
-  // Add state for community intro modal
-  const [showCommunityIntro, setShowCommunityIntro] = useState(false);
-  const prevTab = useRef(tab);
-  useEffect(() => {
-    if (filteredBins.length === 0 && tab === 'community' && prevTab.current !== 'community') {
-      setShowCommunityIntro(true);
-    }
-    prevTab.current = tab;
-  }, [tab, filteredBins.length]);
 
   // Show modal when user has no bins (but only after loading is false)
   useEffect(() => {
