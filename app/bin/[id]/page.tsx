@@ -21,6 +21,14 @@ function getHealthColor(status: string) {
   }
 }
 
+// Add a helper for health status pill color
+const getHealthPillClass = (status: string) => {
+  if (status === 'Healthy') return 'bg-green-100 text-green-700';
+  if (status === 'Needs Attention') return 'bg-yellow-100 text-yellow-800';
+  if (status === 'Critical') return 'bg-red-100 text-red-700';
+  return 'bg-gray-100 text-gray-700';
+};
+
 export default function BinDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -408,7 +416,7 @@ export default function BinDetailPage() {
           {/* Health Status */}
           {bin?.health_status && (
             <div className="flex justify-center mb-4">
-              <span className={`px-4 py-1 rounded-full font-semibold text-sm bg-[#E6F4EA] text-[#00796B]`}>{bin.health_status}</span>
+              <span className={`px-4 py-1 rounded-full font-semibold text-sm ${getHealthPillClass(bin.health_status)}`}>{bin.health_status}</span>
             </div>
           )}
           {/* Stat Tiles Row */}
