@@ -421,14 +421,14 @@ export default function BinDetailPage() {
           )}
           {/* Stat Tiles Row */}
           <div className="grid grid-cols-3 gap-3 mb-4 px-4">
-            <div className="flex flex-col items-center justify-center rounded-xl min-h-[90px] min-w-[90px] px-0 py-6" style={{ background: '#F3F3F3' }}>
+            <div className={`flex flex-col items-center justify-center rounded-xl min-h-[90px] min-w-[90px] px-0 py-6 border ${tempColor}`}>
               <div className="text-3xl text-black">{bin?.latest_temperature ?? '-'}</div>
               <div className="text-base text-gray-600 mt-1">Temp</div>
             </div>
-            <div className="flex flex-col items-center justify-center rounded-xl min-h-[90px] min-w-[90px] px-0 py-6" style={{ background: '#FFEDFF' }}>
+            <div className={`flex flex-col items-center justify-center rounded-xl min-h-[90px] min-w-[90px] px-0 py-6 border ${moistureColor}`}>
               <div className="text-3xl text-black">{bin?.latest_moisture ?? '-'}</div>
               <div className="text-base text-gray-600 mt-1">Moisture Level</div>
-        </div>
+            </div>
             <div className="flex flex-col items-center justify-center rounded-xl min-h-[90px] min-w-[90px] px-0 py-6" style={{ background: '#F2FF9C' }}>
               <div className="text-3xl text-black">{bin?.latest_flips ?? '-'}</div>
               <div className="text-base text-gray-600 mt-1">Flips</div>
