@@ -84,15 +84,24 @@ export default function MainPage() {
       bin.location?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Sort filteredBins by health_status: Critical > Needs Attention > Healthy > others
+  const healthPriority = (status: string) => {
+    if (status === 'Critical') return 0;
+    if (status === 'Needs Attention') return 1;
+    if (status === 'Healthy') return 2;
+    return 3;
+  };
+  const sortedBins = [...filteredBins].sort((a, b) => healthPriority(a.health_status) - healthPriority(b.health_status));
+
   // Add state for community intro modal
   const [showCommunityIntro, setShowCommunityIntro] = useState(false);
   const prevTab = useRef(tab);
-  console.log(filteredBins.length, tab, prevTab.current, communityTasks.length);
+  console.log(sortedBins.length, tab, prevTab.current, communityTasks.length);
   useEffect(() => {
     if (
       !loading &&
       !communityLoading &&
-      filteredBins.length === 0 &&
+      sortedBins.length === 0 &&
       tab === 'community' &&
       prevTab.current !== 'community' &&
       communityTasks.length === 0
@@ -102,7 +111,7 @@ export default function MainPage() {
       setShowCommunityIntro(false);
     }
     prevTab.current = tab;
-  }, [tab, filteredBins.length, communityTasks.length, loading, communityLoading]);
+  }, [tab, sortedBins.length, communityTasks.length, loading, communityLoading]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -479,13 +488,13 @@ export default function MainPage() {
 
   // Show modal when user has no bins (but only after loading is false)
   useEffect(() => {
-    if (!loading && filteredBins.length === 0) {
+    if (!loading && sortedBins.length === 0) {
       setShowWelcomeModal(true);
     } else {
       setShowWelcomeModal(false);
       setShowSpotlight(false);
     }
-  }, [loading, filteredBins.length]);
+  }, [loading, sortedBins.length]);
 
   // Confetti burst when modal appears (3s, staggered)
   useEffect(() => {
@@ -536,6 +545,14 @@ export default function MainPage() {
     }
   }, [showSpotlight]);
 
+  // Add a helper for health status pill color
+  const getHealthPillClass = (status: string) => {
+    if (status === 'Healthy') return 'bg-green-100 text-green-700';
+    if (status === 'Needs Attention') return 'bg-yellow-100 text-yellow-800';
+    if (status === 'Critical') return 'bg-red-100 text-red-700';
+    return 'bg-gray-100 text-gray-700';
+  };
+
   return (
     <div className="min-h-screen bg-white">
       <div className="relative max-w-md mx-auto">
@@ -547,7 +564,7 @@ export default function MainPage() {
             </div>
           </div>
           {/* Only show header buttons if user has bins */}
-          {filteredBins.length > 0 && (
+          {sortedBins.length > 0 && (
             <div className="flex items-center gap-2 ml-2">
               <Button
                 className="bg-[#00796B] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#005B4F] ml-2"
@@ -603,7 +620,7 @@ export default function MainPage() {
               <div className="flex justify-between items-center mt-2 mb-2">
                 <h2 className="text-[#00796B] text-base font-semibold">Active Piles</h2>
                 {/* Only show Add New Piles if user has bins */}
-                {filteredBins.length > 0 && (
+                {sortedBins.length > 0 && (
                   <Button
                     className="bg-[#00796B] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#005B4F]"
                     onClick={() => router.push('/add-bin')}
@@ -615,7 +632,7 @@ export default function MainPage() {
               <div className="bg-white rounded-lg border border-[#E0E0E0] divide-y divide-[#F3F3F3]">
                 {loading && <div className="p-4 text-center">Loading bins...</div>}
                 {error && <div className="p-4 text-red-600 text-sm text-center">{error}</div>}
-                {filteredBins.map((bin) => (
+                {sortedBins.map((bin) => (
                   <div
                     key={bin.id}
                     className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[#F3F3F3] transition"
@@ -631,12 +648,12 @@ export default function MainPage() {
                       <div className="text-xs text-gray-500 truncate">{bin.location}</div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <span className="text-xs text-[#00796B] font-medium">{bin.health_status || 'Healthy'}</span>
+                      <span className={`px-2 py-0.5 rounded-full font-semibold text-xs ${getHealthPillClass(bin.health_status)}`}>{bin.health_status || 'Healthy'}</span>
                       <span className="text-xs text-gray-400">{bin.latest_temperature ? `${bin.latest_temperature}°C` : '-'}</span>
                     </div>
                   </div>
                 ))}
-                {filteredBins.length === 0 && !loading && (
+                {sortedBins.length === 0 && !loading && (
                   <div className="flex flex-col items-center justify-center pt-2 pb-16 gap-6 min-h-[350px]">
                     <img
                       src="/default_compost_image.jpg"
@@ -946,7 +963,7 @@ export default function MainPage() {
         </div>
       )}
       {/* Spotlight Overlay */}
-      {showSpotlight && filteredBins.length === 0 && spotlightRect && (
+      {showSpotlight && sortedBins.length === 0 && spotlightRect && (
         <div className="fixed inset-0 z-40 pointer-events-auto" onClick={() => setShowSpotlight(false)}>
           <div style={{
             position: 'fixed',
