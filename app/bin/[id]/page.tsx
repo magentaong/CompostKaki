@@ -772,6 +772,56 @@ export default function BinDetailPage() {
           {deleteError && <div className="text-red-600 text-sm mt-2">{deleteError}</div>}
         </div>
       )}
+      {openModalLogId && (() => {
+        const entry = activities.find((e: any) => e.id === openModalLogId);
+        if (!entry) return null;
+        let imageUrl = null;
+        if (entry.image && Array.isArray(entry.image) && entry.image.length > 0) {
+          imageUrl = entry.image[0];
+        } else if (entry.image && typeof entry.image === 'string') {
+          imageUrl = entry.image;
+        }
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white rounded-xl p-6 shadow-lg max-w-md w-full relative">
+              <button
+                className="absolute top-3 right-3 text-3xl text-gray-500 hover:text-gray-800 focus:outline-none"
+                onClick={() => setOpenModalLogId(null)}
+                aria-label="Close"
+                style={{ fontSize: '2rem', lineHeight: '2rem' }}
+              >
+                ×
+              </button>
+              <div className="mb-2 text-xs text-gray-400">
+                {new Date(entry.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}, {new Date(entry.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+              </div>
+              <div className="flex items-center gap-2 mb-3">
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src={entry.profiles?.avatar_url || undefined} />
+                  <AvatarFallback className="bg-[#F3F3F3] text-[#00796B] text-base">
+                    {((entry.profiles?.first_name || '') + ' ' + (entry.profiles?.last_name || '')).split(' ').map(n => n[0]).join('').toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-sm text-gray-700 font-medium">
+                  Posted by {entry.profiles?.first_name || 'Unknown'} {entry.profiles?.last_name || ''}
+                </span>
+              </div>
+              <div className="mb-2 text-xl font-semibold text-gray-900">{entry.type || entry.action || entry.content}</div>
+              <div className="mb-3 text-base text-gray-700">{entry.content}</div>
+              {/* Show temp/moisture if present */}
+              {(entry.temperature || entry.moisture) && (
+                <div className="mb-3 text-base text-gray-700">
+                  {entry.temperature && <div><b>Temperature:</b> {entry.temperature}°C</div>}
+                  {entry.moisture && <div><b>Moisture:</b> {entry.moisture}</div>}
+                </div>
+              )}
+              {imageUrl && (
+                <img src={imageUrl} alt="Log image" className="w-full max-h-72 object-contain rounded-lg border mb-2" />
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
