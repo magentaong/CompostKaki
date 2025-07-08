@@ -21,6 +21,14 @@ function getHealthColor(status: string) {
   }
 }
 
+// Add a helper for health status pill color
+const getHealthPillClass = (status: string) => {
+  if (status === 'Healthy') return 'bg-green-100 text-green-700';
+  if (status === 'Needs Attention') return 'bg-yellow-100 text-yellow-800';
+  if (status === 'Critical') return 'bg-red-100 text-red-700';
+  return 'bg-gray-100 text-gray-700';
+};
+
 export default function BinDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -80,6 +88,13 @@ export default function BinDetailPage() {
   const LOGS_PER_PAGE = 7;
   const [logsToShow, setLogsToShow] = useState(LOGS_PER_PAGE);
 
+  const [canView, setCanView] = useState(false);
+  const [showJoinPrompt, setShowJoinPrompt] = useState(false);
+
+  // Add state for join loading and error
+  const [joinLoading, setJoinLoading] = useState(false);
+  const [joinError, setJoinError] = useState("");
+
   const handleHelpPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setHelpPhoto(e.target.files[0]);
@@ -134,6 +149,7 @@ export default function BinDetailPage() {
         setHelpPhoto(null);
         setHelpDueDate('');
         setHelpTimeSensitive(false);
+        router.push('/main?tab=community');
       }, 1200);
     } catch (err: any) {
       setHelpError(err.message || "Failed to create help request");
@@ -271,6 +287,43 @@ export default function BinDetailPage() {
     });
   }, [router]);
 
+  useEffect(() => {
+    if (!bin || !currentUserId) return;
+    const isCreator = bin.user_id === currentUserId;
+    const isMember = (bin.contributors_list || []).includes(currentUserId);
+    if (isCreator || isMember) {
+      setCanView(true);
+      setShowJoinPrompt(false);
+    } else {
+      setCanView(false);
+      setShowJoinPrompt(true);
+    }
+  }, [bin, currentUserId]);
+
+  // Join bin handler
+  const handleJoinBin = async () => {
+    setJoinLoading(true);
+    setJoinError("");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch('/api/bins/join', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ binId })
+      });
+      const result = await res.json();
+      if (!res.ok || result.error) throw new Error(result.error || 'Failed to join bin');
+      window.location.reload();
+    } catch (e: any) {
+      setJoinError(e.message || 'Failed to join bin');
+    }
+    setJoinLoading(false);
+  };
+
   // Add robust loading/error/null handling
   if (loading) return <div className="min-h-screen flex items-center justify-center text-lg">Loading...</div>;
   if (error) return <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">{error}</div>;
@@ -301,12 +354,43 @@ export default function BinDetailPage() {
     setDeleteLoading(false);
   };
 
+  if (showJoinPrompt) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
+        <div className="bg-white rounded-xl p-8 shadow-lg max-w-md w-full text-center">
+          <h2 className="text-xl font-bold mb-4 text-[#00796B]">Join this Bin</h2>
+          <p className="mb-6">You are not a member of this bin. Would you like to join?</p>
+          <div className="flex gap-4 justify-center">
+            <button
+              className="bg-[#00796B] text-white rounded-lg px-6 py-2 font-semibold disabled:opacity-60"
+              onClick={handleJoinBin}
+              disabled={joinLoading}
+            >
+              {joinLoading ? 'Joining...' : 'Join Bin'}
+            </button>
+            <button
+              className="bg-gray-200 text-[#00796B] rounded-lg px-6 py-2 font-semibold"
+              onClick={() => router.push('/main')}
+              disabled={joinLoading}
+            >
+              Cancel
+            </button>
+          </div>
+          {joinError && <div className="text-red-600 text-sm mt-4">{joinError}</div>}
+        </div>
+      </div>
+    );
+  }
+  if (!canView) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-md mx-auto">
         {/* Top section: softer off-white background */}
         <div className="bg-[#FFFEFA] pb-6">
-          {/* Header: Back button and pile image */}
+          {/* Header: Back button, pile image, and help icon */}
           <div className="flex flex-col items-center pt-4 pb-2">
             <div className="w-full flex items-center justify-between px-2 mb-2">
               <Button variant="ghost" size="icon" onClick={() => router.push('/main')}>
@@ -315,11 +399,14 @@ export default function BinDetailPage() {
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="icon" onClick={() => setShowShare(true)}>
                   <Share2 className="w-6 h-6 text-[#00796B]" />
-              </Button>
+                </Button>
                 <Button variant="ghost" size="icon" onClick={() => setShowQR(true)}>
                   <QrCode className="w-6 h-6 text-[#00796B]" />
-                  </Button>
-                </div>
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => setShowHelpModal(true)} title="Ask for Help">
+                  <span role="img" aria-label="help" className="text-2xl">💪</span>
+                </Button>
+              </div>
             </div>
             <img
               src={bin?.image || "/default_compost_image.jpg"}
@@ -332,143 +419,69 @@ export default function BinDetailPage() {
           {/* Health Status */}
           {bin?.health_status && (
             <div className="flex justify-center mb-4">
-              <span className={`px-4 py-1 rounded-full font-semibold text-sm bg-[#E6F4EA] text-[#00796B]`}>{bin.health_status}</span>
+              <span className={`px-4 py-1 rounded-full font-semibold text-sm ${getHealthPillClass(bin.health_status)}`}>{bin.health_status}</span>
             </div>
           )}
           {/* Stat Tiles Row */}
           <div className="grid grid-cols-3 gap-3 mb-4 px-4">
-            <div className="flex flex-col items-center justify-center rounded-xl min-h-[90px] min-w-[90px] px-0 py-6" style={{ background: '#F3F3F3' }}>
+            <div className={`flex flex-col items-center justify-center rounded-xl min-h-[80px] min-w-[90px] px-0 py-5 border ${tempColor}`}>
               <div className="text-3xl text-black">{bin?.latest_temperature ?? '-'}</div>
               <div className="text-base text-gray-600 mt-1">Temp</div>
             </div>
-            <div className="flex flex-col items-center justify-center rounded-xl min-h-[90px] min-w-[90px] px-0 py-6" style={{ background: '#FFEDFF' }}>
+            <div className={`flex flex-col items-center justify-center rounded-xl min-h-[80px] min-w-[90px] px-0 py-5 border ${moistureColor}`}>
               <div className="text-3xl text-black">{bin?.latest_moisture ?? '-'}</div>
-              <div className="text-base text-gray-600 mt-1">Moisture Level</div>
-        </div>
-            <div className="flex flex-col items-center justify-center rounded-xl min-h-[90px] min-w-[90px] px-0 py-6" style={{ background: '#F2FF9C' }}>
+              <div className="text-base text-gray-600 mt-1">Moisture</div>
+            </div>
+            <div className="flex flex-col items-center justify-center rounded-xl min-h-[80px] min-w-[90px] px-0 py-5 border" style={{ background: '#F2FF9C' }}>
               <div className="text-3xl text-black">{bin?.latest_flips ?? '-'}</div>
               <div className="text-base text-gray-600 mt-1">Flips</div>
             </div>
           </div>
         </div>
-        {/* Action Buttons and rest of page: white background */}
-        <div className="bg-white">
-          <div className="flex gap-3 justify-center mb-6 px-4">
-            <Button
-              className="bg-[#00796B] text-white font-semibold rounded-lg px-6 py-2 flex-1"
-              onClick={() => router.push(`/bin/${binId}/logactivity`)}
-            >
-              + Activity
-            </Button>
-            <Button
-              variant="outline"
-              className="border-[#00796B] text-[#00796B] font-semibold rounded-lg px-6 py-2 flex-1 bg-transparent hover:bg-[#F3F3F3]"
-              onClick={() => setShowHelpModal(true)}
-            >
-              💪 Ask for Help
-            </Button>
-          </div>
-          {/* Activity Timeline - vertical timeline style */}
-          <div className="px-4">
-            <h3 className="font-bold text-lg mb-3">Activity Timeline</h3>
-            {loading && <div>Loading...</div>}
-            {error && <div className="text-red-600 text-sm">{error}</div>}
-            <div className="relative ml-4">
-              {/* Vertical line */}
-              <div className="absolute left-0 top-0 w-0.5 h-full bg-gray-200" style={{ zIndex: 0 }} />
-              <div className="flex flex-col gap-8">
-                {activities.length === 0 && !loading && (
-                  <div className="flex flex-col items-center justify-center py-12 w-full">
-                    <div className="text-base text-[#00796B] text-center max-w-md font-normal">
-                      No activities logged. Click on <span className="underline">+Activity</span> button to log an activity or on the <span className="underline">💪 Ask for Help</span> button to ask for help.
-                    </div>
+        {/* Sticky action bar as direct child of main page container */}
+        <div className="sticky top-0 z-30 bg-white flex flex-col items-center py-2 px-4 gap-2 border-b" style={{ maxWidth: 480, margin: '0 auto' }}>
+          <Button
+            className="bg-[#00796B] text-white font-semibold rounded-lg w-full min-h-[40px] text-lg"
+            onClick={() => router.push(`/bin/${binId}/logactivity`)}
+          >
+            + Activity
+          </Button>
+          <Button
+            variant="outline"
+            className="border-[#00796B] text-[#00796B] font-semibold rounded-lg w-full min-h-[40px] text-lg bg-transparent hover:bg-[#F3F3F3]"
+            onClick={() => setShowHelpModal(true)}
+          >
+            💪 Ask for Help
+          </Button>
+        </div>
+        {/* Activity Timeline - vertical timeline style */}
+        <div className="px-4">
+          <h3 className="font-bold text-lg mb-3">Activity Timeline</h3>
+          {loading && <div>Loading...</div>}
+          {error && <div className="text-red-600 text-sm">{error}</div>}
+          <div className="relative ml-4">
+            {/* Vertical line */}
+            <div className="absolute left-0 top-0 w-0.5 h-full bg-gray-200" style={{ zIndex: 0 }} />
+            <div className="flex flex-col gap-8">
+              {activities.length === 0 && !loading && (
+                <div className="flex flex-col items-center justify-center py-12 w-full">
+                  <div className="text-base text-[#00796B] text-center max-w-md font-normal">
+                    No activities logged. Click on <span className="underline">+Activity</span> button to log an activity or on the <span className="underline">💪 Ask for Help</span> button to ask for help.
                   </div>
-                )}
-                {activities.slice(0, logsToShow).map((entry: any, idx: number) => (
-                  <div key={entry.id} className="relative flex items-start gap-4">
-                    {/* Dot - perfectly aligned to the line */}
-                    <div className="relative ml-[-5px] top-[4px] w-3 h-3 rounded-full bg-gray-200 border-2 border-white z-10" />
-                    <div className="flex-1 pl-3">
-                      <div className="text-xs text-gray-400 mb-1">
-                        {new Date(entry.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}, {new Date(entry.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                      <div className="text-lg font-semibold text-gray-900 mb-1">{entry.type || entry.action || entry.content}</div>
-                      {/* Posted by and avatar */}
-                      <div className="flex items-center gap-2 mb-2">
-                        <Avatar className="w-7 h-7">
-                          <AvatarImage src={entry.profiles?.avatar_url || undefined} />
-                          <AvatarFallback className="bg-[#F3F3F3] text-[#00796B] text-base">
-                            {((entry.profiles?.first_name || '') + ' ' + (entry.profiles?.last_name || '')).split(' ').map(n => n[0]).join('').toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                        <span className="text-sm text-gray-700 font-medium">
-                          Posted by {entry.profiles?.first_name || 'Unknown'} {entry.profiles?.last_name || ''}
-                            </span>
-                          </div>
-                      <div className="text-base text-gray-600 mb-2">{entry.content}</div>
-                      {/* Show log image if present */}
-                      {entry.image && (
-                        Array.isArray(entry.image) ? (
-                          entry.image.length > 0 ? <img src={entry.image[0]} alt="Log" className="w-full max-h-48 object-contain rounded-lg border mb-2" /> : null
-                        ) : (
-                          <img src={entry.image} alt="Log" className="w-full max-h-48 object-contain rounded-lg border mb-2" />
-                        )
-                      )}
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="border-gray-300 text-gray-700 rounded-lg px-4 py-1 text-sm font-medium bg-transparent"
-                              onClick={() => setOpenModalLogId(entry.id)}
-                            >
-                        Learn more &rarr;
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                {activities.length > logsToShow && (
-                  <div className="flex justify-center my-4">
-                    <Button
-                      variant="outline"
-                      className="border-[#00796B] text-[#00796B] font-semibold rounded-lg px-6 py-2 bg-transparent hover:bg-[#F3F3F3]"
-                      onClick={() => setLogsToShow(logsToShow + LOGS_PER_PAGE)}
-                    >
-                      Load {Math.min(LOGS_PER_PAGE, activities.length - logsToShow)} more logs
-                    </Button>
-                  </div>
-                )}
-                {activities.length > 0 && logsToShow >= activities.length && (
-                  <div className="text-center text-gray-400 my-4">- End of logs -</div>
-                )}
-              </div>
-            </div>
-            {/* Modal for activity details */}
-                {openModalLogId && (() => {
-                  const entry = activities.find((e: any) => e.id === openModalLogId);
-                  if (!entry) return null;
-              // Image logic
-                  let imageUrl = null;
-                  if (entry.image && Array.isArray(entry.image) && entry.image.length > 0) {
-                    imageUrl = entry.image[0];
-                  } else if (entry.image && typeof entry.image === 'string') {
-                    imageUrl = entry.image;
-                  }
-                  return (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                  <div className="bg-white rounded-xl p-6 shadow-lg max-w-md w-full relative">
-                        <button
-                      className="absolute top-3 right-3 text-3xl text-gray-500 hover:text-gray-800 focus:outline-none"
-                          onClick={() => setOpenModalLogId(null)}
-                          aria-label="Close"
-                      style={{ fontSize: '2rem', lineHeight: '2rem' }}
-                        >
-                          ×
-                        </button>
-                    <div className="mb-2 text-xs text-gray-400">
+                </div>
+              )}
+              {activities.slice(0, logsToShow).map((entry: any, idx: number) => (
+                <div key={entry.id} className="relative flex items-start gap-4">
+                  {/* Dot - perfectly aligned to the line */}
+                  <div className="relative ml-[-5px] top-[4px] w-3 h-3 rounded-full bg-gray-200 border-2 border-white z-10" />
+                  <div className="flex-1 pl-3">
+                    <div className="text-xs text-gray-400 mb-1">
                       {new Date(entry.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}, {new Date(entry.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
                     </div>
-                    {/* Posted by and avatar in modal */}
-                    <div className="flex items-center gap-2 mb-3">
-                      <Avatar className="w-8 h-8">
+                    <div className="text-lg font-semibold text-gray-900 mb-1">{entry.type || entry.action || entry.content}</div>
+                    {/* Posted by and avatar */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <Avatar className="w-7 h-7">
                         <AvatarImage src={entry.profiles?.avatar_url || undefined} />
                         <AvatarFallback className="bg-[#F3F3F3] text-[#00796B] text-base">
                           {((entry.profiles?.first_name || '') + ' ' + (entry.profiles?.last_name || '')).split(' ').map(n => n[0]).join('').toUpperCase()}
@@ -477,17 +490,43 @@ export default function BinDetailPage() {
                       <span className="text-sm text-gray-700 font-medium">
                         Posted by {entry.profiles?.first_name || 'Unknown'} {entry.profiles?.last_name || ''}
                       </span>
-                        </div>
-                    <div className="mb-2 text-xl font-semibold text-gray-900">{entry.type || entry.action || entry.content}</div>
-                    <div className="mb-3 text-base text-gray-700">{entry.content}</div>
-                        {imageUrl && (
-                      <img src={imageUrl} alt="Log image" className="w-full max-h-72 object-contain rounded-lg border mb-2" />
-                    )}
-                      </div>
                     </div>
-                  );
-                })()}
-              </div>
+                    <div className="text-base text-gray-600 mb-2">{entry.content}</div>
+                    {/* Show log image if present */}
+                    {entry.image && (
+                      Array.isArray(entry.image) ? (
+                        entry.image.length > 0 ? <img src={entry.image[0]} alt="Log" className="w-full max-h-48 object-contain rounded-lg border mb-2" /> : null
+                      ) : (
+                        <img src={entry.image} alt="Log" className="w-full max-h-48 object-contain rounded-lg border mb-2" />
+                      )
+                    )}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="border-gray-300 text-gray-700 rounded-lg px-4 py-1 text-sm font-medium bg-transparent"
+                      onClick={() => setOpenModalLogId(entry.id)}
+                    >
+                      Learn more &rarr;
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {activities.length > logsToShow && (
+                <div className="flex justify-center my-4">
+                  <Button
+                    variant="outline"
+                    className="border-[#00796B] text-[#00796B] font-semibold rounded-lg px-6 py-2 bg-transparent hover:bg-[#F3F3F3]"
+                    onClick={() => setLogsToShow(logsToShow + LOGS_PER_PAGE)}
+                  >
+                    Load {Math.min(LOGS_PER_PAGE, activities.length - logsToShow)} more logs
+                  </Button>
+                </div>
+              )}
+              {activities.length > 0 && logsToShow >= activities.length && (
+                <div className="text-center text-gray-400 my-4">- End of logs -</div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
       {/* Ask for Help Modal */}
@@ -733,6 +772,56 @@ export default function BinDetailPage() {
           {deleteError && <div className="text-red-600 text-sm mt-2">{deleteError}</div>}
         </div>
       )}
+      {openModalLogId && (() => {
+        const entry = activities.find((e: any) => e.id === openModalLogId);
+        if (!entry) return null;
+        let imageUrl = null;
+        if (entry.image && Array.isArray(entry.image) && entry.image.length > 0) {
+          imageUrl = entry.image[0];
+        } else if (entry.image && typeof entry.image === 'string') {
+          imageUrl = entry.image;
+        }
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white rounded-xl p-6 shadow-lg max-w-md w-full relative">
+              <button
+                className="absolute top-3 right-3 text-3xl text-gray-500 hover:text-gray-800 focus:outline-none"
+                onClick={() => setOpenModalLogId(null)}
+                aria-label="Close"
+                style={{ fontSize: '2rem', lineHeight: '2rem' }}
+              >
+                ×
+              </button>
+              <div className="mb-2 text-xs text-gray-400">
+                {new Date(entry.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}, {new Date(entry.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+              </div>
+              <div className="flex items-center gap-2 mb-3">
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src={entry.profiles?.avatar_url || undefined} />
+                  <AvatarFallback className="bg-[#F3F3F3] text-[#00796B] text-base">
+                    {((entry.profiles?.first_name || '') + ' ' + (entry.profiles?.last_name || '')).split(' ').map(n => n[0]).join('').toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-sm text-gray-700 font-medium">
+                  Posted by {entry.profiles?.first_name || 'Unknown'} {entry.profiles?.last_name || ''}
+                </span>
+              </div>
+              <div className="mb-2 text-xl font-semibold text-gray-900">{entry.type || entry.action || entry.content}</div>
+              <div className="mb-3 text-base text-gray-700">{entry.content}</div>
+              {/* Show temp/moisture if present */}
+              {(entry.temperature || entry.moisture) && (
+                <div className="mb-3 text-base text-gray-700">
+                  {entry.temperature && <div><b>Temperature:</b> {entry.temperature}°C</div>}
+                  {entry.moisture && <div><b>Moisture:</b> {entry.moisture}</div>}
+                </div>
+              )}
+              {imageUrl && (
+                <img src={imageUrl} alt="Log image" className="w-full max-h-72 object-contain rounded-lg border mb-2" />
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
