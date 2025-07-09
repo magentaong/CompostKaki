@@ -888,8 +888,13 @@ export default function MainPage() {
             <div className="mb-2 text-gray-600 text-sm">Effort: {openTask.effort}</div>
             <div className="mb-2 text-gray-600 text-sm">Status: <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor(openTask.status)}`}>{capitalize(openTask.status)}</span></div>
             <div className="mb-2 text-gray-600 text-sm">Posted: {openTask.created_at ? new Date(openTask.created_at).toLocaleString() : 'Unknown'}</div>
-            <div className="mb-2 text-gray-600 text-sm">Posted by: {openTask.profiles?.first_name || 'Unknown'}</div>
-            {console.log('Open Task:', openTask)}
+            <div className="mb-2 text-gray-600 text-sm">
+              Posted by: {
+                openTask.user_id === currentUserId
+                  ? 'You'
+                  : (openTask.profiles?.first_name || openTask.user_id)
+              }
+            </div>
             {openTask.accepted_by && openTask.accepted_at && (
               <div className="mb-2 text-gray-600 text-sm">
                 Accepted by: {
