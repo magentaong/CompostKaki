@@ -339,7 +339,18 @@ export default function MainPage() {
       .from("bin_members")
       .select("bin_id")
       .eq("user_id", user.data.user.id);
-    const binIds = memberships?.map((m: any) => m.bin_id) || [];
+    const memberBinIds = memberships?.map((m: any) => m.bin_id) || [];
+    
+    // ALSO get bins user owns
+    const { data: ownedBins } = await supabase
+      .from("bins")
+      .select("id")
+      .eq("user_id", user.data.user.id);
+    const ownedBinIds = ownedBins?.map((b: any) => b.id) || [];
+
+    // Combine and deduplicate
+    const binIds = Array.from(new Set([...memberBinIds, ...ownedBinIds]));
+    // const binIds = memberships?.map((m: any) => m.bin_id) || [];
     // Get tasks for those bins
     let tasks: any[] = [];
     if (binIds.length > 0) {
