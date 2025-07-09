@@ -345,7 +345,7 @@ export default function MainPage() {
     if (binIds.length > 0) {
       const { data: binTasks, error: taskError } = await supabase
         .from("tasks")
-        .select("*, profiles:user_id(id, first_name, last_name)")
+        .select("*, profiles:user_id(id, first_name, last_name), accepted_by_profile:accepted_by(id, first_name, last_name)")
         .in("bin_id", binIds)
         .order("created_at", { ascending: false });
       if (taskError) {
@@ -358,7 +358,7 @@ export default function MainPage() {
     // Always fetch all tasks posted by the user, regardless of membership
     const { data: myTasks, error: myTasksError } = await supabase
       .from("tasks")
-      .select("*, profiles:user_id(id, first_name, last_name)")
+      .select("*, profiles:user_id(id, first_name, last_name), accepted_by_profile:accepted_by(id, first_name, last_name)")
       .eq("user_id", user.data.user.id)
       .order("created_at", { ascending: false });
     if (myTasksError) {
@@ -889,6 +889,7 @@ export default function MainPage() {
             <div className="mb-2 text-gray-600 text-sm">Status: <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor(openTask.status)}`}>{capitalize(openTask.status)}</span></div>
             <div className="mb-2 text-gray-600 text-sm">Posted: {openTask.created_at ? new Date(openTask.created_at).toLocaleString() : 'Unknown'}</div>
             <div className="mb-2 text-gray-600 text-sm">Posted by: {openTask.profiles?.first_name || 'Unknown'}</div>
+            {console.log('Open Task:', openTask)}
             {openTask.accepted_by && openTask.accepted_at && (
               <div className="mb-2 text-gray-600 text-sm">
                 Accepted by: {
