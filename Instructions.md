@@ -1,9 +1,9 @@
-# CompostConnect – Instructions & Feature Reference
+# CompostKaki – Instructions & Feature Reference
 
 ## Theme & Problem Statement
 
 **Theme:**
-CompostConnect is a community-driven platform designed to empower urban residents—especially those in high-density cities like Singapore—to compost food waste efficiently, share knowledge, and build sustainable habits.
+CompostKaki is a community-driven platform designed to empower urban residents—especially those in high-density cities like Singapore—to compost food waste efficiently, share knowledge, and build sustainable habits.
 
 **Problem We're Solving:**
 - Urban residents generate large amounts of food waste, but lack space, knowledge, or community support to compost effectively.
