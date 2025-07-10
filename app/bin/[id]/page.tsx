@@ -547,6 +547,19 @@ export default function BinDetailPage() {
               ×
             </button>
             <h2 className="text-xl font-bold mb-4 text-[#00796B]">Ask for Help</h2>
+            {/* Instructions */}
+            <div className="mb-4">
+              <div className="flex items-center gap-2 bg-[#F8FAF9] border border-[#E0E0E0] rounded-lg px-4 py-3">
+                <svg width="22" height="22" fill="none" stroke="#7CB8A2" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 16v-4" />
+                  <path d="M12 8h.01" />
+                </svg>
+                <span className="text-[#4B8378] text-base font-medium">
+                  Need help with your compost bin? Fill in the details below and a community member will assist you.
+                </span>
+              </div>
+            </div>
             <form onSubmit={handleHelpSubmit} className="space-y-4">
               {/* Urgency Pills */}
               <div>

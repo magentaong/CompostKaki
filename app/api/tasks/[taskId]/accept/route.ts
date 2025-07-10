@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
     const { data, error } = await supabase
       .from('tasks')
-      .update({ status: 'accepted', accepted_by: user.id })
+      .update({ status: 'accepted', accepted_by: user.id, accepted_at: new Date().toISOString() })
       .eq('id', taskId)
       .select()
       .single();

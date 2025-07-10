@@ -339,13 +339,24 @@ export default function MainPage() {
       .from("bin_members")
       .select("bin_id")
       .eq("user_id", user.data.user.id);
-    const binIds = memberships?.map((m: any) => m.bin_id) || [];
+    const memberBinIds = memberships?.map((m: any) => m.bin_id) || [];
+    
+    // ALSO get bins user owns
+    const { data: ownedBins } = await supabase
+      .from("bins")
+      .select("id")
+      .eq("user_id", user.data.user.id);
+    const ownedBinIds = ownedBins?.map((b: any) => b.id) || [];
+
+    // Combine and deduplicate
+    const binIds = Array.from(new Set([...memberBinIds, ...ownedBinIds]));
+    // const binIds = memberships?.map((m: any) => m.bin_id) || [];
     // Get tasks for those bins
     let tasks: any[] = [];
     if (binIds.length > 0) {
       const { data: binTasks, error: taskError } = await supabase
         .from("tasks")
-        .select("*, profiles:user_id(id, first_name, last_name)")
+        .select("*, profiles:user_id(id, first_name, last_name), accepted_by_profile:accepted_by(id, first_name, last_name)")
         .in("bin_id", binIds)
         .order("created_at", { ascending: false });
       if (taskError) {
@@ -358,7 +369,7 @@ export default function MainPage() {
     // Always fetch all tasks posted by the user, regardless of membership
     const { data: myTasks, error: myTasksError } = await supabase
       .from("tasks")
-      .select("*, profiles:user_id(id, first_name, last_name)")
+      .select("*, profiles:user_id(id, first_name, last_name), accepted_by_profile:accepted_by(id, first_name, last_name)")
       .eq("user_id", user.data.user.id)
       .order("created_at", { ascending: false });
     if (myTasksError) {
@@ -916,7 +927,13 @@ function getHealthColor(status: string): React.CSSProperties {
             <div className="mb-2 text-gray-600 text-sm">Effort: {openTask.effort}</div>
             <div className="mb-2 text-gray-600 text-sm">Status: <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor(openTask.status)}`}>{capitalize(openTask.status)}</span></div>
             <div className="mb-2 text-gray-600 text-sm">Posted: {openTask.created_at ? new Date(openTask.created_at).toLocaleString() : 'Unknown'}</div>
-            <div className="mb-2 text-gray-600 text-sm">Posted by: {openTask.profiles?.first_name || 'Unknown'}</div>
+            <div className="mb-2 text-gray-600 text-sm">
+              Posted by: {
+                openTask.user_id === currentUserId
+                  ? 'You'
+                  : (openTask.profiles?.first_name || openTask.user_id)
+              }
+            </div>
             {openTask.accepted_by && openTask.accepted_at && (
               <div className="mb-2 text-gray-600 text-sm">
                 Accepted by: {
