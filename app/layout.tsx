@@ -13,10 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CompostConnect",
+  title: "CompostKaki",
   description:
     "Track and manage community composting projects with ease. Monitor temperature, moisture, and volunteer actions in real time.",
-  applicationName: "CompostConnect",
+  applicationName: "CompostKaki",
   icons: {
   icon: "/favicon.ico",
   },
@@ -30,13 +30,13 @@ export const metadata: Metadata = {
   ],
   themeColor: "#80B543",
   colorScheme: "light",
-  metadataBase: new URL("https://compostconnect.vercel.app"),
+  metadataBase: new URL("https://compostkaki.vercel.app"),
   openGraph: {
-    title: "CompostConnect",
+    title: "CompostKaki",
     description:
       "Empowering communities to compost better with real-time tracking and collaborative tools.",
-    url: "https://compostconnect.vercel.app",
-    siteName: "CompostConnect",
+    url: "https://compostKaki.vercel.app",
+    siteName: "CompostKaki",
     locale: "en_SG",
     type: "website",
     images: [

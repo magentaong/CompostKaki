@@ -292,6 +292,19 @@ export default function MainPage() {
 
   // Helper to capitalize status
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  //Helper for Urgency 
+  const getUrgencyStyle = (urgency: string) => {
+  switch (urgency?.toLowerCase()) {
+    case 'high':
+      return 'bg-[#E8B5B5] text-[#6D2222]';
+    case 'normal':
+      return 'bg-[#F0E1A6] text-[#694F00]';
+    case 'low':
+    default:
+      return 'bg-[#DCE8E1] text-[#2B2B2B]';
+  }
+};
+
   // Helper to get status color
   const statusColor = (status: string) => {
   if (status === 'open') return 'bg-[#FAD4D4] text-[#6D2222]';          // soft red
@@ -726,104 +739,156 @@ function getHealthColor(status: string): React.CSSProperties {
             </div>
           </TabsContent>
           <TabsContent value="community">
-            <div className="p-4 space-y-8">
-              {/* Instruction */}
-              <div className="text-xs text-gray-500 mb-2">Click on a task to see more details.</div>
-              {/* New Tasks Section */}
-              <div>
-                <h3 className="text-lg font-bold mb-2 text-[#00796B]">New Tasks</h3>
-                {newTasks.length === 0 && <div className="text-gray-400 text-sm">No new tasks.</div>}
-                {newTasks.map(task => {
-                  const bin = bins.find(b => b.id === task.bin_id);
-                  return (
-                    <div
-                      key={task.id}
-                      className="bg-white border border-[#E0E0E0] rounded-lg p-4 mb-2 shadow-sm cursor-pointer hover:shadow-md transition"
-                      onClick={() => setOpenTask(task)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="font-semibold text-[#00796B]">{task.description}</div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            Bin: {bin ? bin.name : 'Unknown'} &middot; Status: <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor(task.status)}`}>{capitalize(task.status)}</span>
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">Posted by: {task.profiles?.first_name || 'Unknown'}</div>
-                        </div>
-                        <div className="flex flex-col items-end">
-                          <span className="text-xs text-gray-400 mb-1">Urgency:</span>
-                          <span className="ml-2 px-2 py-1 rounded-full text-xs font-medium bg-[#E0F2F1] text-[#00796B]">
-                            {task.urgency}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {/* Ongoing Tasks Section */}
-              <div>
-                <h3 className="text-lg font-bold mb-2 text-[#00796B]">Ongoing Tasks</h3>
-                {ongoingTasks.length === 0 && <div className="text-gray-400 text-sm">No ongoing tasks.</div>}
-                {ongoingTasks.map(task => {
-                  const bin = bins.find(b => b.id === task.bin_id);
-                  return (
-                    <div
-                      key={task.id}
-                      className="bg-white border border-[#E0E0E0] rounded-lg p-4 mb-2 shadow-sm cursor-pointer hover:shadow-md transition"
-                      onClick={() => setOpenTask(task)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="font-semibold text-[#00796B]">{task.description}</div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            Bin: {bin ? bin.name : 'Unknown'} &middot; Status: <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor(task.status)}`}>{capitalize(task.status)}</span>
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">Posted by: {task.profiles?.first_name || 'Unknown'}</div>
-                          <div className="text-xs text-gray-500 mt-1">Accepted by: You</div>
-                        </div>
-                        <div className="flex flex-col items-end">
-                          <span className="text-xs text-gray-400 mb-1">Urgency:</span>
-                          <span className="ml-2 px-2 py-1 rounded-full text-xs font-medium bg-[#E0F2F1] text-[#00796B]">
-                            {task.urgency}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {/* Tasks posted by me Section */}
-              <div>
-                <h3 className="text-lg font-bold mb-2 text-[#00796B]">Tasks posted by me</h3>
-                {myTasks.length === 0 && <div className="text-gray-400 text-sm">You haven't posted any tasks.</div>}
-                {myTasks.map(task => {
-                  const bin = bins.find(b => b.id === task.bin_id);
-                  return (
-                    <div
-                      key={task.id}
-                      className="bg-white border border-[#E0E0E0] rounded-lg p-4 mb-2 shadow-sm cursor-pointer hover:shadow-md transition flex items-center justify-between"
-                      onClick={() => setOpenTask(task)}
-                    >
-                      <div>
-                        <div className="font-semibold text-[#00796B]">{task.description}</div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          Bin: {bin ? bin.name : 'Unknown'} &middot; Status: <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor(task.status)}`}>{capitalize(task.status)}</span>
-                        </div>
-                      </div>
-                      {/* Show dustbin icon for all tasks */}
-                      <button
-                        className="ml-2 text-red-500 hover:text-red-700"
-                        title="Delete Task"
-                        onClick={e => { e.stopPropagation(); handleDeleteTask(task.id); }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
-                      </button>
-                    </div>
-                  );
-                })}
+  <div className="p-4 space-y-8">
+
+    <div className="text-xs text-gray-500 mb-2">
+      Click on a task to see more details.
+    </div>
+
+    {/* New Tasks */}
+    <div>
+      <h3 className="text-lg font-bold mb-2 text-[#00796B]">New Tasks</h3>
+      {newTasks.length === 0 ? (
+        <div className="text-gray-400 text-sm">No new tasks.</div>
+      ) : (
+        newTasks.map(task => {
+          const bin = bins.find(b => b.id === task.bin_id);
+          return (
+            <div
+              key={task.id}
+              className="bg-white border border-[#E0E0E0] rounded-xl p-4 mb-3 shadow-sm hover:shadow-md transition cursor-pointer"
+              onClick={() => setOpenTask(task)}
+            >
+              <div className="flex justify-between items-start gap-4">
+                <div className="flex-1 space-y-1">
+                  <div className="font-semibold text-sm text-[#00796B]">{task.description}</div>
+                  <div className="text-xs text-gray-500">
+                    Bin: {bin ? bin.name : 'Unknown'}
+                    {task.user_id === currentUserId && (
+                      <>
+                        {' '}• Status: <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[#DCE8E1] text-[#2B2B2B]">
+                          {capitalize(task.status)}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Posted by: {task.user_id === currentUserId ? 'You' : task.profiles?.first_name || 'Unknown'}
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-end gap-1 text-xs">
+                  <span className="text-[11px] text-gray-400">Urgency</span>
+                  <span className={`px-2 py-1 rounded-full font-medium ${getUrgencyStyle(task.urgency)}`}>
+                    {capitalize(task.urgency)}
+                  </span>
+                </div>
               </div>
             </div>
-          </TabsContent>
+          );
+        })
+      )}
+    </div>
+
+    {/* Ongoing Tasks */}
+    <div>
+      <h3 className="text-lg font-bold mb-2 text-[#00796B]">Ongoing Tasks</h3>
+      {ongoingTasks.length === 0 ? (
+        <div className="text-gray-400 text-sm">No ongoing tasks.</div>
+      ) : (
+        ongoingTasks.map(task => {
+          const bin = bins.find(b => b.id === task.bin_id);
+          return (
+            <div
+              key={task.id}
+              className="bg-white border border-[#E0E0E0] rounded-xl p-4 mb-3 shadow-sm hover:shadow-md transition cursor-pointer"
+              onClick={() => setOpenTask(task)}
+            >
+              <div className="flex justify-between items-start gap-4">
+                <div className="flex-1 space-y-1">
+                  <div className="font-semibold text-sm text-[#00796B]">{task.description}</div>
+                  <div className="text-xs text-gray-500">
+                    Bin: {bin ? bin.name : 'Unknown'}
+                    {task.user_id === currentUserId && (
+                      <>
+                        {' '}• Status: <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[#DCE8E1] text-[#2B2B2B]">
+                          {capitalize(task.status)}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Posted by: {task.user_id === currentUserId ? 'You' : task.profiles?.first_name || 'Unknown'}
+                  </div>
+                  <div className="text-xs text-[#00796B] font-medium">Accepted by: You</div>
+                </div>
+
+                <div className="flex flex-col items-end gap-1 text-xs">
+                  <span className="text-[11px] text-gray-400">Urgency</span>
+                  <span className={`px-2 py-1 rounded-full font-medium ${getUrgencyStyle(task.urgency)}`}>
+                    {capitalize(task.urgency)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+
+    {/* My Tasks */}
+    <div>
+      <h3 className="text-lg font-bold mb-2 text-[#00796B]">Tasks posted by me</h3>
+      {myTasks.length === 0 ? (
+        <div className="text-gray-400 text-sm">You haven't posted any tasks.</div>
+      ) : (
+        myTasks.map(task => {
+          const bin = bins.find(b => b.id === task.bin_id);
+          return (
+            <div
+              key={task.id}
+              className="bg-white border border-[#E0E0E0] rounded-xl p-4 mb-3 shadow-sm hover:shadow-md transition flex justify-between items-start"
+              onClick={() => setOpenTask(task)}
+            >
+              <div className="flex-1 space-y-1">
+                <div className="font-semibold text-sm text-[#00796B]">{task.description}</div>
+                <div className="text-xs text-gray-500">
+                  Bin: {bin ? bin.name : 'Unknown'} • Status:{" "}
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[#DCE8E1] text-[#2B2B2B]">
+                    {capitalize(task.status)}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 ml-2">
+                <span className={`px-2 py-1 rounded-full font-medium text-xs ${getUrgencyStyle(task.urgency)}`}>
+                  {capitalize(task.urgency)}
+                </span>
+                <button
+                  className="text-red-500 hover:text-red-700 mt-1"
+                  title="Delete Task"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteTask(task.id);
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 
+                      4v6m4-6v6M1 7h22M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+
+  </div>
+</TabsContent>
+
+
         </Tabs>
       </div>
       {showJoinModal && (
