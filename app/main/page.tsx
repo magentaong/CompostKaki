@@ -546,12 +546,18 @@ export default function MainPage() {
   }, [showSpotlight]);
 
   // Add a helper for health status pill color
-  const getHealthPillClass = (status: string) => {
-    if (status === 'Healthy') return 'bg-green-100 text-green-700';
-    if (status === 'Needs Attention') return 'bg-yellow-100 text-yellow-800';
-    if (status === 'Critical') return 'bg-red-100 text-red-700';
-    return 'bg-gray-100 text-gray-700';
-  };
+function getHealthColor(status: string): React.CSSProperties {
+  switch (status) {
+    case "Critical":
+      return { background: '#E8B5B5', color: '#6D2222' };
+    case "Healthy":
+      return { background: '#CBE7B5', color: '#2B2B2B' }; 
+    case "Needs Attention":
+      return { background: '#F0E1A6', color: '#694F00' }; 
+    default:
+      return { background: '#E6E6E6', color: '#5A5A5A' };
+  }
+}
 
   return (
     <div className="min-h-screen bg-white">
@@ -648,7 +654,7 @@ export default function MainPage() {
                       <div className="text-xs text-gray-500 truncate">{bin.location}</div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <span className={`px-2 py-0.5 rounded-full font-semibold text-xs ${getHealthPillClass(bin.health_status)}`}>{bin.health_status || 'Healthy'}</span>
+                      <span className="px-2 py-1 rounded-full font-semibold text-xs" style={getHealthColor(bin.health_status)}>{bin.health_status || 'Healthy'}</span>
                       <span className="text-xs text-gray-400">{bin.latest_temperature ? `${bin.latest_temperature}°C` : '-'}</span>
                     </div>
                   </div>

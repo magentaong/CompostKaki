@@ -12,22 +12,19 @@ import { ArrowLeft, Share2, Thermometer, Droplets, RefreshCw, Users, Calendar, P
 import { differenceInDays, formatDistanceToNow } from 'date-fns';
 import { apiFetch } from "@/lib/apiFetch";
 
-function getHealthColor(status: string) {
+function getHealthColor(status: string): React.CSSProperties {
   switch (status) {
-    case "Critical": return "bg-red-100 text-red-700";
-    case "Healthy": return "bg-green-100 text-green-700";
-    case "Needs Attention": return "bg-yellow-100 text-yellow-800";
-    default: return "bg-gray-100 text-gray-700";
+    case "Critical":
+      return { background: '#E8B5B5', color: '#6D2222' };
+    case "Healthy":
+      return { background: '#CBE7B5', color: '#2B2B2B' }; 
+    case "Needs Attention":
+      return { background: '#F0E1A6', color: '#694F00' }; 
+    default:
+      return { background: '#E6E6E6', color: '#5A5A5A' };
   }
 }
 
-// Add a helper for health status pill color
-const getHealthPillClass = (status: string) => {
-  if (status === 'Healthy') return 'bg-green-100 text-green-700';
-  if (status === 'Needs Attention') return 'bg-yellow-100 text-yellow-800';
-  if (status === 'Critical') return 'bg-red-100 text-red-700';
-  return 'bg-gray-100 text-gray-700';
-};
 
 export default function BinDetailPage() {
   const router = useRouter();
@@ -222,32 +219,34 @@ export default function BinDetailPage() {
   const temp = bin?.latest_temperature ?? '-';
   const moisture = bin?.latest_moisture ?? '-';
 
-  let tempColor = "bg-[#80B543] border-green-700 text-[#2B2B2B]";
+
+  let tempColor = "bg-[#D6EAF8] text-[#2B2B2B]"; // Default soft blue
   let tempWarning = "";
 
-  if (temp !== undefined && temp !== null) {
+  if (typeof temp === 'number') {
     if (temp > 50) {
-      tempColor = "bg-[#E04F4F] text-[#2B2B2B] border-[#991B1B]";
+      tempColor = "bg-[#F9C2C2] text-[#2B2B2B]"; // Alert red
       tempWarning = "Too hot!";
     } else if (temp < 27) {
-      tempColor = "bg-[#E04F4F] text-[#2B2B2B] border-[#991B1B]";
+      tempColor = "bg-[#FAD4D4] text-[#2B2B2B]"; // Blush
       tempWarning = "Too cold!";
     } else if (temp >= 45) {
-      tempColor = "bg-[#FEF3C7] text-[#92400E] border-[#991B1B]";
+      tempColor = "bg-[#FFF1C1] text-[#7C5C00]"; // Pastel yellow
       tempWarning = "Getting hot!";
+    } else {
+      tempColor = "bg-[#CBE7B5] text-[#2B2B2B]"; // Healthy green
     }
   }
 
-  let moistureColor = "bg-[#FEF3C7] text-[#2B2B2B] border-[#FEF3C7]"; // Default "okay" warning
+  let moistureColor = "bg-[#FFF1C1] text-[#2B2B2B]"; // Default yellow
 
   if (moisture === "Perfect") {
-    moistureColor = "bg-[#80B543] border-green-700 text-[#2B2B2B]";
+    moistureColor = "bg-[#CBE7B5] text-[#2B2B2B]"; // Light green
   } else if (moisture === "Wet" || moisture === "Dry") {
-    moistureColor = "bg-[#FFD479] text-[#92400E] border-[#92400E]";
+    moistureColor = "bg-[#FFF1C1] text-[#7C5C00]"; // Pastel yellow
   } else if (moisture === "Very Wet" || moisture === "Very Dry") {
-    moistureColor = "bg-[#E04F4F] text-[#2B2B2B] border-[#991B1B]";
+    moistureColor = "bg-[#F9C2C2] text-[#2B2B2B] "; // Blush red
   }
-
 
 
   const statTiles = [
@@ -419,21 +418,21 @@ export default function BinDetailPage() {
           {/* Health Status */}
           {bin?.health_status && (
             <div className="flex justify-center mb-4">
-              <span className={`px-4 py-1 rounded-full font-semibold text-sm ${getHealthPillClass(bin.health_status)}`}>{bin.health_status}</span>
+              <span className="px-4 py-1 rounded-full font-bold text-sm" style={getHealthColor(bin.health_status)}>{bin.health_status}</span>
             </div>
           )}
           {/* Stat Tiles Row */}
           <div className="grid grid-cols-3 gap-3 mb-4 px-4">
             <div className={`flex flex-col items-center justify-center rounded-xl min-h-[80px] min-w-[90px] px-0 py-5 border ${tempColor}`}>
-              <div className="text-3xl text-black">{bin?.latest_temperature ?? '-'}</div>
+              <div className="text-2xl text-black">{bin?.latest_temperature ?? '-'}</div>
               <div className="text-base text-gray-600 mt-1">Temp</div>
             </div>
-            <div className={`flex flex-col items-center justify-center rounded-xl min-h-[80px] min-w-[90px] px-0 py-5 border ${moistureColor}`}>
-              <div className="text-3xl text-black">{bin?.latest_moisture ?? '-'}</div>
+            <div className={`flex flex-col items-center justify-center rounded-xl min-h-[80px] min-w-[90px] px-1 py-5 border ${moistureColor}`}>
+              <div className="text-2xl text-black">{bin?.latest_moisture ?? '-'}</div>
               <div className="text-base text-gray-600 mt-1">Moisture</div>
             </div>
-            <div className="flex flex-col items-center justify-center rounded-xl min-h-[80px] min-w-[90px] px-0 py-5 border" style={{ background: '#F2FF9C' }}>
-              <div className="text-3xl text-black">{bin?.latest_flips ?? '-'}</div>
+            <div className="flex flex-col items-center justify-center rounded-xl min-h-[80px] min-w-[90px] px-0 py-5 border" style={{ background: '#E6D3C6' }}>
+              <div className="text-2xl text-black">{bin?.latest_flips ?? '-'}</div>
               <div className="text-base text-gray-600 mt-1">Flips</div>
             </div>
           </div>
