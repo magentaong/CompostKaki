@@ -220,33 +220,34 @@ export default function BinDetailPage() {
   const moisture = bin?.latest_moisture ?? '-';
 
 
-  let tempColor = "bg-[#D6EAF8] text-[#2B2B2B]"; // Default soft blue
+  let tempColor = "text-[#2B2B2B] border-[3px] border-[#FFFFFF]";
   let tempWarning = "";
 
   if (typeof temp === 'number') {
     if (temp > 50) {
-      tempColor = "bg-[#F9C2C2] text-[#2B2B2B]"; // Alert red
+      tempColor = "text-[#2B2B2B] border-[3px] border-[#F9C2C2]";
       tempWarning = "Too hot!";
     } else if (temp < 27) {
-      tempColor = "bg-[#FAD4D4] text-[#2B2B2B]"; // Blush
+      tempColor = "text-[#2B2B2B] border-[3px] border-[#F3DD84]";
       tempWarning = "Too cold!";
     } else if (temp >= 45) {
-      tempColor = "bg-[#FFF1C1] text-[#7C5C00]"; // Pastel yellow
+      tempColor = "text-[#7C5C00] border-[3px] border-[#F3DD84]";
       tempWarning = "Getting hot!";
     } else {
-      tempColor = "bg-[#CBE7B5] text-[#2B2B2B]"; // Healthy green
+      tempColor = "text-[#2B2B2B] border-[3px] border-[#CBE7B5]";
     }
   }
 
-  let moistureColor = "bg-[#FFF1C1] text-[#2B2B2B]"; // Default yellow
+  let moistureColor = "text-[#2B2B2B] border-[3px] border-[#FFFFFF]";
 
   if (moisture === "Perfect") {
-    moistureColor = "bg-[#CBE7B5] text-[#2B2B2B]"; // Light green
+    moistureColor = "text-[#2B2B2B] border-[3px] border-[#CBE7B5]";
   } else if (moisture === "Wet" || moisture === "Dry") {
-    moistureColor = "bg-[#FFF1C1] text-[#7C5C00]"; // Pastel yellow
+    moistureColor = "text-[#7C5C00] border-[3px] border-[#F3DD84]";
   } else if (moisture === "Very Wet" || moisture === "Very Dry") {
-    moistureColor = "bg-[#F9C2C2] text-[#2B2B2B] "; // Blush red
+    moistureColor = "text-[#2B2B2B] border-[3px] border-[#F9C2C2]";
   }
+
 
 
   const statTiles = [
@@ -422,7 +423,7 @@ export default function BinDetailPage() {
             </div>
           )}
           {/* Stat Tiles Row */}
-          <div className="grid grid-cols-3 gap-3 mb-4 px-4">
+          <div className="grid grid-cols-3 gap-3 px-4">
             <div className={`flex flex-col items-center justify-center rounded-xl min-h-[80px] min-w-[90px] px-0 py-5 border ${tempColor}`}>
               <div className="text-2xl text-black">{bin?.latest_temperature ?? '-'}</div>
               <div className="text-base text-gray-600 mt-1">Temp</div>
@@ -431,31 +432,36 @@ export default function BinDetailPage() {
               <div className="text-2xl text-black">{bin?.latest_moisture ?? '-'}</div>
               <div className="text-base text-gray-600 mt-1">Moisture</div>
             </div>
-            <div className="flex flex-col items-center justify-center rounded-xl min-h-[80px] min-w-[90px] px-0 py-5 border" style={{ background: '#E6D3C6' }}>
+            <div className="flex flex-col items-center justify-center rounded-xl min-h-[80px] min-w-[90px] px-0 py-5 border-[3px] border-gray">
               <div className="text-2xl text-black">{bin?.latest_flips ?? '-'}</div>
               <div className="text-base text-gray-600 mt-1">Flips</div>
             </div>
           </div>
         </div>
         {/* Sticky action bar as direct child of main page container */}
-        <div className="sticky top-0 z-30 bg-white flex flex-col items-center py-2 px-4 gap-2 border-b" style={{ maxWidth: 480, margin: '0 auto' }}>
+        <div
+          className="sticky top-0 z-30 bg-white flex flex-col items-center gap-4 border-b px-6 py-4"
+          style={{ maxWidth: 480, margin: '0 auto' }}
+        >
           <Button
-            className="bg-[#00796B] text-white font-semibold rounded-lg w-full min-h-[40px] text-lg"
+            className="bg-[#00796B] text-white font-semibold rounded-xl w-full min-h-[44px] text-base shadow-sm"
             onClick={() => router.push(`/bin/${binId}/logactivity`)}
           >
             + Activity
           </Button>
+
           <Button
             variant="outline"
-            className="border-[#00796B] text-[#00796B] font-semibold rounded-lg w-full min-h-[40px] text-lg bg-transparent hover:bg-[#F3F3F3]"
+            className="border-[#00796B] text-[#00796B] font-semibold rounded-xl w-full min-h-[44px] text-base bg-white hover:bg-[#F3F3F3] shadow-sm"
             onClick={() => setShowHelpModal(true)}
           >
             💪 Ask for Help
           </Button>
         </div>
+
         {/* Activity Timeline - vertical timeline style */}
-        <div className="px-4">
-          <h3 className="font-bold text-lg mb-3">Activity Timeline</h3>
+        <div className="px-4 py-6">
+          <h3 className="font-bold text-lg mb-4">Activity Timeline</h3>
           {loading && <div>Loading...</div>}
           {error && <div className="text-red-600 text-sm">{error}</div>}
           <div className="relative ml-4">

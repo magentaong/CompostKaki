@@ -294,10 +294,10 @@ export default function MainPage() {
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
   // Helper to get status color
   const statusColor = (status: string) => {
-    if (status === 'open') return 'bg-pink-100 text-pink-700';
-    if (status === 'accepted') return 'bg-green-100 text-green-700';
-    return 'bg-gray-200 text-gray-700';
-  };
+  if (status === 'open') return 'bg-[#FAD4D4] text-[#6D2222]';          // soft red
+  if (status === 'accepted') return 'bg-[#CBE7B5] text-[#2B2B2B]';      // soft green
+  return 'bg-[#F3F3F3] text-[#5A5A5A]';                                 // neutral gray
+};
 
   // Accept/Complete logic (API calls)
   const handleAcceptTask = async (taskId: string) => {
@@ -654,9 +654,31 @@ function getHealthColor(status: string): React.CSSProperties {
                       <div className="text-xs text-gray-500 truncate">{bin.location}</div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <span className="px-2 py-1 rounded-full font-semibold text-xs" style={getHealthColor(bin.health_status)}>{bin.health_status || 'Healthy'}</span>
-                      <span className="text-xs text-gray-400">{bin.latest_temperature ? `${bin.latest_temperature}°C` : '-'}</span>
-                    </div>
+                          {/* Health status badge */}
+                          <span
+                            className="px-2 py-1 rounded-full font-semibold text-xs"
+                            style={getHealthColor(bin.health_status)}
+                          >
+                            {bin.health_status || 'Healthy'}
+                          </span>
+
+                          {/* Stat readings, commented out portion is in case we need it*/}
+                          <div className="flex flex-wrap justify-end gap-2 text-xs text-gray-500 px-2">
+                            <div className="flex items-center gap-1">
+                              {/* <Thermometer className="w-3 h-3 text-gray-400" /> */}
+                              <span className="ml-0.5">{bin.latest_temperature ? `${bin.latest_temperature}°C` : '-°C'}</span>
+                            </div>
+                            {/* <div className="flex items-center gap-1">
+                              <Droplets className="w-3 h-3 text-gray-400" />
+                              <span className="ml-0.5">{bin.latest_moisture || '-'}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <RefreshCw className="w-3 h-3 text-gray-400" />
+                              <span className="ml-0.5">{bin.latest_flips ?? '-'}</span>
+                            </div> */}
+                          </div>
+                        </div>
+
                   </div>
                 ))}
                 {sortedBins.length === 0 && !loading && (

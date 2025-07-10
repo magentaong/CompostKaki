@@ -71,7 +71,7 @@ export default function AddBinPage() {
         </span>
       </div>
 
-      <div className="bg-[#E6FFF3] border border-[#00796B] text-[#00796B] rounded-lg px-4 py-3 mb-0 text-center text-base font-medium w-full max-w-md mx-auto flex items-center justify-center gap-2">
+      <div className="bg-[#E6FFF3] border border-[#00796B] text-[#00796B] rounded-lg px-4 py-3 mb-0 text-center text-base font-medium w-full max-w-md mx-auto flex items-center justify-center gap-2 mb-4 mt-6 shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
         <span role="img" aria-label="plant">🪴</span>
         <span>
           If your community already has a bin, try <span className="font-semibold">joining it instead!</span>
@@ -86,11 +86,11 @@ export default function AddBinPage() {
       </div>
 
       <Card className="bg-white rounded-xl shadow-md p-8 w-full max-w-md mx-auto">
-        <CardHeader>
+        <CardHeader className="rounded-t-xl">
           <h1 className="text-2xl font-bold text-[#00796B] mb-4 flex items-center gap-2">
             <span className="mr-1">Add New Bin</span>
           </h1>
-          <p className="text-[#5F9133] text-sm mb-4">
+          <p className="text-[#3E6F4B] text-sm mb-4">
             Tip: Name your bin after its location, e.g., <span className="font-semibold">Dakota Crescent</span>
           </p>
         </CardHeader>
