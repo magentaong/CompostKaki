@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { requireUser } from '@/lib/requireUser';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string
@@ -12,6 +13,8 @@ function extractIdFromUrl(req: NextRequest): string | null {
 }
 
 export async function GET(req: NextRequest) {
+  const user = await requireUser(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const id = extractIdFromUrl(req)
   if (!id) return NextResponse.json({ error: 'Missing bin ID' }, { status: 400 })
 
@@ -28,6 +31,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const user = await requireUser(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const id = extractIdFromUrl(req)
   if (!id) return NextResponse.json({ error: 'Missing bin ID' }, { status: 400 })
 

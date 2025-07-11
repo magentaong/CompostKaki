@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,13 @@ export default function AddBinPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+
+  // Redirect not-logged-in users to /
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) router.replace('/');
+    });
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,28 +60,57 @@ export default function AddBinPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50">
-      {/* Sticky header with back button */}
+    <div className="min-h-screen bg-[#F3F3F3] py-8">
+      {/* Sticky header */}
       <div className="bg-white/80 backdrop-blur-sm border-b border-green-100 p-4 sticky top-0 z-10 w-full max-w-md mx-auto flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/main")}> <ArrowLeft className="w-5 h-5" /> </Button>
-        <span className="text-xl font-bold text-green-800">Add New Bin</span>
+        <Button variant="ghost" size="sm" onClick={() => router.push("/main")}>
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+        <span className="text-xl font-bold bg-gradient-to-r from-green-700 to-emerald-600 bg-clip-text text-transparent">
+          Add New Bin
+        </span>
       </div>
-      <Card className="max-w-md w-full p-6 mt-8">
-        <CardHeader>
-          <h2 className="text-xl font-bold mb-6 text-green-800">Bin Details</h2>
-          <p className="text-green-700 text-sm mb-4">Tip: Name your bin after its location, e.g., <b>Dakota Crescent</b></p>
+
+      <div className="bg-[#E6FFF3] border border-[#00796B] text-[#00796B] rounded-lg px-4 py-3 mb-0 text-center text-base font-medium w-full max-w-md mx-auto flex items-center justify-center gap-2 mb-4 mt-6 shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
+        <span role="img" aria-label="plant">🪴</span>
+        <span>
+          If your community already has a bin, try <span className="font-semibold">joining it instead!</span>
+        </span>
+        <button
+          className="ml-3 bg-[#00796B] text-white rounded-lg px-4 py-2 font-semibold text-sm shadow hover:bg-[#005B4F] transition whitespace-nowrap"
+          onClick={() => router.push('/main?join=1')}
+          type="button"
+        >
+          Join Bin
+        </button>
+      </div>
+
+      <Card className="bg-white rounded-xl shadow-md p-8 w-full max-w-md mx-auto">
+        <CardHeader className="rounded-t-xl">
+          <h1 className="text-2xl font-bold text-[#00796B] mb-4 flex items-center gap-2">
+            <span className="mr-1">Add New Bin</span>
+          </h1>
+          <p className="text-[#3E6F4B] text-sm mb-4">
+            Tip: Name your bin after its location, e.g., <span className="font-semibold">Dakota Crescent</span>
+          </p>
         </CardHeader>
         <CardContent>
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <Label htmlFor="name">Bin Name</Label>
-              <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Dakota Crescent" required className="mt-3" />
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Dakota Crescent"
+                required
+                className="mt-3"
+              />
             </div>
-            {error && <div className="text-red-600 text-sm">{error}</div>}
-            <Button type="submit" className="w-full" disabled={loading || !name.trim()}>
+            {error && <div className="text-[#C0392B] text-sm">{error}</div>}
+            <Button className="w-full bg-[#00796B] text-white hover:bg-[#005A4B] transition font-semibold rounded-lg py-3 mt-4" type="submit" disabled={loading}>
               {loading ? "Creating..." : "Create Bin"}
             </Button>
-            <div className="text-xs text-gray-500 mt-2">Note: If you see a QR code error, make sure you have installed the <code>qrcode</code> package.</div>
           </form>
         </CardContent>
       </Card>
