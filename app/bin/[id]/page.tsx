@@ -4,7 +4,7 @@ import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Share2, Thermometer, Droplets, RefreshCw, QrCode, Copy, Download } from "lucide-react";
+import { ArrowLeft, Share2, Thermometer, Droplets, RefreshCw, QrCode, Copy, Download, Plus } from "lucide-react";
 import { apiFetch } from "@/lib/apiFetch";
 
 function getHealthColor(status: string): React.CSSProperties {
@@ -215,7 +215,7 @@ export default function BinDetailPage() {
   const moisture = bin?.latest_moisture ?? '-';
 
 
-  let tempColor = "text-[#2B2B2B] border-[3px] border-[#FFFFFF]";
+  let tempColor = "text-[#2B2B2B] border-[3px] border-gray";
   let tempWarning = "";
 
   if (typeof temp === 'number') {
@@ -229,7 +229,7 @@ export default function BinDetailPage() {
       tempColor = "text-[#7C5C00] border-[3px] border-[#F3DD84]";
       tempWarning = "Getting hot!";
     } else {
-      tempColor = "text-[#2B2B2B] border-[3px] border-[#CBE7B5]";
+      tempColor = "text-[#2B2B2B] border-[3px] border-[#2B2B2B]";
     }
   }
 
@@ -420,7 +420,7 @@ export default function BinDetailPage() {
           {/* Stat Tiles Row */}
           <div className="grid grid-cols-3 gap-3 px-4">
             <div className={`flex flex-col items-center justify-center rounded-xl min-h-[80px] min-w-[90px] px-0 py-5 border ${tempColor}`}>
-              <div className="text-2xl text-black">{bin?.latest_temperature ?? '-'}</div>
+              <div className="text-2xl text-black">{bin?.latest_temperature ?? '-'} °C</div>
               <div className="text-base text-gray-600 mt-1">Temp</div>
             </div>
             <div className={`flex flex-col items-center justify-center rounded-xl min-h-[80px] min-w-[90px] px-1 py-5 border ${moistureColor}`}>
@@ -442,8 +442,9 @@ export default function BinDetailPage() {
             className="bg-[#00796B] text-white font-semibold rounded-xl w-full min-h-[44px] text-base shadow-sm"
             onClick={() => router.push(`/bin/${binId}/logactivity`)}
           >
-            + Activity
+            Log Activity <Plus w-5 h-5/>
           </Button>
+
 
           <Button
             variant="outline"
