@@ -225,14 +225,14 @@ export default function LogActivityPage() {
                   min={0}
                   max={100}
                   step={1}
-                  className="w-full border-2 border-[#00796B] rounded-xl px-4 py-3 text-2xl text-center focus:outline-none focus:ring-2 focus:ring-[#00796B] bg-[#F3F3F3] text-[#00796B] h-14"
+                  className="w-full border-2 border-[#00796B] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#00796B] bg-[#F3F3F3] text-[#00796B] placeholder:text-gray-500"
                   required
                 />
               </div>
               <div>
                 <label className="block text-[#00796B] font-semibold mb-1 text-lg">Moisture Level</label>
                 <select
-                  className="w-full border-2 border-[#00796B] rounded-xl px-4 py-3 text-2xl text-center focus:outline-none focus:ring-2 focus:ring-[#00796B] bg-[#F3F3F3] text-[#00796B] h-14"
+                  className="w-full border-2 border-[#00796B] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#00796B] bg-[#F3F3F3] text-[#00796B] placeholder:text-gray-500"
                   value={moisture}
                   onChange={e => setMoisture(e.target.value)}
                   required
@@ -251,9 +251,8 @@ export default function LogActivityPage() {
               value={content}
               onChange={e => setContent(e.target.value)}
               placeholder="Describe what you added or did (e.g., 2.5kg mixed vegetable scraps from weekend market)"
-              className="w-full border-2 border-[#00796B] rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#00796B] bg-white text-[#00796B] placeholder:text-sm placeholder:text-gray-400"
+              className="w-full border-2 border-[#00796B] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#00796B] bg-white text-[#00796B] placeholder:text-gray-500"
               disabled={!type}
-              style={{ fontSize: '1.1rem' }}
             />
           </div>
           <div>

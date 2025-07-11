@@ -2,17 +2,11 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { MapPin, TrendingUp, Filter, QrCode, Plus, Thermometer, Droplets, Users, Award, BookOpen, Lightbulb, MessageCircle, Star, HelpCircle, Heart, Eye, Search, CheckCircle2, Share2, Bell, RefreshCw, User, Camera, Copy } from "lucide-react";
+import { User, Camera} from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Html5Qrcode } from "html5-qrcode";
-import { apiFetch } from "@/lib/apiFetch";
 
 export default function MainPage() {
   const router = useRouter();
@@ -295,11 +289,11 @@ export default function MainPage() {
   //Helper for Urgency 
   const getUrgencyStyle = (urgency: string) => {
   switch (urgency?.toLowerCase()) {
-    case 'high':
+    case 'high priority':
       return 'bg-[#E8B5B5] text-[#6D2222]';
     case 'normal':
       return 'bg-[#F0E1A6] text-[#694F00]';
-    case 'low':
+    case 'low priority':
     default:
       return 'bg-[#DCE8E1] text-[#2B2B2B]';
   }
@@ -307,8 +301,8 @@ export default function MainPage() {
 
   // Helper to get status color
   const statusColor = (status: string) => {
-  if (status === 'open') return 'bg-[#FAD4D4] text-[#6D2222]';          // soft red
-  if (status === 'accepted') return 'bg-[#CBE7B5] text-[#2B2B2B]';      // soft green
+  if (status === 'open') return 'bg-[#DCE8E1] text-[#2B2B2B]';          
+  if (status === 'accepted') return 'bg-[#DCE8E1] text-[#2B2B2B]';      
   return 'bg-[#F3F3F3] text-[#5A5A5A]';                                 // neutral gray
 };
 
@@ -859,7 +853,7 @@ function getHealthColor(status: string): React.CSSProperties {
                   </span>
                 </div>
               </div>
-              <div className="flex items-start gap-2 ml-2">
+              <div className="flex items-start gap-3 ml-2">
                 <span className={`px-2 py-1 rounded-full font-medium text-xs ${getUrgencyStyle(task.urgency)}`}>
                   {capitalize(task.urgency)}
                 </span>
@@ -988,7 +982,9 @@ function getHealthColor(status: string): React.CSSProperties {
             </button>
             <h2 className="text-xl font-bold mb-2 text-[#00796B]">{openTask.description}</h2>
             <div className="mb-2 text-gray-600 text-sm">Bin: {bins.find(b => b.id === openTask.bin_id)?.name || 'Unknown'}</div>
-            <div className="mb-2 text-gray-600 text-sm">Urgency: {openTask.urgency}</div>
+            <div className="mb-2 text-gray-600 text-sm">Urgency:
+              <span className={` px-2 py-1 rounded-full font-medium ${getUrgencyStyle(openTask.urgency)}`}> {openTask.urgency} </span>
+            </div>
             <div className="mb-2 text-gray-600 text-sm">Effort: {openTask.effort}</div>
             <div className="mb-2 text-gray-600 text-sm">Status: <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor(openTask.status)}`}>{capitalize(openTask.status)}</span></div>
             <div className="mb-2 text-gray-600 text-sm">Posted: {openTask.created_at ? new Date(openTask.created_at).toLocaleString() : 'Unknown'}</div>

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next"
+
 import "./globals.css";
 
 const geistSans = Geist({
@@ -44,7 +46,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/favicon.ico",
+        url: "/webbanner.jpg",
         width: 1200,
         height: 630,
         alt: "CompostKaki App Preview",
@@ -68,6 +70,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
+        <Analytics />
       </body>
     </html>
   );

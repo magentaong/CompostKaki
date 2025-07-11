@@ -2,66 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {CardContent} from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Progress } from "@/components/ui/progress"
-import { Separator } from "@/components/ui/separator"
-import {
-  QrCode,
-  Plus,
-  Thermometer,
-  Droplets,
-  RotateCcw,
-  Leaf,
-  Coffee,
-  MessageCircle,
-  Star,
-  Clock,
-  Users,
-  BookOpen,
-  HelpCircle,
-  Lightbulb,
-  ArrowLeft,
-  Send,
-  Camera,
-  MapPin,
-  TrendingUp,
-  Award,
-  Search,
-  Filter,
-  Bell,
-  Heart,
-  Share2,
-  Bookmark,
-  Eye,
-  Calendar,
-  Target,
-  Zap,
-  CheckCircle2,
-  Info,
-  ArrowRight,
-  Play,
-  Download,
-  ScaleIcon as Scales,
-  Sun,
-  CloudRain,
-  Bug,
-  Recycle,
-  Home,
-  Building,
-  TreePine,
-  AlertTriangle,
-  CheckCircle,
-} from "lucide-react"
 import { supabase } from "@/lib/supabaseClient"
-import GuideListComp from "@/app/components/GuideList"
-import GuideDetailComp from "@/app/components/GuideDetail"
 import { useRouter } from "next/navigation"
 
 type Screen =
@@ -91,26 +35,16 @@ function getInitials(name?: string, email?: string) {
 }
 
 export default function CompostKaki() {
-  const [currentScreen, setCurrentScreen] = useState<Screen>("home")
   const [selectedPile, setSelectedPile] = useState<string>("")
-  const [selectedGuide, setSelectedGuide] = useState<string>("")
   const [isLoading, setIsLoading] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [authView, setAuthView] = useState<'sign-in' | 'sign-up'>("sign-in")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
   const [session, setSession] = useState<any>(null)
   const [authError, setAuthError] = useState<string>("")
-  const [journalEntries, setJournalEntries] = useState<any[]>([])
-  const [newEntryContent, setNewEntryContent] = useState("")
-  const [journalLoading, setJournalLoading] = useState(false)
-  const [journalError, setJournalError] = useState("")
   const [pilesLoading, setPilesLoading] = useState(false)
   const [pilesError, setPilesError] = useState("")
-  const [forumLoading, setForumLoading] = useState(false)
-  const [forumError, setForumError] = useState("")
   const [pileEntries, setPileEntries] = useState<any[]>([])
   const [pileEntriesLoading, setPileEntriesLoading] = useState(false)
   const [pileEntriesError, setPileEntriesError] = useState("")
@@ -120,22 +54,7 @@ export default function CompostKaki() {
   const [newPileDescription, setNewPileDescription] = useState("")
   const [addPileLoading, setAddPileLoading] = useState(false)
   const [addPileError, setAddPileError] = useState("")
-  const [newForumTitle, setNewForumTitle] = useState("")
-  const [newForumContent, setNewForumContent] = useState("")
-  const [addForumLoading, setAddForumLoading] = useState(false)
-  const [addForumError, setAddForumError] = useState("")
   const [piles, setPiles] = useState<any[]>([])
-  const [forumPosts, setForumPosts] = useState<any[]>([])
-  const [guides, setGuides] = useState<any[]>([]);
-  const [tips, setTips] = useState<any[]>([]);
-  const [guidesLoading, setGuidesLoading] = useState(false);
-  const [tipsLoading, setTipsLoading] = useState(false);
-  const [guidesError, setGuidesError] = useState("");
-  const [tipsError, setTipsError] = useState("");
-  // Add state for guide search, filter, and like
-  const [guideSearch, setGuideSearch] = useState("");
-  const [guideFilter, setGuideFilter] = useState("All");
-  const [guideLikes, setGuideLikes] = useState<{ [id: string]: number }>({});
   const [showNotifications, setShowNotifications] = useState(false);
   const [step, setStep] = useState<"email" | "signin" | "signup">("email");
   const [emailExists, setEmailExists] = useState<boolean | null>(null);
@@ -218,62 +137,6 @@ export default function CompostKaki() {
       setSession(null)
   }
 
-  // Fetch journal entries from backend API
-  const fetchJournalEntries = async () => {
-    if (!session?.access_token) return
-    setJournalLoading(true)
-    setJournalError("")
-    try {
-      const res = await fetch("/api/journal", {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      })
-      const data = await res.json()
-      if (res.ok) {
-        setJournalEntries(data.entries)
-      } else {
-        setJournalError(data.error || "Failed to fetch journal entries")
-      }
-    } catch (e) {
-      setJournalError("Network error")
-    }
-    setJournalLoading(false)
-  }
-
-  useEffect(() => {
-    if (session?.access_token) {
-      fetchJournalEntries()
-    }
-    // eslint-disable-next-line
-  }, [session])
-
-  // Add new journal entry via backend API
-  const handleAddJournalEntry = async () => {
-    if (!session?.access_token || !newEntryContent.trim()) return
-    setJournalLoading(true)
-    setJournalError("")
-    try {
-      const res = await fetch("/api/journal", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ content: newEntryContent }),
-      })
-      const data = await res.json()
-      if (res.ok) {
-        setNewEntryContent("")
-        fetchJournalEntries()
-        setCurrentScreen("journal")
-      } else {
-        setJournalError(data.error || "Failed to add entry")
-      }
-    } catch (e) {
-      setJournalError("Network error")
-    }
-    setJournalLoading(false)
-  }
-
   // Fetch piles
   const fetchPiles = async () => {
     setPilesLoading(true)
@@ -292,23 +155,6 @@ export default function CompostKaki() {
     setPilesLoading(false)
   }
 
-  // Fetch forum posts
-  const fetchForumPosts = async () => {
-    setForumLoading(true)
-    setForumError("")
-    try {
-      const res = await fetch("/api/community/posts")
-      const data = await res.json()
-      if (res.ok) {
-        setForumPosts(data.posts)
-      } else {
-        setForumError(data.error || "Failed to fetch forum posts")
-      }
-    } catch (e) {
-      setForumError("Network error")
-    }
-    setForumLoading(false)
-  }
 
   // Fetch pile entries for selected pile
   const fetchPileEntries = async (pileId: string) => {
@@ -358,40 +204,10 @@ export default function CompostKaki() {
     setAddPileLoading(false)
   }
 
-  // Add new forum post
-  const handleAddForumPost = async () => {
-    if (!session?.access_token || !newForumTitle.trim() || !newForumContent.trim()) return
-    setAddForumLoading(true)
-    setAddForumError("")
-    try {
-      const res = await fetch("/api/community/posts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ title: newForumTitle, content: newForumContent }),
-      })
-      const data = await res.json()
-      if (res.ok) {
-        setNewForumTitle("")
-        setNewForumContent("")
-        fetchForumPosts()
-      } else {
-        setAddForumError(data.error || "Failed to add post")
-      }
-    } catch (e) {
-      setAddForumError("Network error")
-    }
-    setAddForumLoading(false)
-  }
 
   // Fetch data on mount
   useEffect(() => {
     fetchPiles()
-    fetchForumPosts()
-    fetchGuides()
-    fetchTips()
   }, [])
 
   // Fetch pile entries when selectedPile changes
@@ -399,57 +215,13 @@ export default function CompostKaki() {
     if (selectedPile) fetchPileEntries(selectedPile)
   }, [selectedPile])
 
-  // Fetch guides
-  const fetchGuides = async () => {
-    setGuidesLoading(true);
-    setGuidesError("");
-    try {
-      const res = await fetch("/api/guides");
-      const data = await res.json();
-      if (res.ok) {
-        setGuides(data.guides);
-      } else {
-        setGuidesError(data.error || "Failed to fetch guides");
-      }
-    } catch (e) {
-      setGuidesError("Network error");
-    }
-    setGuidesLoading(false);
-  };
-
-  // Fetch tips
-  const fetchTips = async () => {
-    setTipsLoading(true);
-    setTipsError("");
-    try {
-      const res = await fetch("/api/tips");
-      const data = await res.json();
-      if (res.ok) {
-        setTips(data.tips);
-      } else {
-        setTipsError(data.error || "Failed to fetch tips");
-      }
-    } catch (e) {
-      setTipsError("Network error");
-    }
-    setTipsLoading(false);
-  };
+  
 
   const handleScan = () => {
     // TODO: Implement scan logic or leave empty for now
   };
 
-  // Like handler for guides
-  const handleGuideLike = (id: string) => {
-    setGuideLikes((prev) => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
-    // TODO: Call backend API to persist like
-  };
-
-  // Compose guides with local like state
-  const guidesWithLikes = guides.map((g) => ({
-    ...g,
-    likes: guideLikes[g.id] !== undefined ? guideLikes[g.id] : g.likes,
-  }));
+ 
 
   // In CompostKaki, extract user info from session:
   const userName = session?.user?.user_metadata?.name;
@@ -601,49 +373,4 @@ export default function CompostKaki() {
     )
   }
 
-  const renderHomeScreen = () => (
-    <p> yes</p>
-  )
-
-  const renderGuidesScreen = () => (
-   <p> yes</p>
-  );
-
-  const renderGuideDetailScreen = () => {
-    <p> yes</p>
-  };
-
-  const renderTipsScreen = () => (
-    <p> yes</p>
-  )
-
-  const renderScannerScreen = () => (
-   <p> yes</p>
-  )
-
-  const renderJournalScreen = () => (
-    <p> yes </p>)
-
-  const renderAddEntryScreen = () => (
-   <p> yes </p>
-  )
-
-  const renderQuestionScreen = () => (
-    <p> yes</p>
-  )
-
-  const screens = {
-    home: renderHomeScreen,
-    scanner: renderScannerScreen,
-    journal: renderJournalScreen,
-    "add-entry": renderAddEntryScreen,
-    forum: renderHomeScreen,
-    question: renderQuestionScreen,
-    profile: renderHomeScreen,
-    guides: renderGuidesScreen,
-    "guide-detail": renderGuideDetailScreen,
-    tips: renderTipsScreen,
-  }
-
-  return screens[currentScreen]()
 }

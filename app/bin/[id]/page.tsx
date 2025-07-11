@@ -2,14 +2,9 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Share2, Thermometer, Droplets, RefreshCw, Users, Calendar, Plus, Clock, Filter, Send, QrCode, Shovel, Leaf, Copy, Download } from "lucide-react";
-import { differenceInDays, formatDistanceToNow } from 'date-fns';
+import { ArrowLeft, Share2, Thermometer, Droplets, RefreshCw, QrCode, Copy, Download } from "lucide-react";
 import { apiFetch } from "@/lib/apiFetch";
 
 function getHealthColor(status: string): React.CSSProperties {
