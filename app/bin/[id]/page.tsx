@@ -233,7 +233,7 @@ export default function BinDetailPage() {
     }
   }
 
-  let moistureColor = "text-[#2B2B2B] border-[3px] border-[#FFFFFF]";
+  let moistureColor = "text-[#2B2B2B] border-[3px] border-gray";
 
   if (moisture === "Perfect") {
     moistureColor = "text-[#2B2B2B] border-[3px] border-[#CBE7B5]";
