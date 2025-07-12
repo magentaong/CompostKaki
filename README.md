@@ -4,7 +4,10 @@
 
 🌐 [Live Demo](https://compostkaki.vercel.app)  
 
-![CompostKaki Banner](public/webbanner.jpg)
+<p align="center">
+  <img src="./public/images/infographic.png" alt="CompostKaki infographic" width="700"/>
+</p>
+
 ---
 
 ## The Problem
