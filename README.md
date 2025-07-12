@@ -5,7 +5,7 @@
 🌐 [Live Demo](https://compostkaki.vercel.app)  
 
 <p align="center">
-  <img src="./public/images/infographic.png" alt="CompostKaki infographic" width="700"/>
+  <img src="./public/webbanner.jpg" alt="CompostKaki Web Banner" width="700"/>
 </p>
 
 ---
