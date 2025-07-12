@@ -4,6 +4,7 @@
 
 🌐 [Live Demo](https://compostkaki.vercel.app)  
 
+![CompostKaki Banner](public/webbanner.jpg)
 ---
 
 ## The Problem
@@ -60,13 +61,21 @@ By providing visibility, coordination, and collective ownership, CompostKaki mak
 ---
 
 ## Try It Yourself
-[CompostKaki](https://compostkaki.vercel.app)
+🌐 [Live Demo](https://compostkaki.vercel.app)
 
 ---
 
-## 📸 Screenshots
+## 📸 GIF Demo :>
 
+### Joining Bin 
+![Joining Bin GIF](public/join-bin.gif)
 
+### Logging Activity
+![Log Activity GIF](public/log-activity.gif)
+
+### Posting Task
+![Posting Task GIF](public/posting-task.gif)
+Playthrough of posting a task, this task would be displayed to everyone who joins the same bin :) and they would be able to accept the task too 
 
 ---
 ## How to Run Locally
