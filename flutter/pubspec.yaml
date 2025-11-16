@@ -1,0 +1,53 @@
+name: compostkaki
+description: A digital journaling platform for community composting
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State Management
+  provider: ^6.1.1
+  
+  # Supabase
+  supabase_flutter: ^2.5.6
+  
+  # UI
+  cupertino_icons: ^1.0.6
+  flutter_svg: ^2.0.9
+  cached_network_image: ^3.3.1
+  
+  # Navigation
+  go_router: ^13.0.0
+  
+  # QR Code (commented out - will add when implementing QR scanner)
+  # qr_code_scanner: ^1.0.1
+  qr_flutter: ^4.1.0
+  
+  # Image Picker
+  image_picker: ^1.0.7
+  
+  # HTTP
+  http: ^1.2.0
+  
+  # Utils
+  intl: ^0.19.0
+  shared_preferences: ^2.2.2
+  url_launcher: ^6.2.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/
+    - assets/icons/
+
