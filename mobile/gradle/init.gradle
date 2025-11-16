@@ -1,0 +1,20 @@
+// Gradle init script - runs BEFORE plugins are loaded
+// This MUST prevent iOS initialization
+
+def osName = System.getProperty("os.name").toLowerCase()
+def isMacOS = osName.contains("mac")
+
+if (!isMacOS) {
+    // CRITICAL: Set these BEFORE Kotlin plugin loads iOS classes
+    System.setProperty("kotlin.mpp.skipIosTargets", "true")
+    System.setProperty("kotlin.native.ignoreDisabledTargets", "true")
+    System.setProperty("kotlin.native.binary.memoryModel", "experimental")
+    
+    // Also set in gradle properties
+    gradle.beforeProject { project ->
+        project.ext.set("kotlin.mpp.skipIosTargets", "true")
+    }
+    
+    println("WINDOWS DETECTED - iOS targets disabled")
+}
+
