@@ -10,6 +10,12 @@
 !.yarn/releases
 !.yarn/versions
 
+.gradle/
+/mobile/.gradle/
+/mobile/build/
+/flutter/.dart_tool/
+/flutter/build/
+
 # testing
 /coverage
 
