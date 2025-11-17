@@ -4,9 +4,11 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../services/bin_service.dart';
+import '../../services/task_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/activity_timeline_item.dart';
 
@@ -21,6 +23,7 @@ class BinDetailScreen extends StatefulWidget {
 
 class _BinDetailScreenState extends State<BinDetailScreen> {
   final BinService _binService = BinService();
+  final TaskService _taskService = TaskService();
   Map<String, dynamic>? _bin;
   List<Map<String, dynamic>> _activities = [];
   bool _isLoading = true;
@@ -228,6 +231,182 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
     );
   }
 
+  Future<void> _showHelpSheet() async {
+    final descController = TextEditingController();
+    String urgency = 'Normal';
+    String effort = 'Medium';
+    bool timeSensitive = false;
+    DateTime? dueDate;
+    bool isSubmitting = false;
+    String? errorText;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+            left: 20,
+            right: 20,
+            top: 24,
+          ),
+          child: StatefulBuilder(
+            builder: (context, setSheetState) {
+              Future<void> submit() async {
+                if (descController.text.trim().isEmpty) {
+                  setSheetState(() => errorText = 'Please describe the help you need.');
+                  return;
+                }
+                setSheetState(() {
+                  isSubmitting = true;
+                  errorText = null;
+                });
+                try {
+                  await _taskService.createTask(
+                    binId: widget.binId,
+                    description: descController.text.trim(),
+                    urgency: urgency,
+                    effort: effort,
+                    isTimeSensitive: timeSensitive,
+                    dueDate: timeSensitive && dueDate != null
+                        ? dueDate!.toIso8601String()
+                        : null,
+                  );
+                  if (mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Help request posted')),
+                    );
+                  }
+                } catch (e) {
+                  setSheetState(() {
+                    errorText = e.toString();
+                  });
+                } finally {
+                  setSheetState(() => isSubmitting = false);
+                }
+              }
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Ask for Help',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryGreen,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: descController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'How can the community help?',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Urgency'),
+                  Wrap(
+                    spacing: 8,
+                    children: ['Low', 'Normal', 'High']
+                        .map(
+                          (u) => ChoiceChip(
+                            label: Text(u),
+                            selected: urgency == u,
+                            onSelected: (_) {
+                              setSheetState(() => urgency = u);
+                            },
+                          ),
+                        )
+                        .toList(),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Effort required'),
+                  Wrap(
+                    spacing: 8,
+                    children: ['Low', 'Medium', 'High']
+                        .map(
+                          (e) => ChoiceChip(
+                            label: Text(e),
+                            selected: effort == e,
+                            onSelected: (_) {
+                              setSheetState(() => effort = e);
+                            },
+                          ),
+                        )
+                        .toList(),
+                  ),
+                  const SizedBox(height: 12),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Time sensitive?'),
+                    value: timeSensitive,
+                    onChanged: (val) {
+                      setSheetState(() {
+                        timeSensitive = val;
+                        if (!val) dueDate = null;
+                      });
+                    },
+                  ),
+                  if (timeSensitive)
+                    TextButton.icon(
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: dueDate ?? DateTime.now(),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 60)),
+                        );
+                        if (picked != null) {
+                          setSheetState(() => dueDate = picked);
+                        }
+                      },
+                      icon: const Icon(Icons.calendar_today),
+                      label: Text(
+                        dueDate == null
+                            ? 'Pick due date'
+                            : DateFormat.yMMMMd().format(dueDate!),
+                      ),
+                    ),
+                  if (errorText != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      errorText!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: isSubmitting ? null : submit,
+                      child: isSubmitting
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Post Request'),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -406,9 +585,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () {
-                        // Ask for help
-                      },
+                      onPressed: _showHelpSheet,
                       icon: const Text('💪'),
                       label: const Text('Ask for Help'),
                     ),
