@@ -128,7 +128,7 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
       );
 
       if (mounted) {
-        context.pop();
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {

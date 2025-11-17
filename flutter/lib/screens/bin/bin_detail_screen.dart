@@ -271,7 +271,12 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: () => context.push('/bin/${widget.binId}/log'),
+                      onPressed: () async {
+                        final result = await context.push('/bin/${widget.binId}/log');
+                        if (result == true) {
+                          _loadBin();
+                        }
+                      },
                       icon: const Icon(Icons.add),
                       label: const Text('Log Activity'),
                     ),
