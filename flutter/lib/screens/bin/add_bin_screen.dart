@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../services/bin_service.dart';
 import '../../theme/app_theme.dart';
 
@@ -16,6 +18,17 @@ class _AddBinScreenState extends State<AddBinScreen> {
   final BinService _binService = BinService();
   bool _isLoading = false;
   String? _error;
+  File? _imageFile;
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      setState(() {
+        _imageFile = File(picked.path);
+      });
+    }
+  }
 
   Future<void> _createBin() async {
     if (!_formKey.currentState!.validate()) return;
@@ -30,6 +43,10 @@ class _AddBinScreenState extends State<AddBinScreen> {
         name: _nameController.text,
         location: _nameController.text,
       );
+
+      if (_imageFile != null) {
+        await _binService.updateBinImage(newBin['id'] as String, _imageFile!);
+      }
       
       if (mounted) {
         Navigator.pop(context, newBin['id']);
@@ -130,6 +147,28 @@ class _AddBinScreenState extends State<AddBinScreen> {
                   return null;
                 },
               ),
+              const SizedBox(height: 16),
+              if (_imageFile != null) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(
+                    _imageFile!,
+                    height: 180,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => setState(() => _imageFile = null),
+                  child: const Text('Remove photo'),
+                ),
+              ] else ...[
+                OutlinedButton.icon(
+                  onPressed: _pickImage,
+                  icon: const Icon(Icons.photo_library),
+                  label: const Text('Add Photo (optional)'),
+                ),
+              ],
               if (_error != null) ...[
                 const SizedBox(height: 16),
                 Container(

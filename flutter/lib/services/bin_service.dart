@@ -1,9 +1,12 @@
+import 'dart:io';
+import 'package:path/path.dart' as path;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_service.dart';
 
 class BinService {
   final SupabaseService _supabaseService = SupabaseService();
   String? get currentUserId => _supabaseService.currentUser?.id;
+  final SupabaseClient _storageClient = Supabase.instance.client;
 
   
   // Get all bins for current user
@@ -201,6 +204,39 @@ class BinService {
           .update(updates)
           .eq('id', binId);
     }
+  }
+
+  Future<String> _uploadBinImage(File file, String binId) async {
+    final bytes = await file.readAsBytes();
+    final ext = path.extension(file.path).replaceFirst('.', '');
+    final fileName = 'bin_${binId}_${DateTime.now().millisecondsSinceEpoch}.${ext.isEmpty ? 'jpg' : ext}';
+
+    await _storageClient.storage
+        .from('bin-images')
+        .uploadBinary(
+          fileName,
+          bytes,
+          fileOptions: FileOptions(
+            upsert: true,
+            contentType: 'image/${ext.isEmpty ? 'jpeg' : ext}',
+          ),
+        );
+
+    return _storageClient.storage
+        .from('bin-images')
+        .getPublicUrl(fileName);
+  }
+
+  Future<void> updateBinImage(String binId, File file) async {
+    final user = _supabaseService.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    final imageUrl = await _uploadBinImage(file, binId);
+
+    await _supabaseService.client
+        .from('bins')
+        .update({'image': imageUrl})
+        .eq('id', binId);
   }
 }
 

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../services/bin_service.dart';
@@ -27,6 +28,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
   int _logsToShow = 7;
   bool _isDeleting = false;
   bool _canDelete = false;
+  bool _isUploadingImage = false;
   String get _deepLink => 'compostkaki://bin/${widget.binId}';
   String get _webFallbackUrl => 'https://compostkaki.vercel.app/bin/${widget.binId}';
 
@@ -135,6 +137,26 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
     final name = _bin?['name'] ?? 'our compost bin';
     final message = 'Join $name on CompostKaki!\nOpen in app: $_deepLink\nWeb fallback: $_webFallbackUrl';
     await Share.share(message);
+  }
+
+  Future<void> _changePhoto() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+
+    setState(() => _isUploadingImage = true);
+    try {
+      await _binService.updateBinImage(widget.binId, File(picked.path));
+      await _loadBin();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update image: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingImage = false);
+    }
   }
 
   Future<void> _showQrCodeDialog() async {
@@ -264,13 +286,35 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
               onPressed: () => context.pop(),
             ),
             actions: [
-              IconButton(
-                icon: const Icon(Icons.share),
-                onPressed: _shareBin,
-              ),
-              IconButton(
-                icon: const Icon(Icons.qr_code),
-                onPressed: _showQrCodeDialog,
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'share') _shareBin();
+                  if (value == 'qr') _showQrCodeDialog();
+                  if (value == 'photo') _changePhoto();
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'share',
+                    child: ListTile(
+                      leading: Icon(Icons.share),
+                      title: Text('Share'),
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'qr',
+                    child: ListTile(
+                      leading: Icon(Icons.qr_code),
+                      title: Text('QR Code'),
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'photo',
+                    child: ListTile(
+                      leading: Icon(Icons.photo_library),
+                      title: Text('Edit Image'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
