@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -137,6 +138,13 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
   }
 
   Future<void> _showQrCodeDialog() async {
+    final qrPainter = QrPainter(
+      data: _deepLink,
+      version: QrVersions.auto,
+      eyeStyle: const QrEyeStyle(color: AppTheme.primaryGreen),
+      dataModuleStyle: const QrDataModuleStyle(color: AppTheme.primaryGreen),
+    );
+
     await showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -149,11 +157,9 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 color: Colors.white,
-                child: QrImageView(
-                  data: _deepLink,
-                  size: 220,
-                  eyeStyle: const QrEyeStyle(color: AppTheme.primaryGreen),
-                  dataModuleStyle: const QrDataModuleStyle(color: AppTheme.primaryGreen),
+                child: CustomPaint(
+                  size: const Size.square(220),
+                  painter: qrPainter,
                 ),
               ),
               const SizedBox(height: 12),
@@ -177,6 +183,19 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
               }
             },
             child: const Text('Copy Link'),
+          ),
+          TextButton.icon(
+            onPressed: () async {
+              final tempDir = await Directory.systemTemp.createTemp();
+              final file = File('${tempDir.path}/bin_qr_${widget.binId}.png');
+              final picData = await qrPainter.toImageData(220);
+              if (picData != null) {
+                await file.writeAsBytes(picData.buffer.asUint8List());
+                await Share.shareXFiles([XFile(file.path)], text: 'Scan to join this bin!');
+              }
+            },
+            icon: const Icon(Icons.download),
+            label: const Text('Save/Share QR'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
