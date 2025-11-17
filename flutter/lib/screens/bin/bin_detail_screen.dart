@@ -231,6 +231,63 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
     );
   }
 
+  Future<void> _showLogDetail(Map<String, dynamic> activity) async {
+    final image = activity['image'];
+    final profile = activity['profiles'] as Map<String, dynamic>?;
+    final name =
+        '${profile?['first_name'] ?? ''} ${profile?['last_name'] ?? ''}'.trim();
+    await showDialog(
+      context: context,
+      builder: (context) {
+        final content = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (name.isNotEmpty) Text('Posted by: $name'),
+            if (activity['temperature'] != null)
+              Text('Temperature: ${activity['temperature']}°C'),
+            if (activity['moisture'] != null)
+              Text('Moisture: ${activity['moisture']}'),
+            if ((activity['content'] as String?)?.isNotEmpty ?? false) ...[
+              const SizedBox(height: 8),
+              Text(activity['content']),
+            ],
+            if (image != null) ...[
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: CachedNetworkImage(
+                  imageUrl: image is List ? image.first : image,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ],
+          ],
+        );
+
+        final hasImage = image != null;
+
+        return AlertDialog(
+          title: Text(activity['type'] ?? 'Activity'),
+          content: hasImage
+              ? SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.9,
+                  height: MediaQuery.of(context).size.height * 0.6,
+                  child: SingleChildScrollView(child: content),
+                )
+              : content,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+        );
+      },
+    );
+  }
+
   Future<void> _showHelpSheet() async {
     final descController = TextEditingController();
     String urgency = 'Normal';
@@ -622,7 +679,10 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                     )
                   else
                     ..._activities.take(_logsToShow).map((activity) => 
-                      ActivityTimelineItem(activity: activity)
+                      ActivityTimelineItem(
+                        activity: activity,
+                        onTap: () => _showLogDetail(activity),
+                      ),
                     ),
                   if (_activities.length > _logsToShow)
                     Center(

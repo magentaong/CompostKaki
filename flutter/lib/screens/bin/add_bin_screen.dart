@@ -30,6 +30,80 @@ class _AddBinScreenState extends State<AddBinScreen> {
     }
   }
 
+  Future<void> _showJoinExistingDialog() async {
+    final controller = TextEditingController();
+    String? dialogError;
+    bool joining = false;
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Join a Bin'),
+        content: StatefulBuilder(
+          builder: (context, setState) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  labelText: 'Paste bin link or ID',
+                  hintText: 'https://... or UUID',
+                ),
+              ),
+              if (dialogError != null) ...[
+                const SizedBox(height: 8),
+                Text(dialogError!, style: const TextStyle(color: Colors.red)),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: joining ? null : () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: joining
+                ? null
+                : () async {
+                    final uuidRegex = RegExp(
+                        r'([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})');
+                    final match = uuidRegex.firstMatch(controller.text);
+                    if (match == null) {
+                      dialogError = 'Please enter a valid bin ID or link.';
+                      (context as Element).markNeedsBuild();
+                      return;
+                    }
+                    setState(() {
+                      joining = true;
+                      dialogError = null;
+                    });
+                    try {
+                      await _binService.joinBin(match.group(1)!);
+                      if (!mounted) return;
+                      Navigator.pop(dialogContext);
+                      context.go('/bin/${match.group(1)!}');
+                    } catch (e) {
+                      setState(() {
+                        dialogError = e.toString();
+                      });
+                    } finally {
+                      setState(() => joining = false);
+                    }
+                  },
+            child: joining
+                ? const SizedBox(
+                    height: 16,
+                    width: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Join'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _createBin() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -104,9 +178,7 @@ class _AddBinScreenState extends State<AddBinScreen> {
                           ),
                           const SizedBox(height: 8),
                           ElevatedButton(
-                            onPressed: () {
-                              // Show join bin dialog
-                            },
+                            onPressed: _showJoinExistingDialog,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.primaryGreen,
                               foregroundColor: Colors.white,

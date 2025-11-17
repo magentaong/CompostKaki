@@ -206,13 +206,18 @@ class BinService {
     }
   }
 
-  Future<String> _uploadBinImage(File file, String binId) async {
+  Future<String> _uploadFileToBucket({
+    required File file,
+    required String objectName,
+    required String bucket,
+  }) async {
     final bytes = await file.readAsBytes();
     final ext = path.extension(file.path).replaceFirst('.', '');
-    final fileName = 'bin_${binId}_${DateTime.now().millisecondsSinceEpoch}.${ext.isEmpty ? 'jpg' : ext}';
+    final fileName =
+        '$objectName.${ext.isEmpty ? 'jpg' : ext}';
 
     await _storageClient.storage
-        .from('bin-images')
+        .from(bucket)
         .uploadBinary(
           fileName,
           bytes,
@@ -223,7 +228,7 @@ class BinService {
         );
 
     return _storageClient.storage
-        .from('bin-images')
+        .from(bucket)
         .getPublicUrl(fileName);
   }
 
@@ -231,12 +236,26 @@ class BinService {
     final user = _supabaseService.currentUser;
     if (user == null) throw Exception('Not authenticated');
 
-    final imageUrl = await _uploadBinImage(file, binId);
+    final imageUrl = await _uploadFileToBucket(
+      file: file,
+      objectName:
+          'bin_${binId}_${DateTime.now().millisecondsSinceEpoch}',
+      bucket: 'bin-images',
+    );
 
     await _supabaseService.client
         .from('bins')
         .update({'image': imageUrl})
         .eq('id', binId);
+  }
+
+  Future<String> uploadLogImage(File file, String binId) async {
+    return _uploadFileToBucket(
+      file: file,
+      objectName:
+          'log_${binId}_${DateTime.now().millisecondsSinceEpoch}',
+      bucket: 'bin-logs',
+    );
   }
 }
 

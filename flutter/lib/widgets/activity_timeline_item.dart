@@ -5,8 +5,9 @@ import '../theme/app_theme.dart';
 
 class ActivityTimelineItem extends StatelessWidget {
   final Map<String, dynamic> activity;
+  final VoidCallback? onTap;
 
-  const ActivityTimelineItem({super.key, required this.activity});
+  const ActivityTimelineItem({super.key, required this.activity, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -21,11 +22,16 @@ class ActivityTimelineItem extends StatelessWidget {
     final profile = activity['profiles'] as Map<String, dynamic>?;
     final firstName = profile?['first_name'] as String? ?? 'Unknown';
     final lastName = profile?['last_name'] as String? ?? '';
-    final initials = '${firstName[0]}${lastName.isNotEmpty ? lastName[0] : ''}'.toUpperCase();
+    final initials = ((firstName.isNotEmpty ? firstName[0] : '?') +
+            (lastName.isNotEmpty ? lastName[0] : ''))
+        .toUpperCase();
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 24),
-      child: Row(
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 24),
+        child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Timeline dot
@@ -130,6 +136,7 @@ class ActivityTimelineItem extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

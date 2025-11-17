@@ -108,9 +108,7 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
     try {
       String? imageUrl;
       if (_imageFile != null) {
-        // Upload image to Supabase storage
-        // This would need to be implemented with Supabase storage
-        // For now, we'll skip image upload
+        imageUrl = await _binService.uploadLogImage(_imageFile!, widget.binId);
       }
 
       await _binService.createBinLog(
