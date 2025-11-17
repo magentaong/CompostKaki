@@ -58,11 +58,8 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         logCount += logs.length;
       }
       
-      // Get tasks if on community tab
-      List<Map<String, dynamic>> tasks = [];
-      if (_tabController.index == 1) {
-        tasks = await _taskService.getCommunityTasks();
-      }
+      // Always fetch tasks so community tab is ready
+      final tasks = await _taskService.getCommunityTasks();
       
       if (mounted) {
         setState(() {
@@ -100,7 +97,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   }
 
   void _onTabChanged() {
-    if (_tabController.index == 1 && _tasks.isEmpty) {
+    if (_tabController.index == 1) {
       _loadTasks();
     }
   }
@@ -395,6 +392,18 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     );
   }
 
+  void _updateLocalTask(String taskId, Map<String, dynamic> updates) {
+    setState(() {
+      final index = _tasks.indexWhere((t) => t['id'] == taskId);
+      if (index != -1) {
+        _tasks[index] = {
+          ..._tasks[index],
+          ...updates,
+        };
+      }
+    });
+  }
+
   void _showTaskDetail(Map<String, dynamic> task) {
     showDialog(
       context: context,
@@ -403,17 +412,16 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         bins: _bins,
         onAccept: () async {
           await _taskService.acceptTask(task['id']);
-          if (context.mounted) {
-            Navigator.pop(context);
-            _loadTasks();
-          }
+          _updateLocalTask(task['id'], {
+            'status': 'accepted',
+            'accepted_by': _taskService.currentUserId,
+          });
+          if (mounted) _loadTasks();
         },
         onComplete: () async {
           await _taskService.completeTask(task['id']);
-          if (context.mounted) {
-            Navigator.pop(context);
-            _loadTasks();
-          }
+          _updateLocalTask(task['id'], {'status': 'completed'});
+          if (mounted) _loadTasks();
         },
       ),
     );
@@ -665,16 +673,16 @@ class _TaskDetailDialog extends StatelessWidget {
         if (status == 'open' && acceptedBy != currentUserId)
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
               onAccept();
+              Navigator.pop(context);
             },
             child: const Text('Accept'),
           ),
         if (status == 'accepted' && acceptedBy == currentUserId)
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
               onComplete();
+              Navigator.pop(context);
             },
             child: const Text('Mark as Completed'),
           ),
