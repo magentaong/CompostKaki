@@ -241,6 +241,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: const Text('← Back to email'),
                       ),
                     ],
+
+                    const SizedBox(height: 24),
+                    TextButton(
+                      onPressed: () {
+                        context.push('/signup?email=${Uri.encodeComponent(_emailController.text)}');
+                      },
+                      child: const Text("New to CompostKaki? Create an account!"),
+                    ),
                   ],
                 ),
               ),
