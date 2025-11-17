@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../services/bin_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/activity_timeline_item.dart';
@@ -23,6 +26,8 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
   int _logsToShow = 7;
   bool _isDeleting = false;
   bool _canDelete = false;
+  String get _deepLink => 'compostkaki://bin/${widget.binId}';
+  String get _webFallbackUrl => 'https://compostkaki.vercel.app/bin/${widget.binId}';
 
   @override
   void initState() {
@@ -125,6 +130,63 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
     }
   }
 
+  Future<void> _shareBin() async {
+    final name = _bin?['name'] ?? 'our compost bin';
+    final message = 'Join $name on CompostKaki!\nOpen in app: $_deepLink\nWeb fallback: $_webFallbackUrl';
+    await Share.share(message);
+  }
+
+  Future<void> _showQrCodeDialog() async {
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Share Bin'),
+        content: SizedBox(
+          width: 280,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                color: Colors.white,
+                child: QrImageView(
+                  data: _deepLink,
+                  size: 220,
+                  eyeStyle: const QrEyeStyle(color: AppTheme.primaryGreen),
+                  dataModuleStyle: const QrDataModuleStyle(color: AppTheme.primaryGreen),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SelectableText(
+                'Open in app: $_deepLink\nWeb: $_webFallbackUrl',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: _deepLink));
+              Navigator.pop(dialogContext);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Share link copied')),
+                );
+              }
+            },
+            child: const Text('Copy Link'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -185,15 +247,11 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
             actions: [
               IconButton(
                 icon: const Icon(Icons.share),
-                onPressed: () {
-                  // Share functionality
-                },
+                onPressed: _shareBin,
               ),
               IconButton(
                 icon: const Icon(Icons.qr_code),
-                onPressed: () {
-                  // QR code functionality
-                },
+                onPressed: _showQrCodeDialog,
               ),
             ],
           ),
