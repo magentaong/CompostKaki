@@ -26,13 +26,13 @@ class _AddBinScreenState extends State<AddBinScreen> {
     });
 
     try {
-      await _binService.createBin(
+      final newBin = await _binService.createBin(
         name: _nameController.text,
         location: _nameController.text,
       );
       
       if (mounted) {
-        context.pop();
+        Navigator.pop(context, newBin['id']);
       }
     } catch (e) {
       if (mounted) {

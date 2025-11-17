@@ -82,6 +82,23 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     }
   }
 
+  Future<void> _openAddBin() async {
+    final result = await context.push('/add-bin');
+    if (result is String) {
+      await _loadData();
+      await context.push('/bin/$result');
+    } else if (result == true) {
+      await _loadData();
+    }
+  }
+
+  Future<void> _openBin(String binId) async {
+    final result = await context.push('/bin/$binId');
+    if (result == true) {
+      await _loadData();
+    }
+  }
+
   void _onTabChanged() {
     if (_tabController.index == 1 && _tasks.isEmpty) {
       _loadTasks();
@@ -238,7 +255,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                   ),
                   if (_bins.isNotEmpty)
                     ElevatedButton.icon(
-                      onPressed: () => context.push('/add-bin'),
+                      onPressed: _openAddBin,
                       icon: const Icon(Icons.add, size: 18),
                       label: const Text('Add New Bin'),
                     ),
@@ -252,7 +269,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
             SliverFillRemaining(
               child: _EmptyState(
                 onJoinBin: () => _showJoinBinDialog(context),
-                onCreateBin: () => context.push('/add-bin'),
+              onCreateBin: _openAddBin,
               ),
             )
           else
@@ -262,7 +279,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                   final bin = sortedBins[index];
                   return BinCard(
                     bin: bin,
-                    onTap: () => context.push('/bin/${bin['id']}'),
+                    onTap: () => _openBin(bin['id'] as String),
                   );
                 },
                 childCount: sortedBins.length,
@@ -363,7 +380,8 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
             await _binService.joinBin(binId);
             if (context.mounted) {
               Navigator.pop(context);
-              _loadData();
+              await _loadData();
+              await _openBin(binId);
             }
           } catch (e) {
             if (context.mounted) {
@@ -503,7 +521,7 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _JoinBinDialog extends StatefulWidget {
-  final Function(String) onJoin;
+  final Future<void> Function(String) onJoin;
 
   const _JoinBinDialog({required this.onJoin});
 
@@ -522,7 +540,7 @@ class _JoinBinDialogState extends State<_JoinBinDialog> {
     super.dispose();
   }
 
-  void _joinBin() {
+  Future<void> _joinBin() async {
     final text = _controller.text;
     // Extract UUID from URL or text
     final uuidRegex = RegExp(r'([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})');
@@ -540,7 +558,12 @@ class _JoinBinDialogState extends State<_JoinBinDialog> {
       _error = null;
     });
 
-    widget.onJoin(match.group(1)!);
+    await widget.onJoin(match.group(1)!);
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override

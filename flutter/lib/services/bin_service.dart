@@ -3,6 +3,8 @@ import 'supabase_service.dart';
 
 class BinService {
   final SupabaseService _supabaseService = SupabaseService();
+  String? get currentUserId => _supabaseService.currentUser?.id;
+
   
   // Get all bins for current user
   Future<List<Map<String, dynamic>>> getUserBins() async {
@@ -84,26 +86,49 @@ class BinService {
   Future<Map<String, dynamic>> createBin({
     required String name,
     String? location,
-    String? description,
     String? image,
   }) async {
     final user = _supabaseService.currentUser;
     if (user == null) throw Exception('Not authenticated');
     
+    final data = <String, dynamic>{
+      'name': name,
+      'location': location ?? name,
+      'user_id': user.id,
+      'health_status': 'Healthy',
+    };
+    if (image != null && image.isNotEmpty) {
+      data['image'] = image;
+    }
+    
     final response = await _supabaseService.client
         .from('bins')
-        .insert({
-          'name': name,
-          'location': location ?? name,
-          'description': description,
-          'image': image,
-          'user_id': user.id,
-          'health_status': 'Healthy',
-        })
+        .insert(data)
         .select()
         .single();
     
     return response as Map<String, dynamic>;
+  }
+
+  Future<void> deleteBin(String binId) async {
+    final user = _supabaseService.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    // Delete memberships and logs first (optional but keeps data clean)
+    await _supabaseService.client.from('bin_members').delete().eq('bin_id', binId);
+    await _supabaseService.client.from('bin_logs').delete().eq('bin_id', binId);
+
+    final response = await _supabaseService.client
+        .from('bins')
+        .delete()
+        .eq('id', binId)
+        .eq('user_id', user.id)
+        .select()
+        .maybeSingle();
+
+    if (response == null) {
+      throw Exception('Failed to delete bin or you are not the owner.');
+    }
   }
   
   // Join bin

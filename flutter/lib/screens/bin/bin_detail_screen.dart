@@ -21,6 +21,8 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
   bool _isLoading = true;
   String? _error;
   int _logsToShow = 7;
+  bool _isDeleting = false;
+  bool _canDelete = false;
 
   @override
   void initState() {
@@ -37,11 +39,13 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
     try {
       final bin = await _binService.getBin(widget.binId);
       final activities = await _binService.getBinLogs(widget.binId);
-      
+      final isOwner = bin['user_id'] == _binService.currentUserId;
+
       if (mounted) {
         setState(() {
           _bin = bin;
           _activities = activities;
+          _canDelete = isOwner;
           _isLoading = false;
         });
       }
@@ -78,6 +82,46 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
         return AppTheme.healthNeedsAttentionText;
       default:
         return Colors.black87;
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Bin'),
+        content: const Text('This action cannot be undone. Delete this bin?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      setState(() {
+        _isDeleting = true;
+      });
+      try {
+        await _binService.deleteBin(widget.binId);
+        if (mounted) {
+          context.pop(true);
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _error = e.toString();
+            _isDeleting = false;
+          });
+        }
+      }
     }
   }
 
@@ -292,6 +336,26 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
               ),
             ),
           ),
+          if (_canDelete)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.shade600,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: _isDeleting ? null : _confirmDelete,
+                  child: _isDeleting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Delete Bin'),
+                ),
+              ),
+            ),
         ],
       ),
     );
