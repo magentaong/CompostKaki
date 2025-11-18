@@ -48,8 +48,8 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
     return !_legacyDefaultImages.contains(trimmed);
   }
 
+  String get _binId => widget.binId;
   String get _deepLink => 'compostkaki://bin/${widget.binId}';
-  String get _webFallbackUrl => 'https://compostkaki.vercel.app/bin/${widget.binId}';
 
   @override
   void initState() {
@@ -162,7 +162,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
 
   Future<void> _shareBin() async {
     final name = _bin?['name'] ?? 'our compost bin';
-    final message = 'Join $name on CompostKaki!\nOpen in app: $_deepLink\nWeb fallback: $_webFallbackUrl';
+    final message = 'Join $name on CompostKaki!\n\nTap here to join: $_deepLink';
     await Share.share(message);
   }
 
@@ -180,6 +180,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
     setState(() => _isUploadingImage = true);
     try {
       await _binService.updateBinImage(widget.binId, File(picked.path));
+      _hasUpdates = true;
       await _loadBin();
     } catch (e) {
       if (mounted) {
@@ -203,7 +204,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
     await showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Share Bin'),
+        title: const Text('Share Bin QR Code'),
         content: SizedBox(
           width: 280,
           child: Column(
@@ -218,10 +219,10 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              SelectableText(
-                'Open in app: $_deepLink\nWeb: $_webFallbackUrl',
+              const Text(
+                'Scan to join this bin',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12),
+                style: TextStyle(fontSize: 12, color: AppTheme.textGray),
               ),
             ],
           ),
@@ -233,7 +234,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
               Navigator.pop(dialogContext);
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Share link copied')),
+                  const SnackBar(content: Text('Link copied')),
                 );
               }
             },

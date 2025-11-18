@@ -74,6 +74,7 @@ class BinCard extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: CachedNetworkImage(
+                  key: ValueKey('${bin['id']}_${bin['updated_at'] ?? DateTime.now().millisecondsSinceEpoch}'),
                   imageUrl: binImage,
                   width: 48,
                   height: 48,
