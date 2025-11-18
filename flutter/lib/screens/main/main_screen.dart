@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../services/bin_service.dart';
 import '../../services/task_service.dart';
 import '../../theme/app_theme.dart';
@@ -357,6 +359,34 @@ class _MainScreenState extends State<MainScreen> {
       builder: (context) => _JoinBinDialog(
         onJoin: (binId) async {
           try {
+            // First, fetch bin details to show confirmation
+            final bin = await _binService.getBin(binId);
+            final binName = bin['name'] as String? ?? 'this bin';
+            
+            if (!context.mounted) return;
+            
+            // Show confirmation dialog
+            final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Join Bin'),
+                content: Text('You are not part of "$binName". Would you like to join?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Join'),
+                  ),
+                ],
+              ),
+            );
+            
+            if (confirmed != true) return;
+            
+            // Now join the bin
             await _binService.joinBin(binId);
             if (context.mounted) {
               Navigator.pop(context);
@@ -380,6 +410,7 @@ class _MainScreenState extends State<MainScreen> {
           );
           return scanned;
         },
+        onUploadQR: null, // Not supported in current mobile_scanner version
       ),
     );
   }
@@ -688,8 +719,9 @@ class _EmptyState extends StatelessWidget {
 class _JoinBinDialog extends StatefulWidget {
   final Future<void> Function(String) onJoin;
   final Future<String?> Function()? onScan;
+  final Future<String?> Function()? onUploadQR;
 
-  const _JoinBinDialog({required this.onJoin, this.onScan});
+  const _JoinBinDialog({required this.onJoin, this.onScan, this.onUploadQR});
 
   @override
   State<_JoinBinDialog> createState() => _JoinBinDialogState();
@@ -752,22 +784,48 @@ class _JoinBinDialogState extends State<_JoinBinDialog> {
             ),
           ),
           const SizedBox(height: 12),
-          if (widget.onScan != null)
-            OutlinedButton.icon(
-              onPressed: _isLoading
-                  ? null
-                  : () async {
-                      final scanned = await widget.onScan!.call();
-                      if (scanned != null) {
-                        setState(() {
-                          _controller.text = scanned;
-                          _error = null;
-                        });
-                      }
-                    },
-              icon: const Icon(Icons.qr_code),
-              label: const Text('Scan QR code'),
-            ),
+          Row(
+            children: [
+              if (widget.onScan != null)
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoading
+                        ? null
+                        : () async {
+                            final scanned = await widget.onScan!.call();
+                            if (scanned != null) {
+                              setState(() {
+                                _controller.text = scanned;
+                                _error = null;
+                              });
+                            }
+                          },
+                    icon: const Icon(Icons.qr_code_scanner, size: 20),
+                    label: const Text('Scan QR'),
+                  ),
+                ),
+              if (widget.onScan != null && widget.onUploadQR != null)
+                const SizedBox(width: 8),
+              if (widget.onUploadQR != null)
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoading
+                        ? null
+                        : () async {
+                            final uploaded = await widget.onUploadQR!.call();
+                            if (uploaded != null) {
+                              setState(() {
+                                _controller.text = uploaded;
+                                _error = null;
+                              });
+                            }
+                          },
+                    icon: const Icon(Icons.upload, size: 20),
+                    label: const Text('Upload QR'),
+                  ),
+                ),
+            ],
+          ),
           if (_error != null) ...[
             const SizedBox(height: 8),
             Text(
