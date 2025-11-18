@@ -16,8 +16,7 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _MainScreenState extends State<MainScreen> {
   final BinService _binService = BinService();
   final TaskService _taskService = TaskService();
   
@@ -26,20 +25,12 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   bool _isLoading = true;
   String? _error;
   int _userLogCount = 0;
+  int _selectedIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(_onTabChanged);
     _loadData();
-  }
-
-  @override
-  void dispose() {
-    _tabController.removeListener(_onTabChanged);
-    _tabController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -96,12 +87,6 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     }
   }
 
-  void _onTabChanged() {
-    if (_tabController.index == 1) {
-      _loadTasks();
-    }
-  }
-
   Future<void> _loadTasks() async {
     try {
       final tasks = await _taskService.getCommunityTasks();
@@ -118,64 +103,65 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            const Icon(Icons.eco, color: AppTheme.primaryGreen),
-            const SizedBox(width: 8),
-            const Text('CompostKaki'),
-          ],
-        ),
-        actions: [
-          if (_bins.isNotEmpty)
-            TextButton.icon(
-              onPressed: () => _showJoinBinDialog(context),
-              icon: const Icon(Icons.add, size: 20),
-              label: const Text('Join Bin'),
-              style: TextButton.styleFrom(
-                foregroundColor: AppTheme.primaryGreen,
-              ),
-            ),
-          IconButton(
-            icon: const CircleAvatar(
-              backgroundColor: AppTheme.primaryGreen,
-              child: Icon(Icons.person, color: Colors.white),
-            ),
-            onPressed: () => context.push('/profile'),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Tab bar
-          Container(
-            color: AppTheme.backgroundGray,
-            child: TabBar(
-              controller: _tabController,
-              onTap: (_) => _onTabChanged(),
-              labelColor: AppTheme.primaryGreen,
-              unselectedLabelColor: AppTheme.textGray,
-              indicatorColor: AppTheme.primaryGreen,
-              tabs: const [
-                Tab(text: 'Journal'),
-                Tab(text: 'Community'),
-              ],
-            ),
-          ),
-          
-          // Tab content
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildJournalTab(),
-                _buildCommunityTab(),
-              ],
-            ),
-          ),
-        ],
-      ),
+      appBar: _buildAppBar(),
+      body: _buildBody(),
+      bottomNavigationBar: _buildBottomBar(),
     );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    switch (_selectedIndex) {
+      case 0:
+        return AppBar(
+          title: Row(
+            children: [
+              const Icon(Icons.eco, color: AppTheme.primaryGreen),
+              const SizedBox(width: 8),
+              const Text('CompostKaki'),
+            ],
+          ),
+          actions: [
+            if (_bins.isNotEmpty)
+              TextButton.icon(
+                onPressed: () => _showJoinBinDialog(context),
+                icon: const Icon(Icons.add, size: 20),
+                label: const Text('Join Bin'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppTheme.primaryGreen,
+                ),
+              ),
+          ],
+        );
+      case 1:
+        return AppBar(
+          title: const Text('Community Tasks'),
+        );
+      case 2:
+        return AppBar(
+          title: const Text('Leaderboard'),
+        );
+      default:
+        return AppBar(
+          title: const Text('CompostKaki'),
+        );
+    }
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    switch (_selectedIndex) {
+      case 0:
+        return _buildJournalTab();
+      case 1:
+        return _buildCommunityTab();
+      case 2:
+        return _buildLeaderboardTab();
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
   Widget _buildJournalTab() {
@@ -288,10 +274,6 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildCommunityTab() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
     final newTasks = _tasks.where((t) => t['status'] == 'open').toList();
     final ongoingTasks = _tasks.where((t) => 
       t['status'] == 'accepted' && 
@@ -423,6 +405,171 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
           _updateLocalTask(task['id'], {'status': 'completed'});
           if (mounted) _loadTasks();
         },
+      ),
+    );
+  }
+
+  Widget _buildLeaderboardTab() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Icon(Icons.emoji_events, size: 64, color: AppTheme.primaryGreen),
+            SizedBox(height: 16),
+            Text(
+              'Leaderboard is coming soon!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Track your compost contributions and compete with your community.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppTheme.textGray),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomBar() {
+    return SafeArea(
+      top: false,
+      child: Container(
+        height: 72,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 8,
+              offset: Offset(0, -2),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildNavItem(
+              index: 0,
+              icon: Icons.home,
+              label: 'Home',
+            ),
+            _buildNavItem(
+              index: 1,
+              icon: Icons.assignment,
+              label: 'Tasks',
+            ),
+            _buildNavItem(
+              index: 2,
+              icon: Icons.leaderboard,
+              label: 'Leaderboard',
+            ),
+            _buildNavItem(
+              index: 3,
+              icon: Icons.person,
+              label: 'Profile',
+              onTapOverride: () => context.push('/profile'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required int index,
+    required IconData icon,
+    required String label,
+    VoidCallback? onTapOverride,
+  }) {
+    final isSelected = _selectedIndex == index;
+    final color = isSelected ? AppTheme.primaryGreen : AppTheme.textGray;
+    return Expanded(
+      child: InkWell(
+        onTap: onTapOverride ??
+            () {
+              if (_selectedIndex != index) {
+                setState(() {
+                  _selectedIndex = index;
+                });
+                if (index == 1) {
+                  _loadTasks();
+                }
+              }
+            },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: color,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showLogBinPicker() {
+    if (_bins.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You need to join or add a bin first.')),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Log Activity',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            ..._bins.map((bin) => ListTile(
+                  leading: const Icon(Icons.eco, color: AppTheme.primaryGreen),
+                  title: Text(bin['name'] as String? ?? 'Bin'),
+                  subtitle: Text(bin['location'] as String? ?? ''),
+                  onTap: () async {
+                    Navigator.pop(sheetContext);
+                    final result =
+                        await context.push('/bin/${bin['id']}/log');
+                    if (result == true && mounted) {
+                      _loadData();
+                    }
+                  },
+                )),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }
