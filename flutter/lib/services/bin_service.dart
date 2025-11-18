@@ -182,6 +182,28 @@ class BinService {
     return List<Map<String, dynamic>>.from(response);
   }
   
+  // Calculate health status based on temperature and moisture
+  String _calculateHealthStatus(int? temperature, String? moisture) {
+    // Critical conditions
+    if (temperature != null && (temperature < 20 || temperature > 70)) {
+      return 'Critical';
+    }
+    if (moisture == 'Very Dry' || moisture == 'Very Wet') {
+      return 'Critical';
+    }
+    
+    // Needs Attention conditions
+    if (temperature != null && (temperature < 30 || temperature > 60)) {
+      return 'Needs Attention';
+    }
+    if (moisture == 'Dry' || moisture == 'Wet') {
+      return 'Needs Attention';
+    }
+    
+    // Healthy (temperature 30-60°C, moisture Perfect)
+    return 'Healthy';
+  }
+
   // Create bin log
   Future<void> createBinLog({
     required String binId,
@@ -220,6 +242,15 @@ class BinService {
       final bin = await getBin(binId);
       final currentFlips = (bin['latest_flips'] as int?) ?? 0;
       updates['latest_flips'] = currentFlips + 1;
+    }
+    
+    // Calculate and update health status if temperature or moisture are provided
+    if (temperature != null || moisture != null) {
+      final bin = await getBin(binId);
+      final currentTemp = temperature ?? bin['latest_temperature'] as int?;
+      final currentMoisture = moisture ?? bin['latest_moisture'] as String?;
+      final healthStatus = _calculateHealthStatus(currentTemp, currentMoisture);
+      updates['health_status'] = healthStatus;
     }
     
     if (updates.isNotEmpty) {

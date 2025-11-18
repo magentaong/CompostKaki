@@ -773,6 +773,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                       onPressed: () async {
                         final result = await context.push('/bin/${widget.binId}/log');
                         if (result == true) {
+                          _hasUpdates = true;
                           _loadBin();
                         }
                       },
