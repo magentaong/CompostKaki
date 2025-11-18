@@ -160,6 +160,48 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
     }
   }
 
+  Future<void> _confirmLeave() async {
+    final binName = _bin?['name'] ?? 'this bin';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Leave Bin'),
+        content: Text('Are you sure you want to leave "$binName"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.orange),
+            child: const Text('Leave'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      setState(() {
+        _isDeleting = true;
+      });
+      try {
+        await _binService.leaveBin(widget.binId);
+        _hasUpdates = true;
+        if (mounted) {
+          _popWithResult();
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _error = e.toString();
+            _isDeleting = false;
+          });
+        }
+      }
+    }
+  }
+
   Future<void> _shareBin() async {
     final name = _bin?['name'] ?? 'our compost bin';
     final message = 'Join $name on CompostKaki!\n\nTap here to join: $_deepLink';
@@ -776,6 +818,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
               ),
             ),
           ),
+          // Delete or Leave button
           if (_canDelete)
             SliverToBoxAdapter(
               child: Padding(
@@ -793,6 +836,26 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
                       : const Text('Delete Bin'),
+                ),
+              ),
+            )
+          else if (!_isOwner) // Member but not owner
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.orange.shade700,
+                    side: BorderSide(color: Colors.orange.shade700, width: 2),
+                  ),
+                  onPressed: _isDeleting ? null : _confirmLeave,
+                  child: _isDeleting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Leave Bin'),
                 ),
               ),
             ),

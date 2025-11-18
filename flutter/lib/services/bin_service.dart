@@ -146,6 +146,18 @@ class BinService {
           'user_id': user.id,
         });
   }
+
+  // Leave bin
+  Future<void> leaveBin(String binId) async {
+    final user = _supabaseService.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+    
+    await _supabaseService.client
+        .from('bin_members')
+        .delete()
+        .eq('bin_id', binId)
+        .eq('user_id', user.id);
+  }
   
   // Get bin logs
   Future<List<Map<String, dynamic>>> getBinLogs(String binId) async {
