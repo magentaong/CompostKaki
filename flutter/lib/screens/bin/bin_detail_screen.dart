@@ -23,7 +23,12 @@ class BinDetailScreen extends StatefulWidget {
 
 class _BinDetailScreenState extends State<BinDetailScreen> {
   static const _defaultBinImage =
-      'https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=1200&q=80';
+      'https://tqpjrlwdgoctacfrbanf.supabase.co/storage/v1/object/public/bin-images/image_2025-11-18_153342109.png';
+  static const _legacyDefaultImages = {
+    'https://images.unsplash.com/photo-1445620466293-d6316372ab59?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1445620466293-d6316372ab59?auto=format&fit=crop&w=400&q=80',
+    'https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=1200&q=80',
+  };
   final BinService _binService = BinService();
   final TaskService _taskService = TaskService();
   Map<String, dynamic>? _bin;
@@ -34,6 +39,15 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
   bool _isDeleting = false;
   bool _canDelete = false;
   bool _isUploadingImage = false;
+  bool _isOwner = false;
+  bool _hasUpdates = false;
+  bool _hasCustomImage(String? image) {
+    if (image == null) return false;
+    final trimmed = image.trim();
+    if (trimmed.isEmpty) return false;
+    return !_legacyDefaultImages.contains(trimmed);
+  }
+
   String get _deepLink => 'compostkaki://bin/${widget.binId}';
   String get _webFallbackUrl => 'https://compostkaki.vercel.app/bin/${widget.binId}';
 
@@ -59,6 +73,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
           _bin = bin;
           _activities = activities;
           _canDelete = isOwner;
+          _isOwner = isOwner;
           _isLoading = false;
         });
       }
@@ -98,6 +113,12 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
     }
   }
 
+  void _popWithResult() {
+    if (Navigator.of(context).canPop()) {
+      context.pop(_hasUpdates);
+    }
+  }
+
   Future<void> _confirmDelete() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -124,8 +145,9 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
       });
       try {
         await _binService.deleteBin(widget.binId);
+        _hasUpdates = true;
         if (mounted) {
-          context.pop(true);
+          _popWithResult();
         }
       } catch (e) {
         if (mounted) {
@@ -145,6 +167,12 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
   }
 
   Future<void> _changePhoto() async {
+    if (!_isOwner) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Only the bin owner can update the photo.')),
+      );
+      return;
+    }
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.gallery);
     if (picked == null) return;
@@ -497,8 +525,17 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
     final moisture = _bin!['latest_moisture'];
     final flips = _bin!['latest_flips'];
 
-    return Scaffold(
-      body: CustomScrollView(
+    final rawImage = (_bin!['image'] as String?)?.trim();
+    final hasCustomImage = _hasCustomImage(rawImage);
+    final binImage = hasCustomImage ? rawImage! : _defaultBinImage;
+
+    return WillPopScope(
+      onWillPop: () async {
+        _popWithResult();
+        return false;
+      },
+      child: Scaffold(
+        body: CustomScrollView(
         slivers: [
           // Header
           SliverAppBar(
@@ -508,24 +545,19 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  _bin!['image'] != null
-                      ? CachedNetworkImage(
-                          imageUrl: _bin!['image'] as String,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            color: AppTheme.backgroundGray,
-                            child: const Icon(Icons.image, size: 64),
-                          ),
-                        )
-                      : Image.network(
-                          _defaultBinImage,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: AppTheme.backgroundGray,
-                            child: const Icon(Icons.eco,
-                                size: 64, color: AppTheme.primaryGreen),
-                          ),
-                        ),
+                  CachedNetworkImage(
+                    imageUrl: binImage,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      color: AppTheme.backgroundGray,
+                      child: const Icon(Icons.image, size: 64),
+                    ),
+                    errorWidget: (_, __, ___) => Container(
+                      color: AppTheme.backgroundGray,
+                      child: const Icon(Icons.eco,
+                          size: 64, color: AppTheme.primaryGreen),
+                    ),
+                  ),
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -550,7 +582,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                   shape: const CircleBorder(),
                 ),
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () => context.pop(),
+                onPressed: _popWithResult,
               ),
             ),
             actions: [
@@ -567,7 +599,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                     onSelected: (value) {
                       if (value == 'share') _shareBin();
                       if (value == 'qr') _showQrCodeDialog();
-                      if (value == 'photo') _changePhoto();
+                      if (value == 'photo' && _isOwner) _changePhoto();
                     },
                     itemBuilder: (context) => [
                       const PopupMenuItem(
@@ -584,13 +616,14 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                           title: Text('QR Code'),
                         ),
                       ),
-                      const PopupMenuItem(
-                        value: 'photo',
-                        child: ListTile(
-                          leading: Icon(Icons.photo_library),
-                          title: Text('Edit Image'),
+                      if (_isOwner)
+                        const PopupMenuItem(
+                          value: 'photo',
+                          child: ListTile(
+                            leading: Icon(Icons.photo_library),
+                            title: Text('Edit Image'),
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -763,6 +796,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
               ),
             ),
         ],
+      ),
       ),
     );
   }

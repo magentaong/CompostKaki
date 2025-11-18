@@ -12,6 +12,23 @@ class BinCard extends StatelessWidget {
     required this.onTap,
   });
 
+  static const _defaultBinImage =
+      'https://tqpjrlwdgoctacfrbanf.supabase.co/storage/v1/object/public/bin-images/image_2025-11-18_153342109.png';
+  static const _legacyDefaultImages = {
+    'https://images.unsplash.com/photo-1445620466293-d6316372ab59?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1445620466293-d6316372ab59?auto=format&fit=crop&w=400&q=80',
+    'https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=1200&q=80',
+  };
+  String _resolveBinImage(String? image) {
+    if (image == null) return _defaultBinImage;
+    final trimmed = image.trim();
+    if (trimmed.isEmpty || _legacyDefaultImages.contains(trimmed)) {
+      return _defaultBinImage;
+    }
+    return trimmed;
+  }
+
+
   Color _getHealthColor(String? status) {
     switch (status) {
       case 'Critical':
@@ -42,6 +59,7 @@ class BinCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final healthStatus = bin['health_status'] as String? ?? 'Healthy';
     final temperature = bin['latest_temperature'];
+    final binImage = _resolveBinImage(bin['image'] as String?);
     
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -55,31 +73,24 @@ class BinCard extends StatelessWidget {
               // Bin image
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: bin['image'] != null
-                    ? CachedNetworkImage(
-                        imageUrl: bin['image'] as String,
-                        width: 48,
-                        height: 48,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          width: 48,
-                          height: 48,
-                          color: AppTheme.backgroundGray,
-                          child: const Icon(Icons.image),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          width: 48,
-                          height: 48,
-                          color: AppTheme.backgroundGray,
-                          child: const Icon(Icons.image),
-                        ),
-                      )
-                    : Container(
-                        width: 48,
-                        height: 48,
-                        color: AppTheme.backgroundGray,
-                        child: const Icon(Icons.eco, color: AppTheme.primaryGreen),
-                      ),
+                child: CachedNetworkImage(
+                  imageUrl: binImage,
+                  width: 48,
+                  height: 48,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(
+                    width: 48,
+                    height: 48,
+                    color: AppTheme.backgroundGray,
+                    child: const Icon(Icons.image),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    width: 48,
+                    height: 48,
+                    color: AppTheme.backgroundGray,
+                    child: const Icon(Icons.image),
+                  ),
+                ),
               ),
               const SizedBox(width: 12),
               
