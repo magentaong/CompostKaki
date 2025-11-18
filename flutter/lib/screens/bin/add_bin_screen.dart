@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../services/bin_service.dart';
 import '../../theme/app_theme.dart';
+import 'join_bin_scanner_screen.dart';
 
 class AddBinScreen extends StatefulWidget {
   const AddBinScreen({super.key});
@@ -37,10 +38,10 @@ class _AddBinScreenState extends State<AddBinScreen> {
 
     await showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Join a Bin'),
-        content: StatefulBuilder(
-          builder: (context, setState) => Column(
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Join a Bin'),
+          content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
@@ -50,58 +51,84 @@ class _AddBinScreenState extends State<AddBinScreen> {
                   hintText: 'https://... or UUID',
                 ),
               ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final scanned = await Navigator.push<String?>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const JoinBinScannerScreen(),
+                    ),
+                  );
+                  if (scanned != null) {
+                    controller.text = scanned;
+                    setState(() {
+                      dialogError = null;
+                    });
+                  }
+                },
+                icon: const Icon(Icons.qr_code),
+                label: const Text('Scan QR code'),
+              ),
               if (dialogError != null) ...[
                 const SizedBox(height: 8),
                 Text(dialogError!, style: const TextStyle(color: Colors.red)),
               ],
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: joining ? null : () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: joining
-                ? null
-                : () async {
-                    final uuidRegex = RegExp(
-                        r'([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})');
-                    final match = uuidRegex.firstMatch(controller.text);
-                    if (match == null) {
-                      dialogError = 'Please enter a valid bin ID or link.';
-                      (context as Element).markNeedsBuild();
-                      return;
-                    }
-                    setState(() {
-                      joining = true;
-                      dialogError = null;
-                    });
-                    try {
-                      await _binService.joinBin(match.group(1)!);
-                      if (!mounted) return;
-                      Navigator.pop(dialogContext);
-                      context.go('/bin/${match.group(1)!}');
-                    } catch (e) {
+          actions: [
+            TextButton(
+              onPressed: joining ? null : () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: joining
+                  ? null
+                  : () async {
+                      final binId = _extractBinId(controller.text);
+                      if (binId == null) {
+                        setState(() {
+                          dialogError =
+                              'Please enter a valid bin ID, link, or scan a QR code.';
+                        });
+                        return;
+                      }
                       setState(() {
-                        dialogError = e.toString();
+                        joining = true;
+                        dialogError = null;
                       });
-                    } finally {
-                      setState(() => joining = false);
-                    }
-                  },
-            child: joining
-                ? const SizedBox(
-                    height: 16,
-                    width: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Join'),
-          ),
-        ],
+                      try {
+                        await _binService.joinBin(binId);
+                        if (!mounted) return;
+                        Navigator.pop(dialogContext);
+                        context.go('/bin/$binId');
+                      } catch (e) {
+                        setState(() {
+                          dialogError = e.toString();
+                        });
+                      } finally {
+                        setState(() => joining = false);
+                      }
+                    },
+              child: joining
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Join'),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  String? _extractBinId(String input) {
+    final regex = RegExp(
+        r'([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})');
+    final match = regex.firstMatch(input);
+    return match?.group(1);
   }
 
   Future<void> _createBin() async {
