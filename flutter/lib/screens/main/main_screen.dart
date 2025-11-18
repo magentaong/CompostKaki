@@ -7,6 +7,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/bin_card.dart';
 import '../../widgets/task_card.dart';
 import '../bin/add_bin_screen.dart';
+import '../bin/join_bin_scanner_screen.dart';
 import '../profile/profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -370,6 +371,15 @@ class _MainScreenState extends State<MainScreen> {
             }
           }
         },
+        onScan: () async {
+          final scanned = await Navigator.push<String?>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const JoinBinScannerScreen(),
+            ),
+          );
+          return scanned;
+        },
       ),
     );
   }
@@ -677,8 +687,9 @@ class _EmptyState extends StatelessWidget {
 
 class _JoinBinDialog extends StatefulWidget {
   final Future<void> Function(String) onJoin;
+  final Future<String?> Function()? onScan;
 
-  const _JoinBinDialog({required this.onJoin});
+  const _JoinBinDialog({required this.onJoin, this.onScan});
 
   @override
   State<_JoinBinDialog> createState() => _JoinBinDialogState();
@@ -697,13 +708,11 @@ class _JoinBinDialogState extends State<_JoinBinDialog> {
 
   Future<void> _joinBin() async {
     final text = _controller.text;
-    // Extract UUID from URL or text
-    final uuidRegex = RegExp(r'([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})');
-    final match = uuidRegex.firstMatch(text);
+    final binId = _extractBinId(text);
     
-    if (match == null) {
+    if (binId == null) {
       setState(() {
-        _error = 'Please enter a valid bin ID or URL';
+        _error = 'Please enter a valid bin ID, link, or scan a QR code.';
       });
       return;
     }
@@ -713,12 +722,19 @@ class _JoinBinDialogState extends State<_JoinBinDialog> {
       _error = null;
     });
 
-    await widget.onJoin(match.group(1)!);
+    await widget.onJoin(binId);
     if (mounted) {
       setState(() {
         _isLoading = false;
       });
     }
+  }
+
+  String? _extractBinId(String? text) {
+    if (text == null) return null;
+    final uuidRegex = RegExp(r'([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})');
+    final match = uuidRegex.firstMatch(text);
+    return match?.group(1);
   }
 
   @override
@@ -735,6 +751,23 @@ class _JoinBinDialogState extends State<_JoinBinDialog> {
               hintText: 'https://... or bin ID',
             ),
           ),
+          const SizedBox(height: 12),
+          if (widget.onScan != null)
+            OutlinedButton.icon(
+              onPressed: _isLoading
+                  ? null
+                  : () async {
+                      final scanned = await widget.onScan!.call();
+                      if (scanned != null) {
+                        setState(() {
+                          _controller.text = scanned;
+                          _error = null;
+                        });
+                      }
+                    },
+              icon: const Icon(Icons.qr_code),
+              label: const Text('Scan QR code'),
+            ),
           if (_error != null) ...[
             const SizedBox(height: 8),
             Text(

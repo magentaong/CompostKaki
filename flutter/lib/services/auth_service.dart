@@ -61,6 +61,34 @@ class AuthService extends ChangeNotifier {
     await _supabaseService.client.auth.signOut();
     notifyListeners();
   }
+
+  // Update profile
+  Future<void> updateProfile({
+    required String firstName,
+    required String lastName,
+  }) async {
+    final userId = currentUser?.id;
+    if (userId == null) throw Exception('No user logged in');
+
+    // Update auth metadata
+    await _supabaseService.client.auth.updateUser(
+      UserAttributes(
+        data: {
+          'first_name': firstName,
+          'last_name': lastName,
+        },
+      ),
+    );
+
+    // Update profiles table
+    await _supabaseService.client.from('profiles').upsert({
+      'id': userId,
+      'first_name': firstName,
+      'last_name': lastName,
+    });
+
+    notifyListeners();
+  }
   
   // Check if email exists
   Future<bool> checkEmailExists(String email) async {

@@ -70,7 +70,7 @@ class ProfileScreen extends StatelessWidget {
                   title: const Text('Edit Profile'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
-                    // Navigate to edit profile
+                    context.push('/profile/edit');
                   },
                 ),
                 const Divider(),
