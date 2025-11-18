@@ -362,8 +362,40 @@ class _MainScreenState extends State<MainScreen> {
             // First, fetch bin details to show confirmation
             final bin = await _binService.getBin(binId);
             final binName = bin['name'] as String? ?? 'this bin';
+            final contributors = bin['contributors_list'] as List? ?? [];
+            final currentUserId = _binService.currentUserId;
+            final isOwner = bin['user_id'] == currentUserId;
+            final isMember = contributors.contains(currentUserId);
+            final isAlreadyPartOfBin = isOwner || isMember;
             
             if (!context.mounted) return;
+            
+            if (isAlreadyPartOfBin) {
+              // User is already part of this bin
+              final goToBin = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Already in Bin'),
+                  content: Text('You are already part of "$binName"!'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Go to Bin'),
+                    ),
+                  ],
+                ),
+              );
+              
+              if (goToBin == true && context.mounted) {
+                Navigator.pop(context);
+                await _openBin(binId);
+              }
+              return;
+            }
             
             // Show confirmation dialog
             final confirmed = await showDialog<bool>(
@@ -410,7 +442,39 @@ class _MainScreenState extends State<MainScreen> {
           );
           return scanned;
         },
-        onUploadQR: null, // Not supported in current mobile_scanner version
+        onUploadQR: () async {
+          final picker = ImagePicker();
+          final picked = await picker.pickImage(source: ImageSource.gallery);
+          if (picked == null) return null;
+          
+          try {
+            final controller = MobileScannerController();
+            final result = await controller.analyzeImage(picked.path);
+            await controller.dispose();
+            
+            if (result?.barcodes.isNotEmpty ?? false) {
+              final rawValue = result!.barcodes.first.rawValue;
+              if (rawValue != null) {
+                final uuidRegex = RegExp(r'([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})');
+                final match = uuidRegex.firstMatch(rawValue);
+                if (match != null) return match.group(1);
+              }
+            }
+            
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('No QR code detected in that image.')),
+              );
+            }
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Failed to read QR code: $e')),
+              );
+            }
+          }
+          return null;
+        },
       ),
     );
   }
