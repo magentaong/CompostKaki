@@ -22,6 +22,8 @@ class BinDetailScreen extends StatefulWidget {
 }
 
 class _BinDetailScreenState extends State<BinDetailScreen> {
+  static const _defaultBinImage =
+      'https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=1200&q=80';
   final BinService _binService = BinService();
   final TaskService _taskService = TaskService();
   Map<String, dynamic>? _bin;
@@ -500,57 +502,98 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
         slivers: [
           // Header
           SliverAppBar(
-            expandedHeight: 200,
+            expandedHeight: 220,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
-              background: _bin!['image'] != null
-                  ? CachedNetworkImage(
-                      imageUrl: _bin!['image'] as String,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: AppTheme.backgroundGray,
-                        child: const Icon(Icons.image, size: 64),
+              background: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _bin!['image'] != null
+                      ? CachedNetworkImage(
+                          imageUrl: _bin!['image'] as String,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            color: AppTheme.backgroundGray,
+                            child: const Icon(Icons.image, size: 64),
+                          ),
+                        )
+                      : Image.network(
+                          _defaultBinImage,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: AppTheme.backgroundGray,
+                            child: const Icon(Icons.eco,
+                                size: 64, color: AppTheme.primaryGreen),
+                          ),
+                        ),
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withOpacity(0.5),
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.2),
+                        ],
                       ),
-                    )
-                  : Container(
-                      color: AppTheme.backgroundGray,
-                      child: const Icon(Icons.eco, size: 64, color: AppTheme.primaryGreen),
-                    ),
-            ),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => context.pop(),
-            ),
-            actions: [
-              PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'share') _shareBin();
-                  if (value == 'qr') _showQrCodeDialog();
-                  if (value == 'photo') _changePhoto();
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'share',
-                    child: ListTile(
-                      leading: Icon(Icons.share),
-                      title: Text('Share'),
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'qr',
-                    child: ListTile(
-                      leading: Icon(Icons.qr_code),
-                      title: Text('QR Code'),
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'photo',
-                    child: ListTile(
-                      leading: Icon(Icons.photo_library),
-                      title: Text('Edit Image'),
                     ),
                   ),
                 ],
+              ),
+            ),
+            leading: Padding(
+              padding: const EdgeInsets.all(8),
+              child: IconButton(
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.black54,
+                  shape: const CircleBorder(),
+                ),
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => context.pop(),
+              ),
+            ),
+            actions: [
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, color: Colors.white),
+                    color: Colors.white,
+                    onSelected: (value) {
+                      if (value == 'share') _shareBin();
+                      if (value == 'qr') _showQrCodeDialog();
+                      if (value == 'photo') _changePhoto();
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'share',
+                        child: ListTile(
+                          leading: Icon(Icons.share),
+                          title: Text('Share'),
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'qr',
+                        child: ListTile(
+                          leading: Icon(Icons.qr_code),
+                          title: Text('QR Code'),
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'photo',
+                        child: ListTile(
+                          leading: Icon(Icons.photo_library),
+                          title: Text('Edit Image'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
