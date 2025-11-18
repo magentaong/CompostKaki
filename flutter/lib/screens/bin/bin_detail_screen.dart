@@ -79,10 +79,33 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _isLoading = false;
-        });
+        // Check if bin was deleted
+        if (e.toString().contains('deleted') || e.toString().contains('no longer exists')) {
+          // Show dialog and navigate back
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              title: const Text('Bin Not Found'),
+              content: const Text('This bin has been deleted by the owner.'),
+              actions: [
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _hasUpdates = true;
+                    _popWithResult();
+                  },
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        } else {
+          setState(() {
+            _error = e.toString();
+            _isLoading = false;
+          });
+        }
       }
     }
   }

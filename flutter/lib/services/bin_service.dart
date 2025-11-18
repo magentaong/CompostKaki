@@ -3,6 +3,14 @@ import 'package:path/path.dart' as path;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_service.dart';
 
+class BinNotFoundException implements Exception {
+  final String message;
+  BinNotFoundException(this.message);
+  
+  @override
+  String toString() => message;
+}
+
 class BinService {
   final SupabaseService _supabaseService = SupabaseService();
   String? get currentUserId => _supabaseService.currentUser?.id;
@@ -67,7 +75,11 @@ class BinService {
         .from('bins')
         .select('*')
         .eq('id', binId)
-        .single();
+        .maybeSingle();
+    
+    if (response == null) {
+      throw BinNotFoundException('This bin has been deleted or no longer exists.');
+    }
     
     // Get contributors
     final membersResponse = await _supabaseService.client
