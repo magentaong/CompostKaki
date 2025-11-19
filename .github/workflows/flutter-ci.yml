@@ -1,0 +1,179 @@
+name: Flutter CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'flutter/**'
+      - '.github/workflows/flutter-ci.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'flutter/**'
+
+jobs:
+  # Test Job
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.0'
+        channel: 'stable'
+        cache: true
+    
+    - name: Install dependencies
+      working-directory: ./flutter
+      run: flutter pub get
+    
+    - name: Verify formatting
+      working-directory: ./flutter
+      run: dart format --set-exit-if-changed lib/ test/
+      continue-on-error: true
+    
+    - name: Analyze code
+      working-directory: ./flutter
+      run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      continue-on-error: true
+    
+    - name: Run unit tests
+      working-directory: ./flutter
+      run: flutter test --coverage
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./flutter/coverage/lcov.info
+        flags: flutter
+        name: flutter-coverage
+
+  # Build Android APK
+  build-android:
+    name: Build Android APK
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.0'
+        channel: 'stable'
+        cache: true
+    
+    - name: Install dependencies
+      working-directory: ./flutter
+      run: flutter pub get
+    
+    - name: Build APK (Debug)
+      working-directory: ./flutter
+      run: flutter build apk --debug
+    
+    - name: Build APK (Release)
+      working-directory: ./flutter
+      run: flutter build apk --release --split-per-abi
+    
+    - name: Upload Debug APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug
+        path: flutter/build/app/outputs/flutter-apk/app-debug.apk
+        retention-days: 30
+    
+    - name: Upload Release APKs
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release
+        path: flutter/build/app/outputs/flutter-apk/*.apk
+        retention-days: 90
+
+  # Build iOS (requires macOS runner)
+  build-ios:
+    name: Build iOS IPA
+    needs: test
+    runs-on: macos-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.0'
+        channel: 'stable'
+        cache: true
+    
+    - name: Install dependencies
+      working-directory: ./flutter
+      run: flutter pub get
+    
+    - name: Build iOS (No Codesign)
+      working-directory: ./flutter
+      run: flutter build ios --release --no-codesign
+    
+    - name: Create IPA
+      working-directory: ./flutter
+      run: |
+        mkdir -p Payload
+        cp -r build/ios/iphoneos/Runner.app Payload/
+        zip -r app.ipa Payload
+    
+    - name: Upload IPA
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-ios
+        path: flutter/app.ipa
+        retention-days: 90
+
+  # Integration Tests (Disabled - requires emulator setup)
+  # Uncomment when you have a dedicated testing environment
+  # integration-test:
+  #   name: Run Integration Tests
+  #   needs: test
+  #   runs-on: macos-latest
+  #   if: false  # Disabled for now
+  #   
+  #   steps:
+  #   - name: Checkout code
+  #     uses: actions/checkout@v4
+  #   
+  #   - name: Setup Flutter
+  #     uses: subosito/flutter-action@v2
+  #     with:
+  #       flutter-version: '3.24.0'
+  #       channel: 'stable'
+  #   
+  #   - name: Install dependencies
+  #     working-directory: ./flutter
+  #     run: flutter pub get
+  #   
+  #   - name: Run integration tests
+  #     uses: reactivecircus/android-emulator-runner@v2
+  #     with:
+  #       api-level: 29
+  #       script: cd flutter && flutter test integration_test/app_test.dart
+

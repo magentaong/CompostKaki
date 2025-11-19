@@ -183,7 +183,8 @@ class BinService {
   }
   
   // Calculate health status based on temperature and moisture
-  String _calculateHealthStatus(int? temperature, String? moisture) {
+  // Make this public for testing
+  String calculateHealthStatus(int? temperature, String? moisture) {
     // Critical conditions
     if (temperature != null && (temperature < 20 || temperature > 70)) {
       return 'Critical';
@@ -244,14 +245,14 @@ class BinService {
       updates['latest_flips'] = currentFlips + 1;
     }
     
-    // Calculate and update health status if temperature or moisture are provided
-    if (temperature != null || moisture != null) {
-      final bin = await getBin(binId);
-      final currentTemp = temperature ?? bin['latest_temperature'] as int?;
-      final currentMoisture = moisture ?? bin['latest_moisture'] as String?;
-      final healthStatus = _calculateHealthStatus(currentTemp, currentMoisture);
-      updates['health_status'] = healthStatus;
-    }
+        // Calculate and update health status if temperature or moisture are provided
+        if (temperature != null || moisture != null) {
+          final bin = await getBin(binId);
+          final currentTemp = temperature ?? bin['latest_temperature'] as int?;
+          final currentMoisture = moisture ?? bin['latest_moisture'] as String?;
+          final healthStatus = calculateHealthStatus(currentTemp, currentMoisture);
+          updates['health_status'] = healthStatus;
+        }
     
     if (updates.isNotEmpty) {
       await _supabaseService.client

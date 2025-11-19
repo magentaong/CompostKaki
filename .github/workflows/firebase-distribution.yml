@@ -1,0 +1,63 @@
+name: Firebase App Distribution
+
+on:
+  push:
+    branches: [ develop ]
+    paths:
+      - 'flutter/**'
+  workflow_dispatch:
+
+jobs:
+  build-and-distribute:
+    name: Build and Distribute to Testers
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.0'
+        channel: 'stable'
+        cache: true
+    
+    - name: Install dependencies
+      working-directory: ./flutter
+      run: flutter pub get
+    
+    - name: Run tests
+      working-directory: ./flutter
+      run: flutter test
+    
+    - name: Build APK
+      working-directory: ./flutter
+      run: flutter build apk --release
+    
+    - name: Upload to Firebase App Distribution
+      uses: wzieba/Firebase-Distribution-Github-Action@v1
+      with:
+        appId: ${{ secrets.FIREBASE_APP_ID }}
+        token: ${{ secrets.FIREBASE_TOKEN }}
+        groups: testers
+        file: flutter/build/app/outputs/flutter-apk/app-release.apk
+        releaseNotes: |
+          Automated build from commit: ${{ github.sha }}
+          Branch: ${{ github.ref_name }}
+          
+          Changes:
+          ${{ github.event.head_commit.message }}
+    
+    - name: Notify on Slack (Optional)
+      if: success()
+      run: |
+        echo "Build successful and distributed to testers!"
+        # Add Slack webhook notification here if needed
+
