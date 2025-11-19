@@ -1,0 +1,29 @@
+# Pre-commit hooks for Flutter
+# Install: pip install pre-commit
+# Setup: pre-commit install
+
+repos:
+  - repo: local
+    hooks:
+      - id: flutter-format
+        name: Flutter Format
+        entry: flutter format
+        language: system
+        files: \.dart$
+        pass_filenames: true
+        
+      - id: flutter-analyze
+        name: Flutter Analyze
+        entry: flutter analyze
+        language: system
+        files: \.dart$
+        pass_filenames: false
+        
+      - id: flutter-test
+        name: Flutter Test
+        entry: flutter test
+        language: system
+        files: \.dart$
+        pass_filenames: false
+        stages: [push]
+
