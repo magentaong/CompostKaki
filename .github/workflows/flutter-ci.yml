@@ -149,29 +149,31 @@ jobs:
         path: flutter/app.ipa
         retention-days: 90
 
-  # Integration Tests
-  integration-test:
-    name: Run Integration Tests
-    needs: test
-    runs-on: macos-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Setup Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: '3.24.0'
-        channel: 'stable'
-    
-    - name: Install dependencies
-      working-directory: ./flutter
-      run: flutter pub get
-    
-    - name: Run integration tests
-      uses: reactivecircus/android-emulator-runner@v2
-      with:
-        api-level: 29
-        script: cd flutter && flutter test integration_test/app_test.dart
+  # Integration Tests (Disabled - requires emulator setup)
+  # Uncomment when you have a dedicated testing environment
+  # integration-test:
+  #   name: Run Integration Tests
+  #   needs: test
+  #   runs-on: macos-latest
+  #   if: false  # Disabled for now
+  #   
+  #   steps:
+  #   - name: Checkout code
+  #     uses: actions/checkout@v4
+  #   
+  #   - name: Setup Flutter
+  #     uses: subosito/flutter-action@v2
+  #     with:
+  #       flutter-version: '3.24.0'
+  #       channel: 'stable'
+  #   
+  #   - name: Install dependencies
+  #     working-directory: ./flutter
+  #     run: flutter pub get
+  #   
+  #   - name: Run integration tests
+  #     uses: reactivecircus/android-emulator-runner@v2
+  #     with:
+  #       api-level: 29
+  #       script: cd flutter && flutter test integration_test/app_test.dart
 
