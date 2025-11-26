@@ -98,10 +98,15 @@ class _AddBinScreenState extends State<AddBinScreen> {
                         dialogError = null;
                       });
                       try {
-                        await _binService.joinBin(binId);
+                        await _binService.requestToJoinBin(binId);
                         if (!mounted) return;
                         Navigator.pop(dialogContext);
-                        context.go('/bin/$binId');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Request sent! The bin owner will review your request.'),
+                            backgroundColor: AppTheme.primaryGreen,
+                          ),
+                        );
                       } catch (e) {
                         setState(() {
                           dialogError = e.toString();
@@ -116,7 +121,7 @@ class _AddBinScreenState extends State<AddBinScreen> {
                       width: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Join'),
+                  : const Text('Request to Join'),
             ),
           ],
         ),

@@ -85,6 +85,28 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<void> _openBin(String binId) async {
+    // Check if user has pending request
+    final hasPendingRequest = await _binService.hasPendingRequest(binId);
+    if (hasPendingRequest) {
+      // Show popup that request is under review
+      if (context.mounted) {
+        await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Request Under Review'),
+            content: const Text('Your request to join this bin is currently under review by the bin owner. You will be notified once your request is approved.'),
+            actions: [
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Got it!'),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
+    }
+    
     final result = await context.push('/bin/$binId');
     if (result == true) {
       await _loadData();
@@ -129,7 +151,7 @@ class _MainScreenState extends State<MainScreen> {
               TextButton.icon(
                 onPressed: () => _showJoinBinDialog(context),
                 icon: const Icon(Icons.add, size: 20),
-                label: const Text('Join Bin'),
+                label: const Text('Request to Join Bin'),
                 style: TextButton.styleFrom(
                   foregroundColor: AppTheme.primaryGreen,
                 ),
@@ -368,6 +390,7 @@ class _MainScreenState extends State<MainScreen> {
             final isOwner = bin['user_id'] == currentUserId;
             final isMember = contributors.contains(currentUserId);
             final isAlreadyPartOfBin = isOwner || isMember;
+            final hasPendingRequest = await _binService.hasPendingRequest(binId);
             
             if (!context.mounted) return;
             
@@ -398,12 +421,26 @@ class _MainScreenState extends State<MainScreen> {
               return;
             }
             
+            if (hasPendingRequest) {
+              // User already has a pending request
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('You already have a pending request to join "$binName".'),
+                    backgroundColor: AppTheme.primaryGreen,
+                  ),
+                );
+              }
+              return;
+            }
+            
             // Show confirmation dialog
             final confirmed = await showDialog<bool>(
               context: context,
               builder: (context) => AlertDialog(
-                title: const Text('Join Bin'),
-                content: Text('You are not part of "$binName". Would you like to join?'),
+                title: const Text('Request to Join Bin'),
+                content: Text('You are not part of "$binName". Would you like to request to join? The bin owner will review your request.'),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(context, false),
@@ -411,7 +448,7 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                   ElevatedButton(
                     onPressed: () => Navigator.pop(context, true),
-                    child: const Text('Join'),
+                    child: const Text('Request to Join'),
                   ),
                 ],
               ),
@@ -419,17 +456,22 @@ class _MainScreenState extends State<MainScreen> {
             
             if (confirmed != true) return;
             
-            // Now join the bin
-            await _binService.joinBin(binId);
+            // Now request to join the bin
+            await _binService.requestToJoinBin(binId);
             if (context.mounted) {
               Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Request sent to join "$binName"! The owner will review your request.'),
+                  backgroundColor: AppTheme.primaryGreen,
+                ),
+              );
               await _loadData();
-              await _openBin(binId);
             }
           } catch (e) {
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Failed to join bin: $e')),
+                SnackBar(content: Text('Failed to request to join bin: $e')),
               );
             }
           }
@@ -838,7 +880,7 @@ class _JoinBinDialogState extends State<_JoinBinDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Join a Bin'),
+      title: const Text('Request to Join a Bin'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -914,7 +956,7 @@ class _JoinBinDialogState extends State<_JoinBinDialog> {
                   width: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Join'),
+              : const Text('Request to Join'),
         ),
       ],
     );
