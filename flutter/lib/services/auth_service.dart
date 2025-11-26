@@ -90,6 +90,14 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
   
+  // Reset password - sends password reset email
+  Future<void> resetPassword(String email) async {
+    await _supabaseService.client.auth.resetPasswordForEmail(
+      email,
+      redirectTo: 'https://compostkaki.vercel.app/reset-password',
+    );
+  }
+
   // Check if email exists
   Future<bool> checkEmailExists(String email) async {
     try {

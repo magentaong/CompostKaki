@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../services/bin_service.dart';
 import '../../services/task_service.dart';
+import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/bin_card.dart';
 import '../../widgets/task_card.dart';
@@ -678,6 +679,7 @@ class _MainScreenState extends State<MainScreen> {
       ),
     );
   }
+
 }
 
 class _StatCard extends StatelessWidget {
