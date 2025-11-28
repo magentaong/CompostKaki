@@ -9,6 +9,7 @@ import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/bin_card.dart';
 import '../../widgets/task_card.dart';
+import '../../widgets/compost_loading_animation.dart';
 import '../bin/add_bin_screen.dart';
 import '../bin/join_bin_scanner_screen.dart';
 import '../profile/profile_screen.dart';
@@ -175,7 +176,11 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: CompostLoadingAnimation(
+          message: 'Loading your compost bins...',
+        ),
+      );
     }
 
     switch (_selectedIndex) {
@@ -192,7 +197,11 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _buildJournalTab() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: SimpleCompostLoader(
+          message: 'Loading...',
+        ),
+      );
     }
 
     if (_error != null) {

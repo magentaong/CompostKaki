@@ -11,6 +11,7 @@ import '../../services/bin_service.dart';
 import '../../services/task_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/activity_timeline_item.dart';
+import '../../widgets/compost_loading_animation.dart';
 
 class BinDetailScreen extends StatefulWidget {
   final String binId;
@@ -880,8 +881,12 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        body: Center(
+          child: CompostLoadingAnimation(
+            message: 'Loading bin details...',
+          ),
+        ),
       );
     }
 
