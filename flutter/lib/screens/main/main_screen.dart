@@ -151,7 +151,7 @@ class _MainScreenState extends State<MainScreen> {
               TextButton.icon(
                 onPressed: () => _showJoinBinDialog(context),
                 icon: const Icon(Icons.add, size: 20),
-                label: const Text('Request to Join Bin'),
+                label: const Text('Join Bin'),
                 style: TextButton.styleFrom(
                   foregroundColor: AppTheme.primaryGreen,
                 ),
@@ -286,9 +286,11 @@ class _MainScreenState extends State<MainScreen> {
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
                   final bin = sortedBins[index];
+                  final hasPendingRequest = bin['has_pending_request'] == true;
                   return BinCard(
                     bin: bin,
                     onTap: () => _openBin(bin['id'] as String),
+                    hasPendingRequest: hasPendingRequest,
                   );
                 },
                 childCount: sortedBins.length,
