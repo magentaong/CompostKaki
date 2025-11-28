@@ -99,26 +99,34 @@ class AuthService extends ChangeNotifier {
   }
 
   // Check if email exists
+  // Note: This tries to sign in with a dummy password to check if email exists
+  // It will NOT send any emails, but will return an error that we can check
   Future<bool> checkEmailExists(String email) async {
     try {
-      // Use the password reset flow to check if email exists
-      // This is a safer way than trying to sign in with dummy password
-      await _supabaseService.client.auth.resetPasswordForEmail(
-        email,
-        redirectTo: 'https://compostkaki.vercel.app/reset-password',
+      // Try to sign in with a clearly invalid password
+      // This will fail, but the error message tells us if the email exists
+      await _supabaseService.client.auth.signInWithPassword(
+        email: email,
+        password: '__EMAIL_CHECK_DUMMY_PASSWORD__',
       );
-      // If no error, email exists
+      // This should never succeed, but if it does, email exists
       return true;
     } catch (e) {
       final error = e.toString().toLowerCase();
-      // If email doesn't exist, Supabase will return an error
+      // If error says "invalid login credentials", email exists but password is wrong
+      if (error.contains('invalid login credentials') || 
+          error.contains('invalid credentials') ||
+          error.contains('email and password')) {
+        return true; // Email exists
+      }
+      // If error says "user not found" or "email not found", email doesn't exist
       if (error.contains('user not found') || 
           error.contains('email not found') ||
-          error.contains('invalid email')) {
-        return false;
+          error.contains('no user found')) {
+        return false; // Email doesn't exist
       }
-      // For other errors (like rate limiting), assume email exists
-      // This is safer - worst case user tries to sign in and gets proper error
+      // For other errors (network, etc.), assume email exists to be safe
+      // Worst case: user tries to sign in and gets proper error message
       return true;
     }
   }
