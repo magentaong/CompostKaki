@@ -1,4 +1,4 @@
-name: compostkaki
+name: CompostKaki
 description: A digital journaling platform for community composting
 publish_to: 'none'
 version: 1.0.0+1
@@ -42,6 +42,15 @@ dependencies:
   path: ^1.9.0
   mobile_scanner: ^5.0.0
 
+flutter_launcher_icons:
+  android: true
+  ios: false  # Set to false since iOS directory doesn't exist
+  image_path: "assets/icons/app_icon.png"
+  # Disable adaptive icons to use full icon (no cropping)
+  # If you want adaptive icons, uncomment below and ensure your icon fills the canvas
+  # adaptive_icon_background: "#00796B"
+  # adaptive_icon_foreground: "assets/icons/app_icon.png"
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -50,6 +59,7 @@ dev_dependencies:
   flutter_lints: ^3.0.1
   mockito: ^5.4.4
   build_runner: ^2.4.8
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true

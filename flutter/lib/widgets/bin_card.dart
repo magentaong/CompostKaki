@@ -5,11 +5,13 @@ import 'package:cached_network_image/cached_network_image.dart';
 class BinCard extends StatelessWidget {
   final Map<String, dynamic> bin;
   final VoidCallback onTap;
+  final bool hasPendingRequest;
 
   const BinCard({
     super.key,
     required this.bin,
     required this.onTap,
+    this.hasPendingRequest = false,
   });
 
   static const _defaultBinImage =
@@ -120,34 +122,63 @@ class BinCard extends StatelessWidget {
                 ),
               ),
               
-              // Health status and temp
+              // Health status and temp (or Request under review)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getHealthColor(healthStatus),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      healthStatus,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: _getHealthTextColor(healthStatus),
+                  if (hasPendingRequest)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.pending,
+                            size: 12,
+                            color: Colors.orange.shade800,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Request under review',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange.shade800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _getHealthColor(healthStatus),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        healthStatus,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: _getHealthTextColor(healthStatus),
+                        ),
                       ),
                     ),
-                  ),
-                  if (temperature != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      '$temperature°C',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textGray,
+                    if (temperature != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        '$temperature°C',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textGray,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ],
               ),

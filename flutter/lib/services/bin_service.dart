@@ -17,7 +17,7 @@ class BinService {
   final SupabaseClient _storageClient = Supabase.instance.client;
 
   
-  // Get all bins for current user
+  // Get all bins for current user (including bins with pending requests)
   Future<List<Map<String, dynamic>>> getUserBins() async {
     final user = _supabaseService.currentUser;
     if (user == null) throw Exception('Not authenticated');
@@ -47,6 +47,26 @@ class BinService {
       memberBins = List<Map<String, dynamic>>.from(memberBinsResponse);
     }
     
+    // Get bins with pending requests
+    final requestsResponse = await _supabaseService.client
+        .from('bin_requests')
+        .select('bin_id')
+        .eq('user_id', user.id)
+        .eq('status', 'pending');
+    
+    final requestedBinIds = (requestsResponse as List)
+        .map((r) => r['bin_id'] as String)
+        .toList();
+    
+    List<Map<String, dynamic>> requestedBins = [];
+    if (requestedBinIds.isNotEmpty) {
+      final requestedBinsResponse = await _supabaseService.client
+          .from('bins')
+          .select('*')
+          .inFilter('id', requestedBinIds);
+      requestedBins = List<Map<String, dynamic>>.from(requestedBinsResponse);
+    }
+    
     // Combine and deduplicate
     final ownedBins = List<Map<String, dynamic>>.from(ownedBinsResponse);
     final allBins = <Map<String, dynamic>>[];
@@ -61,6 +81,14 @@ class BinService {
     
     for (var bin in memberBins) {
       if (!seenIds.contains(bin['id'])) {
+        allBins.add(bin);
+        seenIds.add(bin['id']);
+      }
+    }
+    
+    for (var bin in requestedBins) {
+      if (!seenIds.contains(bin['id'])) {
+        bin['has_pending_request'] = true; // Mark bins with pending requests
         allBins.add(bin);
         seenIds.add(bin['id']);
       }
@@ -146,17 +174,246 @@ class BinService {
     }
   }
   
-  // Join bin
-  Future<void> joinBin(String binId) async {
+  // Request to join bin (creates a request instead of direct join)
+  Future<void> requestToJoinBin(String binId) async {
     final user = _supabaseService.currentUser;
     if (user == null) throw Exception('Not authenticated');
     
+    // Check if already a member
+    final existingMember = await _supabaseService.client
+        .from('bin_members')
+        .select('*')
+        .eq('bin_id', binId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+    
+    if (existingMember != null) {
+      throw Exception('You are already a member of this bin.');
+    }
+    
+    // Check if already requested
+    final existingRequest = await _supabaseService.client
+        .from('bin_requests')
+        .select('*')
+        .eq('bin_id', binId)
+        .eq('user_id', user.id)
+        .eq('status', 'pending')
+        .maybeSingle();
+    
+    if (existingRequest != null) {
+      throw Exception('You already have a pending request for this bin.');
+    }
+    
+    // Create request
+    await _supabaseService.client
+        .from('bin_requests')
+        .insert({
+          'bin_id': binId,
+          'user_id': user.id,
+          'status': 'pending',
+        });
+  }
+  
+  // Check if user has pending request for a bin
+  Future<bool> hasPendingRequest(String binId) async {
+    final user = _supabaseService.currentUser;
+    if (user == null) return false;
+    
+    final request = await _supabaseService.client
+        .from('bin_requests')
+        .select('*')
+        .eq('bin_id', binId)
+        .eq('user_id', user.id)
+        .eq('status', 'pending')
+        .maybeSingle();
+    
+    return request != null;
+  }
+  
+  // Check if user is admin (owner) of a bin
+  Future<bool> isBinAdmin(String binId) async {
+    final user = _supabaseService.currentUser;
+    if (user == null) return false;
+    
+    final bin = await _supabaseService.client
+        .from('bins')
+        .select('user_id')
+        .eq('id', binId)
+        .maybeSingle();
+    
+    return bin != null && bin['user_id'] == user.id;
+  }
+  
+  // Admin: Get pending requests for a bin
+  Future<List<Map<String, dynamic>>> getPendingRequests(String binId) async {
+    final user = _supabaseService.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+    
+    // Verify user is admin
+    final isAdmin = await isBinAdmin(binId);
+    if (!isAdmin) {
+      throw Exception('Only the bin owner can view requests.');
+    }
+    
+    final requestsResponse = await _supabaseService.client
+        .from('bin_requests')
+        .select('*')
+        .eq('bin_id', binId)
+        .eq('status', 'pending')
+        .order('created_at', ascending: false);
+    
+    final requests = List<Map<String, dynamic>>.from(requestsResponse);
+    
+    // Manually fetch profile data for each request
+    final List<Map<String, dynamic>> requestsWithProfiles = [];
+    for (var request in requests) {
+      final userId = request['user_id'] as String;
+      final profileResponse = await _supabaseService.client
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .eq('id', userId)
+          .maybeSingle();
+      
+      requestsWithProfiles.add({
+        ...request,
+        'profiles': profileResponse,
+      });
+    }
+    
+    return requestsWithProfiles;
+  }
+  
+  // Admin: Approve a request (adds user to bin_members and deletes request)
+  Future<void> approveRequest(String requestId) async {
+    final user = _supabaseService.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+    
+    // Get request details
+    final request = await _supabaseService.client
+        .from('bin_requests')
+        .select('bin_id, user_id')
+        .eq('id', requestId)
+        .maybeSingle();
+    
+    if (request == null) {
+      throw Exception('Request not found.');
+    }
+    
+    final binId = request['bin_id'] as String;
+    final requestedUserId = request['user_id'] as String;
+    
+    // Verify user is admin
+    final isAdmin = await isBinAdmin(binId);
+    if (!isAdmin) {
+      throw Exception('Only the bin owner can approve requests.');
+    }
+    
+    // Add user to bin_members
     await _supabaseService.client
         .from('bin_members')
         .insert({
           'bin_id': binId,
-          'user_id': user.id,
+          'user_id': requestedUserId,
         });
+    
+    // Delete the request
+    await _supabaseService.client
+        .from('bin_requests')
+        .delete()
+        .eq('id', requestId);
+  }
+  
+  // Admin: Reject a request (deletes request)
+  Future<void> rejectRequest(String requestId) async {
+    final user = _supabaseService.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+    
+    // Get request details
+    final request = await _supabaseService.client
+        .from('bin_requests')
+        .select('bin_id')
+        .eq('id', requestId)
+        .maybeSingle();
+    
+    if (request == null) {
+      throw Exception('Request not found.');
+    }
+    
+    final binId = request['bin_id'] as String;
+    
+    // Verify user is admin
+    final isAdmin = await isBinAdmin(binId);
+    if (!isAdmin) {
+      throw Exception('Only the bin owner can reject requests.');
+    }
+    
+    // Delete the request
+    await _supabaseService.client
+        .from('bin_requests')
+        .delete()
+        .eq('id', requestId);
+  }
+  
+  // Admin: Get all members of a bin
+  Future<List<Map<String, dynamic>>> getBinMembers(String binId) async {
+    final user = _supabaseService.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+    
+    // Verify user is admin
+    final isAdmin = await isBinAdmin(binId);
+    if (!isAdmin) {
+      throw Exception('Only the bin owner can view members.');
+    }
+    
+    final membersResponse = await _supabaseService.client
+        .from('bin_members')
+        .select('*')
+        .eq('bin_id', binId);
+    
+    final members = List<Map<String, dynamic>>.from(membersResponse);
+    
+    // Manually fetch profile data for each member
+    final List<Map<String, dynamic>> membersWithProfiles = [];
+    for (var member in members) {
+      final userId = member['user_id'] as String;
+      final profileResponse = await _supabaseService.client
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .eq('id', userId)
+          .maybeSingle();
+      
+      membersWithProfiles.add({
+        ...member,
+        'profiles': profileResponse,
+      });
+    }
+    
+    return membersWithProfiles;
+  }
+  
+  // Admin: Remove a member from bin
+  Future<void> removeMember(String binId, String memberUserId) async {
+    final user = _supabaseService.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+    
+    // Verify user is admin
+    final isAdmin = await isBinAdmin(binId);
+    if (!isAdmin) {
+      throw Exception('Only the bin owner can remove members.');
+    }
+    
+    // Don't allow removing the owner
+    final bin = await getBin(binId);
+    if (bin['user_id'] == memberUserId) {
+      throw Exception('Cannot remove the bin owner.');
+    }
+    
+    // Remove member
+    await _supabaseService.client
+        .from('bin_members')
+        .delete()
+        .eq('bin_id', binId)
+        .eq('user_id', memberUserId);
   }
 
   // Leave bin

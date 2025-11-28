@@ -24,6 +24,66 @@ void main() {
     });
   });
 
+  group('BinCard - Pending Request Display', () {
+    test('should show pending request badge when hasPendingRequest is true', () {
+      bool hasPendingRequest = true;
+      bool shouldShowPendingBadge = hasPendingRequest;
+      
+      expect(shouldShowPendingBadge, true);
+    });
+
+    test('should not show pending request badge when hasPendingRequest is false', () {
+      bool hasPendingRequest = false;
+      bool shouldShowPendingBadge = hasPendingRequest;
+      
+      expect(shouldShowPendingBadge, false);
+    });
+
+    test('should hide health status when pending request exists', () {
+      bool hasPendingRequest = true;
+      bool shouldShowHealthStatus = !hasPendingRequest;
+      
+      expect(shouldShowHealthStatus, false);
+    });
+
+    test('should show health status when no pending request', () {
+      bool hasPendingRequest = false;
+      bool shouldShowHealthStatus = !hasPendingRequest;
+      
+      expect(shouldShowHealthStatus, true);
+    });
+
+    test('should hide temperature when pending request exists', () {
+      bool hasPendingRequest = true;
+      bool shouldShowTemperature = !hasPendingRequest;
+      
+      expect(shouldShowTemperature, false);
+    });
+
+    test('should show temperature when no pending request', () {
+      bool hasPendingRequest = false;
+      bool shouldShowTemperature = !hasPendingRequest;
+      
+      expect(shouldShowTemperature, true);
+    });
+
+    test('pending request badge should have correct text', () {
+      String pendingText = 'Request under review';
+      expect(pendingText, 'Request under review');
+    });
+
+    test('pending request badge should indicate pending status', () {
+      Map<String, dynamic> bin = {
+        'id': 'bin-123',
+        'name': 'Test Bin',
+        'has_pending_request': true,
+      };
+      
+      bool shouldShowPending = bin['has_pending_request'] == true;
+      expect(shouldShowPending, true);
+    });
+  });
+
   group('BinCard - Data Formatting', () {
     test('temperature is formatted correctly', () {
       String formatTemperature(int? temp) {

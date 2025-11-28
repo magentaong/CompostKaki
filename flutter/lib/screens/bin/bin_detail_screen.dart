@@ -11,6 +11,7 @@ import '../../services/bin_service.dart';
 import '../../services/task_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/activity_timeline_item.dart';
+import '../../widgets/compost_loading_animation.dart';
 
 class BinDetailScreen extends StatefulWidget {
   final String binId;
@@ -384,6 +385,323 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
     );
   }
 
+  Future<void> _showAdminPanel(BuildContext context) async {
+    if (!_isOwner) return;
+    
+    List<Map<String, dynamic>> members = [];
+    List<Map<String, dynamic>> pendingRequests = [];
+    bool isLoading = true;
+    String? error;
+    
+    // Load data
+    try {
+      members = await _binService.getBinMembers(widget.binId);
+      pendingRequests = await _binService.getPendingRequests(widget.binId);
+      isLoading = false;
+    } catch (e) {
+      error = e.toString();
+      isLoading = false;
+    }
+    
+    if (!context.mounted) return;
+    
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          Future<void> refreshData() async {
+            setSheetState(() => isLoading = true);
+            try {
+              final newMembers = await _binService.getBinMembers(widget.binId);
+              final newRequests = await _binService.getPendingRequests(widget.binId);
+              setSheetState(() {
+                members = newMembers;
+                pendingRequests = newRequests;
+                isLoading = false;
+                error = null;
+              });
+            } catch (e) {
+              setSheetState(() {
+                error = e.toString();
+                isLoading = false;
+              });
+            }
+          }
+          
+          Future<void> handleApprove(String requestId) async {
+            try {
+              await _binService.approveRequest(requestId);
+              await refreshData();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Request approved!'),
+                    backgroundColor: AppTheme.primaryGreen,
+                  ),
+                );
+              }
+            } catch (e) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Failed to approve: $e')),
+                );
+              }
+            }
+          }
+          
+          Future<void> handleReject(String requestId) async {
+            final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Reject Request'),
+                content: const Text('Are you sure you want to reject this request?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    child: const Text('Reject'),
+                  ),
+                ],
+              ),
+            );
+            
+            if (confirmed != true) return;
+            
+            try {
+              await _binService.rejectRequest(requestId);
+              await refreshData();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Request rejected')),
+                );
+              }
+            } catch (e) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Failed to reject: $e')),
+                );
+              }
+            }
+          }
+          
+          Future<void> handleRemoveMember(String memberUserId, String memberName) async {
+            final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Remove Member'),
+                content: Text('Are you sure you want to remove $memberName from this bin?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    child: const Text('Remove'),
+                  ),
+                ],
+              ),
+            );
+            
+            if (confirmed != true) return;
+            
+            try {
+              await _binService.removeMember(widget.binId, memberUserId);
+              await refreshData();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Member removed')),
+                );
+              }
+            } catch (e) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Failed to remove member: $e')),
+                );
+              }
+            }
+          }
+          
+          return SafeArea(
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.9,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.admin_panel_settings, color: AppTheme.primaryGreen),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Manage Bin',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(),
+                  
+                  // Content
+                  Expanded(
+                    child: isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : error != null
+                            ? Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text('Error: $error', style: const TextStyle(color: Colors.red)),
+                                      const SizedBox(height: 16),
+                                      ElevatedButton(
+                                        onPressed: refreshData,
+                                        child: const Text('Retry'),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : DefaultTabController(
+                                length: 2,
+                                child: Column(
+                                  children: [
+                                    const TabBar(
+                                      tabs: [
+                                        Tab(text: 'Members'),
+                                        Tab(text: 'Requests'),
+                                      ],
+                                    ),
+                                    Expanded(
+                                      child: TabBarView(
+                                        children: [
+                                          // Members Tab
+                                          members.isEmpty
+                                              ? const Center(
+                                                  child: Padding(
+                                                    padding: EdgeInsets.all(32),
+                                                    child: Text('No members yet.'),
+                                                  ),
+                                                )
+                                              : ListView.builder(
+                                                  padding: const EdgeInsets.all(16),
+                                                  itemCount: members.length,
+                                                  itemBuilder: (context, index) {
+                                                    final member = members[index];
+                                                    final profile = member['profiles'] as Map<String, dynamic>?;
+                                                    final firstName = profile?['first_name'] ?? '';
+                                                    final lastName = profile?['last_name'] ?? '';
+                                                    final memberName = '$firstName $lastName'.trim();
+                                                    final memberUserId = member['user_id'] as String;
+                                                    final isOwner = _bin?['user_id'] == memberUserId;
+                                                    
+                                                    return Card(
+                                                      margin: const EdgeInsets.only(bottom: 8),
+                                                      child: ListTile(
+                                                        title: Text(memberName.isEmpty ? 'User ${memberUserId.substring(0, 8)}...' : memberName),
+                                                        subtitle: memberName.isEmpty 
+                                                            ? Text('User ID: ${memberUserId.substring(0, 8)}...', style: const TextStyle(fontSize: 12))
+                                                            : null,
+                                                        trailing: isOwner
+                                                            ? Chip(
+                                                                label: const Text('Owner'),
+                                                                backgroundColor: AppTheme.primaryGreenLight,
+                                                              )
+                                                            : IconButton(
+                                                                icon: const Icon(Icons.remove_circle, color: Colors.red),
+                                                                onPressed: () => handleRemoveMember(memberUserId, memberName),
+                                                                tooltip: 'Remove member',
+                                                              ),
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
+                                          
+                                          // Requests Tab
+                                          pendingRequests.isEmpty
+                                              ? const Center(
+                                                  child: Padding(
+                                                    padding: EdgeInsets.all(32),
+                                                    child: Text('No pending requests.'),
+                                                  ),
+                                                )
+                                              : ListView.builder(
+                                                  padding: const EdgeInsets.all(16),
+                                                  itemCount: pendingRequests.length,
+                                                  itemBuilder: (context, index) {
+                                                    final request = pendingRequests[index];
+                                                    final profile = request['profiles'] as Map<String, dynamic>?;
+                                                    final firstName = profile?['first_name'] ?? '';
+                                                    final lastName = profile?['last_name'] ?? '';
+                                                    final requesterName = '$firstName $lastName'.trim();
+                                                    final requestId = request['id'] as String;
+                                                    final userId = request['user_id'] as String;
+                                                    
+                                                    return Card(
+                                                      margin: const EdgeInsets.only(bottom: 8),
+                                                      child: ListTile(
+                                                        title: Text(requesterName.isEmpty ? 'User ${userId.substring(0, 8)}...' : requesterName),
+                                                        subtitle: requesterName.isEmpty 
+                                                            ? Text('User ID: ${userId.substring(0, 8)}...', style: const TextStyle(fontSize: 12))
+                                                            : null,
+                                                        trailing: Row(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            IconButton(
+                                                              icon: const Icon(Icons.check_circle, color: AppTheme.primaryGreen),
+                                                              onPressed: () => handleApprove(requestId),
+                                                              tooltip: 'Approve',
+                                                            ),
+                                                            IconButton(
+                                                              icon: const Icon(Icons.cancel, color: Colors.red),
+                                                              onPressed: () => handleReject(requestId),
+                                                              tooltip: 'Reject',
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> _showHelpSheet() async {
     final descController = TextEditingController();
     String urgency = 'Normal';
@@ -563,8 +881,12 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        body: Center(
+          child: CompostLoadingAnimation(
+            message: 'Loading bin details...',
+          ),
+        ),
       );
     }
 
@@ -652,6 +974,21 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
               ),
             ),
             actions: [
+              if (_isOwner)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.admin_panel_settings, color: Colors.white),
+                      onPressed: () => _showAdminPanel(context),
+                      tooltip: 'Manage Bin',
+                    ),
+                  ),
+                ),
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: Container(
