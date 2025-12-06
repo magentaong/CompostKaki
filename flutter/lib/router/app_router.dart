@@ -8,6 +8,7 @@ import '../screens/main/main_screen.dart';
 import '../screens/bin/bin_detail_screen.dart';
 import '../screens/bin/add_bin_screen.dart';
 import '../screens/bin/log_activity_screen.dart';
+import '../screens/bin/bin_chat_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
 
@@ -56,6 +57,13 @@ class AppRouter {
         builder: (context, state) {
           final binId = state.pathParameters['id']!;
           return LogActivityScreen(binId: binId);
+        },
+      ),
+      GoRoute(
+         path: '/bin/:id/chat',
+        builder: (context, state) {
+          final binId = state.pathParameters['id']!;
+          return BinChatScreen(binId: binId);
         },
       ),
       GoRoute(

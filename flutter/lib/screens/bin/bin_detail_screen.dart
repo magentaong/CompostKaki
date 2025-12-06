@@ -1127,6 +1127,17 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                       label: const Text('Ask for Help'),
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        await context.push('/bin/${widget.binId}/chat');
+                      },
+                      icon: const Icon(Icons.chat_bubble_outline),
+                      label: const Text('Chat'),
+                    ),
+                  ),
                 ],
               ),
             ),
