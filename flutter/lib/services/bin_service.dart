@@ -391,6 +391,17 @@ class BinService {
     return membersWithProfiles;
   }
   
+  // Get user profile
+  Future<Map<String, dynamic>> getUserProfile(String userId) async {
+    final response = await _supabaseService.client
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .eq('id', userId)
+        .single();
+    
+    return Map<String, dynamic>.from(response);
+  }
+  
   // Admin: Remove a member from bin
   Future<void> removeMember(String binId, String memberUserId) async {
     final user = _supabaseService.currentUser;
