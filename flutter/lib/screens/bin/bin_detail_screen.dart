@@ -12,6 +12,8 @@ import '../../services/task_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/activity_timeline_item.dart';
 import '../../widgets/compost_loading_animation.dart';
+import '../../services/educational_service.dart';
+import '../../services/chat_service.dart';
 
 class BinDetailScreen extends StatefulWidget {
   final String binId;
@@ -49,7 +51,6 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
     return !_legacyDefaultImages.contains(trimmed);
   }
 
-  String get _binId => widget.binId;
   String get _deepLink => 'compostkaki://bin/${widget.binId}';
 
   @override
@@ -1132,49 +1133,35 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
             ),
           ),
           
-          // Activity timeline
+          // Tabs
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+            child: DefaultTabController(
+              length: 3,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Activity Timeline',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                  TabBar(
+                    tabs: const [
+                      Tab(icon: Icon(Icons.timeline), text: 'Activity'),
+                      Tab(icon: Icon(Icons.school), text: 'Guides'),
+                      Tab(icon: Icon(Icons.chat), text: 'Chat'),
+                    ],
+                    labelColor: AppTheme.primaryGreen,
+                    unselectedLabelColor: AppTheme.textGray,
+                    indicatorColor: AppTheme.primaryGreen,
+                  ),
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.5,
+                    child: TabBarView(
+                      children: [
+                        // Activity Tab
+                        _buildActivityTab(),
+                        // Guides Tab
+                        _buildGuidesTab(),
+                        // Chat Tab
+                        _buildChatTab(),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  if (_activities.isEmpty)
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(32),
-                        child: Text(
-                          'No activities logged yet.',
-                          style: TextStyle(color: AppTheme.textGray),
-                        ),
-                      ),
-                    )
-                  else
-                    ..._activities.take(_logsToShow).map((activity) => 
-                      ActivityTimelineItem(
-                        activity: activity,
-                        onTap: () => _showLogDetail(activity),
-                      ),
-                    ),
-                  if (_activities.length > _logsToShow)
-                    Center(
-                      child: TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _logsToShow += 7;
-                          });
-                        },
-                        child: Text('Load ${_activities.length - _logsToShow} more logs'),
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -1225,6 +1212,67 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
       ),
     );
   }
+
+  Widget _buildActivityTab() {
+    return RefreshIndicator(
+      onRefresh: _loadBin,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Activity Timeline',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (_activities.isEmpty)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Text(
+                    'No activities logged yet.',
+                    style: TextStyle(color: AppTheme.textGray),
+                  ),
+                ),
+              )
+            else
+              ..._activities.take(_logsToShow).map((activity) => 
+                ActivityTimelineItem(
+                  activity: activity,
+                  onTap: () => _showLogDetail(activity),
+                ),
+              ),
+            if (_activities.length > _logsToShow)
+              Center(
+                child: TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _logsToShow += 7;
+                    });
+                  },
+                  child: Text('Load ${_activities.length - _logsToShow} more logs'),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGuidesTab() {
+    return _BinFoodWasteGuideContent(
+      binId: widget.binId,
+      isOwner: _isOwner,
+    );
+  }
+
+  Widget _buildChatTab() {
+    return _BinChatContent(binId: widget.binId);
+  }
 }
 
 class _StatTile extends StatelessWidget {
@@ -1267,6 +1315,794 @@ class _StatTile extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// Wrapper widget that extracts just the body content from BinFoodWasteGuideScreen
+class _BinFoodWasteGuideContent extends StatefulWidget {
+  final String binId;
+  final bool isOwner;
+
+  const _BinFoodWasteGuideContent({
+    required this.binId,
+    required this.isOwner,
+  });
+
+  @override
+  State<_BinFoodWasteGuideContent> createState() => _BinFoodWasteGuideContentState();
+}
+
+class _BinFoodWasteGuideContentState extends State<_BinFoodWasteGuideContent> {
+  final EducationalService _educationalService = EducationalService();
+  final TextEditingController _newCanAddController = TextEditingController();
+  final TextEditingController _newCannotAddController = TextEditingController();
+  final TextEditingController _notesController = TextEditingController();
+  
+  Map<String, dynamic>? _guide;
+  bool _isLoading = true;
+  String? _error;
+  List<String> _canAddItems = [];
+  List<String> _cannotAddItems = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGuide();
+  }
+
+  @override
+  void dispose() {
+    _newCanAddController.dispose();
+    _newCannotAddController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadGuide() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final guide = await _educationalService.getBinFoodWasteGuide(widget.binId);
+      if (mounted) {
+        setState(() {
+          _guide = guide;
+          if (guide != null) {
+            _canAddItems = List<String>.from(guide['can_add'] as List? ?? []);
+            _cannotAddItems = List<String>.from(guide['cannot_add'] as List? ?? []);
+            _notesController.text = guide['notes'] as String? ?? '';
+          } else {
+            _canAddItems = [];
+            _cannotAddItems = [];
+            _notesController.text = '';
+          }
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _saveGuide() async {
+    if (!widget.isOwner) return;
+
+    setState(() {
+      _error = null;
+    });
+
+    try {
+      await _educationalService.upsertBinFoodWasteGuide(
+        binId: widget.binId,
+        canAdd: _canAddItems,
+        cannotAdd: _cannotAddItems,
+        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Food waste guidelines updated successfully!'),
+            backgroundColor: AppTheme.primaryGreen,
+          ),
+        );
+        _newCanAddController.clear();
+        _newCannotAddController.clear();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _addCanAddItem() {
+    final item = _newCanAddController.text.trim();
+    if (item.isNotEmpty && !_canAddItems.contains(item)) {
+      setState(() {
+        _canAddItems.add(item);
+        _newCanAddController.clear();
+      });
+      _saveGuide();
+    }
+  }
+
+  void _addCannotAddItem() {
+    final item = _newCannotAddController.text.trim();
+    if (item.isNotEmpty && !_cannotAddItems.contains(item)) {
+      setState(() {
+        _cannotAddItems.add(item);
+        _newCannotAddController.clear();
+      });
+      _saveGuide();
+    }
+  }
+
+  void _removeCanAddItem(String item) {
+    setState(() {
+      _canAddItems.remove(item);
+    });
+    _saveGuide();
+  }
+
+  void _removeCannotAddItem(String item) {
+    setState(() {
+      _cannotAddItems.remove(item);
+    });
+    _saveGuide();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : _error != null
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _loadGuide,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              )
+            : RefreshIndicator(
+                onRefresh: _loadGuide,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (_guide == null && !widget.isOwner)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(32),
+                            child: Text(
+                              'No food waste guidelines set for this bin yet.',
+                              style: TextStyle(color: AppTheme.textGray),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        )
+                      else ...[
+                        // Can Add Section
+                        Card(
+                          color: Colors.green.shade50,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.check_circle, color: Colors.green),
+                                    const SizedBox(width: 8),
+                                    const Text(
+                                      'Can Add',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                if (widget.isOwner)
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: TextField(
+                                          controller: _newCanAddController,
+                                          decoration: InputDecoration(
+                                            hintText: 'Add new item...',
+                                            border: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                          ),
+                                          onSubmitted: (_) => _addCanAddItem(),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      IconButton(
+                                        onPressed: _addCanAddItem,
+                                        icon: const Icon(Icons.add_circle, color: Colors.green),
+                                        tooltip: 'Add item',
+                                      ),
+                                    ],
+                                  ),
+                                if (widget.isOwner && _canAddItems.isNotEmpty)
+                                  const SizedBox(height: 12),
+                                if (_canAddItems.isEmpty)
+                                  const Text(
+                                    'No items specified yet.',
+                                    style: TextStyle(color: AppTheme.textGray),
+                                  )
+                                else
+                                  ..._canAddItems.map((item) => _GuideItemTile(
+                                        item: item,
+                                        color: Colors.green,
+                                        onDelete: widget.isOwner
+                                            ? () => _removeCanAddItem(item)
+                                            : null,
+                                      )),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Cannot Add Section
+                        Card(
+                          color: Colors.red.shade50,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.cancel, color: Colors.red),
+                                    const SizedBox(width: 8),
+                                    const Text(
+                                      'Cannot Add',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                if (widget.isOwner)
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: TextField(
+                                          controller: _newCannotAddController,
+                                          decoration: InputDecoration(
+                                            hintText: 'Add new item...',
+                                            border: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                          ),
+                                          onSubmitted: (_) => _addCannotAddItem(),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      IconButton(
+                                        onPressed: _addCannotAddItem,
+                                        icon: const Icon(Icons.add_circle, color: Colors.red),
+                                        tooltip: 'Add item',
+                                      ),
+                                    ],
+                                  ),
+                                if (widget.isOwner && _cannotAddItems.isNotEmpty)
+                                  const SizedBox(height: 12),
+                                if (_cannotAddItems.isEmpty)
+                                  const Text(
+                                    'No items specified yet.',
+                                    style: TextStyle(color: AppTheme.textGray),
+                                  )
+                                else
+                                  ..._cannotAddItems.map((item) => _GuideItemTile(
+                                        item: item,
+                                        color: Colors.red,
+                                        onDelete: widget.isOwner
+                                            ? () => _removeCannotAddItem(item)
+                                            : null,
+                                      )),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (_guide?['notes'] != null || widget.isOwner) ...[
+                          const SizedBox(height: 16),
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Additional Notes',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  widget.isOwner
+                                      ? TextField(
+                                          controller: _notesController,
+                                          decoration: const InputDecoration(
+                                            hintText: 'Add any additional notes...',
+                                            border: OutlineInputBorder(),
+                                          ),
+                                          maxLines: 5,
+                                          onChanged: (_) => _saveGuide(),
+                                        )
+                                      : Text(
+                                          _guide?['notes'] as String? ?? '',
+                                          style: const TextStyle(color: AppTheme.textGray),
+                                        ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                        if (widget.isOwner && _guide == null && _canAddItems.isEmpty && _cannotAddItems.isEmpty)
+                          Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(32),
+                              child: Column(
+                                children: [
+                                  const Icon(Icons.info_outline, size: 48, color: AppTheme.textGray),
+                                  const SizedBox(height: 16),
+                                  const Text(
+                                    'No guidelines set yet. Start by adding items above.',
+                                    style: TextStyle(color: AppTheme.textGray),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+  }
+}
+
+class _GuideItemTile extends StatelessWidget {
+  final String item;
+  final Color color;
+  final VoidCallback? onDelete;
+
+  const _GuideItemTile({
+    required this.item,
+    required this.color,
+    this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            color == Colors.green ? Icons.check_circle_outline : Icons.cancel_outlined,
+            color: color,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              item,
+              style: TextStyle(
+                color: color == Colors.green ? Colors.green.shade700 : Colors.red.shade700,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          if (onDelete != null)
+            IconButton(
+              icon: const Icon(Icons.delete_outline, size: 20),
+              color: Colors.red,
+              onPressed: onDelete,
+              tooltip: 'Delete',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// Wrapper widget that extracts just the body content from BinChatScreen
+class _BinChatContent extends StatefulWidget {
+  final String binId;
+
+  const _BinChatContent({required this.binId});
+
+  @override
+  State<_BinChatContent> createState() => _BinChatContentState();
+}
+
+class _BinChatContentState extends State<_BinChatContent> {
+  final ChatService _chatService = ChatService();
+  final BinService _binService = BinService();
+  final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  
+  List<Map<String, dynamic>> _messages = [];
+  Map<String, dynamic>? _bin;
+  bool _isLoading = true;
+  String? _error;
+  bool _isSending = false;
+  bool _isOwner = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBin();
+    _loadMessages();
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadBin() async {
+    try {
+      final bin = await _binService.getBin(widget.binId);
+      final isOwner = bin['user_id'] == _binService.currentUserId;
+      if (mounted) {
+        setState(() {
+          _bin = bin;
+          _isOwner = isOwner;
+        });
+      }
+    } catch (e) {
+      // Handle error
+    }
+  }
+
+  Future<void> _loadMessages() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final messages = await _chatService.getBinMessages(widget.binId);
+      if (mounted) {
+        setState(() {
+          _messages = messages;
+          _isLoading = false;
+        });
+        _scrollToBottom();
+        await _chatService.markMessagesAsRead(widget.binId);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  Future<void> _sendMessage() async {
+    final message = _messageController.text.trim();
+    if (message.isEmpty || _isSending) return;
+
+    setState(() {
+      _isSending = true;
+    });
+
+    try {
+      String? receiverId;
+      if (!_isOwner && _bin != null) {
+        receiverId = _bin!['user_id'] as String?;
+      }
+      
+      await _chatService.sendBinMessage(widget.binId, message, receiverId: receiverId);
+      _messageController.clear();
+      await _loadMessages();
+      await _chatService.markMessagesAsRead(widget.binId);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send message: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSending = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: _loadMessages,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : _messages.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.chat_bubble_outline, size: 64, color: AppTheme.textGray),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No messages yet',
+                                style: const TextStyle(color: AppTheme.textGray),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _isOwner
+                                    ? 'Start a conversation with your bin members!'
+                                    : 'Start a conversation with the bin admin!',
+                                style: const TextStyle(color: AppTheme.textGray, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _loadMessages,
+                          child: ListView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _messages.length,
+                            itemBuilder: (context, index) {
+                              final message = _messages[index];
+                              final senderId = message['sender_id'] as String?;
+                              final isCurrentUser = senderId == _chatService.currentUserId;
+                              
+                              final senderProfile = message['sender_profile'] as Map<String, dynamic>?;
+                              final senderFirstName = senderProfile?['first_name'] as String? ?? 'User';
+                              final senderLastName = senderProfile?['last_name'] as String? ?? '';
+                              final senderName = '$senderFirstName $senderLastName'.trim();
+                              
+                              final isAdmin = senderId == _bin?['user_id'];
+                              
+                              return _ChatMessageBubble(
+                                message: message['message'] as String? ?? '',
+                                isUser: isCurrentUser,
+                                senderName: isCurrentUser ? 'You' : senderName,
+                                isAdmin: isAdmin,
+                                timestamp: message['created_at'] as String?,
+                              );
+                            },
+                          ),
+                        ),
+        ),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, -2),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _messageController,
+                    decoration: InputDecoration(
+                      hintText: _isOwner ? 'Message your bin members...' : 'Message the admin...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: const BorderSide(color: AppTheme.primaryGreen),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: const BorderSide(color: AppTheme.primaryGreen, width: 2),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                    maxLines: null,
+                    textCapitalization: TextCapitalization.sentences,
+                    onSubmitted: (_) => _sendMessage(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: _isSending ? null : _sendMessage,
+                  icon: _isSending
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.send),
+                  color: AppTheme.primaryGreen,
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppTheme.primaryGreen.withOpacity(0.1),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ChatMessageBubble extends StatelessWidget {
+  final String message;
+  final bool isUser;
+  final String senderName;
+  final bool isAdmin;
+  final String? timestamp;
+
+  const _ChatMessageBubble({
+    required this.message,
+    required this.isUser,
+    required this.senderName,
+    this.isAdmin = false,
+    this.timestamp,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        ),
+        decoration: BoxDecoration(
+          color: isUser ? AppTheme.primaryGreen : AppTheme.backgroundGray,
+          borderRadius: BorderRadius.circular(16).copyWith(
+            bottomRight: isUser ? const Radius.circular(4) : null,
+            bottomLeft: !isUser ? const Radius.circular(4) : null,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (!isUser || isAdmin)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  children: [
+                    if (isAdmin)
+                      const Icon(Icons.admin_panel_settings, size: 12, color: Colors.white),
+                    if (isAdmin) const SizedBox(width: 4),
+                    Text(
+                      senderName,
+                      style: TextStyle(
+                        color: isUser ? Colors.white70 : AppTheme.textGray.withOpacity(0.7),
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            Text(
+              message,
+              style: TextStyle(
+                color: isUser ? Colors.white : AppTheme.textGray,
+                fontSize: 14,
+              ),
+            ),
+            if (timestamp != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  _formatTimestamp(timestamp!),
+                  style: TextStyle(
+                    color: isUser ? Colors.white70 : AppTheme.textGray.withOpacity(0.7),
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatTimestamp(String timestamp) {
+    try {
+      final dateTime = DateTime.parse(timestamp);
+      final now = DateTime.now();
+      final difference = now.difference(dateTime);
+
+      if (difference.inMinutes < 1) {
+        return 'Just now';
+      } else if (difference.inHours < 1) {
+        return '${difference.inMinutes}m ago';
+      } else if (difference.inDays < 1) {
+        return '${difference.inHours}h ago';
+      } else {
+        return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+      }
+    } catch (e) {
+      return '';
+    }
   }
 }
 

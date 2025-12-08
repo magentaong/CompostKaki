@@ -44,7 +44,7 @@ dependencies:
 
 flutter_launcher_icons:
   android: true
-  ios: false  # Set to false since iOS directory doesn't exist
+  ios: true
   image_path: "assets/icons/app_icon.png"
   # Disable adaptive icons to use full icon (no cropping)
   # If you want adaptive icons, uncomment below and ensure your icon fills the canvas
