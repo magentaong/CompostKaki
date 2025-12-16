@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
+import '../../services/supabase_service.dart';
 import '../../theme/app_theme.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -12,6 +13,67 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  Map<String, dynamic>? _profile;
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+  
+  Future<void> _loadProfile() async {
+    final authService = context.read<AuthService>();
+    final user = authService.currentUser;
+    if (user == null) return;
+    
+    try {
+      final supabaseService = SupabaseService();
+      final response = await supabaseService.client
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .eq('id', user.id)
+          .maybeSingle();
+      
+      if (mounted) {
+        setState(() {
+          _profile = response != null ? Map<String, dynamic>.from(response) : null;
+        });
+      }
+    } catch (e) {
+      // Silently fail - we'll fall back to userMetadata
+    }
+  }
+  void _showDeleteAccountDialog(BuildContext context) {
+    final authService = context.read<AuthService>();
+    
+    showDialog(
+      context: context,
+      builder: (dialogContext) => _DeleteAccountDialog(
+        onDelete: () async {
+          try {
+            await authService.deleteAccount();
+            if (dialogContext.mounted) {
+              Navigator.pop(dialogContext);
+            }
+            if (context.mounted) {
+              context.go('/login');
+            }
+          } catch (e) {
+            if (dialogContext.mounted) {
+              Navigator.pop(dialogContext);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Failed to delete account: ${e.toString()}'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
+        },
+      ),
+    );
+  }
+
   void _showResetPasswordDialog(BuildContext context) {
     final authService = context.read<AuthService>();
     final currentEmail = authService.currentUser?.email ?? '';
@@ -52,8 +114,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final authService = context.watch<AuthService>();
     final user = authService.currentUser;
     final email = user?.email ?? '';
-    final firstName = user?.userMetadata?['first_name'] as String? ?? '';
-    final lastName = user?.userMetadata?['last_name'] as String? ?? '';
+    
+    // Get firstName and lastName from profiles table (source of truth), fallback to userMetadata
+    final firstName = _profile?['first_name'] as String? ?? 
+                      user?.userMetadata?['first_name'] as String? ?? '';
+    final lastName = _profile?['last_name'] as String? ?? 
+                     user?.userMetadata?['last_name'] as String? ?? '';
+    
+    // Build avatar initials safely
+    String getAvatarInitials() {
+      String firstInitial = '';
+      String lastInitial = '';
+      
+      if (firstName.isNotEmpty) {
+        firstInitial = firstName[0];
+      } else if (email.isNotEmpty) {
+        firstInitial = email[0];
+      } else {
+        firstInitial = 'U'; // Fallback to 'U' for User
+      }
+      
+      if (lastName.isNotEmpty) {
+        lastInitial = lastName[0];
+      }
+      
+      return '$firstInitial$lastInitial'.toUpperCase();
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -72,7 +158,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     radius: 48,
                     backgroundColor: AppTheme.primaryGreen,
                     child: Text(
-                      '${firstName.isNotEmpty ? firstName[0] : email[0]}${lastName.isNotEmpty ? lastName[0] : ''}'.toUpperCase(),
+                      getAvatarInitials(),
                       style: const TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
@@ -150,6 +236,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       }
                     }
                   },
+                ),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.delete_forever, color: Colors.red),
+                  title: const Text('Delete Account', style: TextStyle(color: Colors.red)),
+                  onTap: () => _showDeleteAccountDialog(context),
                 ),
               ],
             ),
@@ -268,6 +360,69 @@ class _ResetPasswordDialogState extends State<_ResetPasswordDialog> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Text('Send Reset Link'),
+        ),
+      ],
+    );
+  }
+}
+
+class _DeleteAccountDialog extends StatelessWidget {
+  final Future<void> Function() onDelete;
+
+  const _DeleteAccountDialog({
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Row(
+        children: [
+          Icon(Icons.warning, color: Colors.red),
+          SizedBox(width: 8),
+          Text('Delete Account'),
+        ],
+      ),
+      content: const Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Are you sure you want to delete your account?',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 12),
+          Text(
+            'This action cannot be undone. All your data will be permanently deleted, including:',
+            style: TextStyle(color: AppTheme.textGray),
+          ),
+          SizedBox(height: 8),
+          Text('• Your profile', style: TextStyle(color: AppTheme.textGray)),
+          Text('• All bins you own', style: TextStyle(color: AppTheme.textGray)),
+          Text('• Your messages (will be anonymized)', style: TextStyle(color: AppTheme.textGray)),
+          Text('• All your tasks', style: TextStyle(color: AppTheme.textGray)),
+          SizedBox(height: 12),
+          Text(
+            'If you own bins, they will be deleted along with all their data.',
+            style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () async {
+            Navigator.pop(context);
+            await onDelete();
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('Delete Account'),
         ),
       ],
     );

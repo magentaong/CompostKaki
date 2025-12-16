@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/chat_service.dart';
 import '../../services/bin_service.dart';
@@ -26,6 +27,7 @@ class _BinChatScreenState extends State<BinChatScreen> {
   bool _isSending = false;
   RealtimeChannel? _channel;
   bool _isOwner = false;
+  bool _isDisposing = false;
 
   @override
   void initState() {
@@ -37,9 +39,12 @@ class _BinChatScreenState extends State<BinChatScreen> {
 
   @override
   void dispose() {
+    _isDisposing = true;
+    // Unsubscribe asynchronously to avoid blocking navigation
+    _channel?.unsubscribe();
+    _channel = null;
     _messageController.dispose();
     _scrollController.dispose();
-    _channel?.unsubscribe();
     super.dispose();
   }
 
@@ -72,8 +77,10 @@ class _BinChatScreenState extends State<BinChatScreen> {
           _isLoading = false;
         });
         _scrollToBottom();
-        // Mark messages as read when loading
-        await _chatService.markMessagesAsRead(widget.binId);
+        // Mark messages as read when loading (skip if disposing)
+        if (!_isDisposing) {
+          await _chatService.markMessagesAsRead(widget.binId);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -88,7 +95,7 @@ class _BinChatScreenState extends State<BinChatScreen> {
   void _subscribeToMessages() {
     try {
       _channel = _chatService.subscribeToBinMessages(widget.binId, (newMessage) {
-        if (mounted) {
+        if (mounted && !_isDisposing) {
           setState(() {
             _messages.add(newMessage);
           });
@@ -102,7 +109,7 @@ class _BinChatScreenState extends State<BinChatScreen> {
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
+      if (mounted && _scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
@@ -128,11 +135,16 @@ class _BinChatScreenState extends State<BinChatScreen> {
       }
       
       await _chatService.sendBinMessage(widget.binId, message, receiverId: receiverId);
+      if (_isDisposing) return;
       _messageController.clear();
-      await _loadMessages(); // Reload to get the new message with profile data
-      
-      // Mark messages as read when sending
-      await _chatService.markMessagesAsRead(widget.binId);
+      if (!_isDisposing) {
+        await _loadMessages(); // Reload to get the new message with profile data
+        
+        // Mark messages as read when sending
+        if (!_isDisposing) {
+          await _chatService.markMessagesAsRead(widget.binId);
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -157,6 +169,26 @@ class _BinChatScreenState extends State<BinChatScreen> {
     
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            // Immediately navigate back without waiting for cleanup
+            if (mounted && !_isDisposing) {
+              _isDisposing = true;
+              // Cancel channel immediately to prevent callbacks during navigation
+              final channel = _channel;
+              _channel = null;
+              // Navigate immediately (synchronous but non-blocking for UI)
+              if (context.canPop()) {
+                context.pop();
+              }
+              // Cleanup channel after navigation (non-blocking)
+              Future.microtask(() {
+                channel?.unsubscribe();
+              });
+            }
+          },
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

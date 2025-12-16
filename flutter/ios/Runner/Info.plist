@@ -6,6 +6,8 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>CompostKaki uses the camera to let you scan compost bin QR codes.</string>
 	<key>CFBundleDisplayName</key>
 	<string>CompostKaki</string>
 	<key>CFBundleExecutable</key>

@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:convert';
 import 'supabase_service.dart';
 
 class AuthService extends ChangeNotifier {
@@ -128,6 +130,73 @@ class AuthService extends ChangeNotifier {
       // For other errors (network, etc.), assume email exists to be safe
       // Worst case: user tries to sign in and gets proper error message
       return true;
+    }
+  }
+
+  // Delete user account
+  // Calls the Next.js API endpoint to delete the account
+  Future<void> deleteAccount() async {
+    final user = currentUser;
+    if (user == null) throw Exception('No user logged in');
+
+    final session = _supabaseService.session;
+    if (session == null) throw Exception('No active session');
+
+    // API base URL - Update this to match your Next.js deployment URL
+    // For production: 'https://compostkaki.vercel.app' (or your domain)
+    // For development: 'http://localhost:3000' or 'http://YOUR_LOCAL_IP:3000'
+    const apiBaseUrl = 'https://compostkaki.vercel.app';
+
+    final url = Uri.parse('$apiBaseUrl/api/user/delete');
+    
+    try {
+      // Use POST instead of DELETE for better compatibility
+      // The API route supports both methods
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${session.accessToken}',
+        },
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('Request timeout: Failed to connect to server');
+        },
+      );
+
+      if (response.statusCode == 200) {
+        // Account deleted successfully
+        // Sign out locally
+        await signOut();
+        notifyListeners();
+      } else {
+        // Handle error response
+        String errorMessage = 'Failed to delete account';
+        
+        if (response.body.isNotEmpty) {
+          try {
+            final errorData = jsonDecode(response.body);
+            errorMessage = errorData['error'] ?? errorMessage;
+          } catch (e) {
+            // If response is not valid JSON, use the raw body or status code
+            errorMessage = 'Failed to delete account (Status: ${response.statusCode})';
+            if (response.body.isNotEmpty) {
+              errorMessage += ': ${response.body}';
+            }
+          }
+        } else {
+          errorMessage = 'Failed to delete account (Status: ${response.statusCode})';
+        }
+        
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      // Handle network errors, timeouts, etc.
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception('Network error: ${e.toString()}');
     }
   }
 }

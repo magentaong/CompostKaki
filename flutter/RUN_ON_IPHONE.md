@@ -233,6 +233,84 @@ Once you've set up the app once via USB, you can enable wireless debugging:
    flutter run
    ```
 
+## Making Code Changes (After Initial Setup)
+
+Once you've completed the initial setup, here's what you need to do when making code changes:
+
+### For Regular Code Changes (Dart/Flutter code)
+
+**If the app is already running:**
+- Just **save your changes** in Cursor/your editor
+- The app will **automatically hot-reload** on your iPhone
+- Or press `r` in the terminal for manual hot-reload
+- Press `R` for hot-restart (if hot-reload doesn't work)
+
+**If the app is not running:**
+```bash
+cd /Users/itzsihui/CompostKaki/flutter
+flutter run
+```
+
+### When You Add New Dependencies
+
+If you added new packages to `pubspec.yaml`:
+```bash
+cd /Users/itzsihui/CompostKaki/flutter
+flutter pub get
+flutter run
+```
+
+If you added iOS-specific native dependencies:
+```bash
+cd /Users/itzsihui/CompostKaki/flutter
+flutter pub get
+cd ios
+pod install
+cd ..
+flutter run
+```
+
+### When You Modify Native iOS Code
+
+If you changed files in `ios/` folder (like `Info.plist`, native Swift/Objective-C code):
+```bash
+cd /Users/itzsihui/CompostKaki/flutter
+flutter clean
+flutter pub get
+cd ios && pod install && cd ..
+flutter run
+```
+
+### Steps You DON'T Need to Repeat
+
+✅ **You DON'T need to repeat these** (one-time setup):
+- Installing Xcode
+- Installing CocoaPods
+- Setting up code signing (unless you change bundle ID or team)
+- Connecting iPhone via USB (unless disconnected)
+- Trusting the computer on iPhone
+- Enabling Developer Mode
+- Trusting developer certificate
+
+### Quick Reference for Daily Development
+
+**Most common workflow:**
+1. Make code changes in Cursor
+2. Save the file
+3. App automatically hot-reloads on iPhone ✨
+
+**If hot-reload doesn't work:**
+```bash
+# In the terminal where flutter run is active:
+R  # Press R for hot-restart
+```
+
+**If you need to restart completely:**
+```bash
+cd /Users/itzsihui/CompostKaki/flutter
+flutter run
+```
+
 ## Next Steps
 
 - The app will hot-reload automatically when you make code changes
@@ -241,4 +319,14 @@ Once you've set up the app once via USB, you can enable wireless debugging:
 - Press `q` to quit
 
 Enjoy testing CompostKaki on your iPhone! 🌱
+
+
+
+
+
+
+
+
+
+
 

@@ -984,7 +984,12 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                   child: IconButton(
                     icon: const Icon(Icons.chat, color: Colors.white),
                     onPressed: () {
-                      context.push('/bin/${widget.binId}/chat-list');
+                      // Admin goes to chat list, normal users go directly to chat
+                      if (_isOwner) {
+                        context.push('/bin/${widget.binId}/chat-list');
+                      } else {
+                        context.push('/bin/${widget.binId}/chat');
+                      }
                     },
                     tooltip: _isOwner ? 'View Messages' : 'Chat with Admin',
                   ),

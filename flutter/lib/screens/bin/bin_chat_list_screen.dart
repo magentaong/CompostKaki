@@ -43,8 +43,11 @@ class _BinChatListScreenState extends State<BinChatListScreen> {
         if (isOwner) {
           _loadConversations();
         } else {
-          // User: Just navigate to their conversation with admin
-          context.push('/bin/${widget.binId}/chat');
+          // User: Replace this screen with their conversation (don't add to stack)
+          // This prevents normal users from seeing the chat list screen
+          if (mounted) {
+            context.replace('/bin/${widget.binId}/chat');
+          }
         }
       }
     } catch (e) {
@@ -150,6 +153,8 @@ class _BinChatListScreenState extends State<BinChatListScreen> {
                             final firstName = profile?['first_name'] as String? ?? 'User';
                             final lastName = profile?['last_name'] as String? ?? '';
                             final userName = '$firstName $lastName'.trim();
+                            // Ensure userName is never empty
+                            final displayName = userName.isNotEmpty ? userName : 'User';
                             final lastMessage = conversation['last_message'] as String? ?? '';
                             final lastMessageTime = conversation['last_message_time'] as String?;
                             final unreadCount = conversation['unread_count'] as int? ?? 0;
@@ -158,12 +163,12 @@ class _BinChatListScreenState extends State<BinChatListScreen> {
                               leading: CircleAvatar(
                                 backgroundColor: AppTheme.primaryGreen,
                                 child: Text(
-                                  userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+                                  displayName[0].toUpperCase(),
                                   style: const TextStyle(color: Colors.white),
                                 ),
                               ),
                               title: Text(
-                                userName,
+                                displayName,
                                 style: const TextStyle(fontWeight: FontWeight.bold),
                               ),
                               subtitle: Text(

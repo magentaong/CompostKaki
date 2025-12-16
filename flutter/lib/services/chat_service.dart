@@ -176,14 +176,26 @@ class ChatService {
     if (user == null) throw Exception('Not authenticated');
     
     // Get messages between current user and specified user in this bin
+    // PostgREST doesn't support complex nested AND/OR, so we fetch messages where
+    // either user is involved and filter in code
     final response = await _supabaseService.client
         .from('bin_messages')
         .select('*')
         .eq('bin_id', binId)
-        .or('(sender_id.eq.$userId,receiver_id.eq.${user.id}),(sender_id.eq.${user.id},receiver_id.eq.$userId)')
+        .or('sender_id.eq.$userId,sender_id.eq.${user.id},receiver_id.eq.$userId,receiver_id.eq.${user.id}')
         .order('created_at', ascending: true);
     
-    final messages = List<Map<String, dynamic>>.from(response);
+    final allMessages = List<Map<String, dynamic>>.from(response);
+    
+    // Filter to only messages between these two users
+    final messages = allMessages.where((message) {
+      final senderId = message['sender_id'] as String?;
+      final receiverId = message['receiver_id'] as String?;
+      // Message is between user1 and user2 if:
+      // (sender is user1 AND receiver is user2) OR (sender is user2 AND receiver is user1)
+      return (senderId == userId && receiverId == user.id) ||
+             (senderId == user.id && receiverId == userId);
+    }).toList();
     
     // Fetch profiles for both users
     final currentUserProfile = await _getUserProfile(user.id);
