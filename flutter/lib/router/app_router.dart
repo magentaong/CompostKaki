@@ -23,9 +23,9 @@ class AppRouter {
     redirect: (context, state) {
       final authService = Provider.of<AuthService>(context, listen: false);
       final isAuthenticated = authService.isAuthenticated;
-      final isLoginRoute = state.matchedLocation == '/login' || 
-                          state.matchedLocation == '/signup';
-      
+      final isLoginRoute = state.matchedLocation == '/login' ||
+          state.matchedLocation == '/signup';
+
       if (!isAuthenticated && !isLoginRoute) {
         return '/login';
       }
@@ -125,4 +125,3 @@ class AppRouter {
     ],
   );
 }
-

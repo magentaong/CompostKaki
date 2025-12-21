@@ -13,7 +13,8 @@ class BinFoodWasteGuideScreen extends StatefulWidget {
   });
 
   @override
-  State<BinFoodWasteGuideScreen> createState() => _BinFoodWasteGuideScreenState();
+  State<BinFoodWasteGuideScreen> createState() =>
+      _BinFoodWasteGuideScreenState();
 }
 
 class _BinFoodWasteGuideScreenState extends State<BinFoodWasteGuideScreen> {
@@ -21,7 +22,7 @@ class _BinFoodWasteGuideScreenState extends State<BinFoodWasteGuideScreen> {
   final TextEditingController _newCanAddController = TextEditingController();
   final TextEditingController _newCannotAddController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
-  
+
   Map<String, dynamic>? _guide;
   bool _isLoading = true;
   String? _error;
@@ -49,13 +50,15 @@ class _BinFoodWasteGuideScreenState extends State<BinFoodWasteGuideScreen> {
     });
 
     try {
-      final guide = await _educationalService.getBinFoodWasteGuide(widget.binId);
+      final guide =
+          await _educationalService.getBinFoodWasteGuide(widget.binId);
       if (mounted) {
         setState(() {
           _guide = guide;
           if (guide != null) {
             _canAddItems = List<String>.from(guide['can_add'] as List? ?? []);
-            _cannotAddItems = List<String>.from(guide['cannot_add'] as List? ?? []);
+            _cannotAddItems =
+                List<String>.from(guide['cannot_add'] as List? ?? []);
             _notesController.text = guide['notes'] as String? ?? '';
           } else {
             _canAddItems = [];
@@ -87,7 +90,9 @@ class _BinFoodWasteGuideScreenState extends State<BinFoodWasteGuideScreen> {
         binId: widget.binId,
         canAdd: _canAddItems,
         cannotAdd: _cannotAddItems,
-        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+        notes: _notesController.text.trim().isEmpty
+            ? null
+            : _notesController.text.trim(),
       );
 
       if (mounted) {
@@ -166,7 +171,8 @@ class _BinFoodWasteGuideScreenState extends State<BinFoodWasteGuideScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                      Text('Error: $_error',
+                          style: const TextStyle(color: Colors.red)),
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: _loadGuide,
@@ -204,7 +210,8 @@ class _BinFoodWasteGuideScreenState extends State<BinFoodWasteGuideScreen> {
                                 children: [
                                   Row(
                                     children: [
-                                      const Icon(Icons.check_circle, color: Colors.green),
+                                      const Icon(Icons.check_circle,
+                                          color: Colors.green),
                                       const SizedBox(width: 8),
                                       const Text(
                                         'Can Add',
@@ -227,17 +234,23 @@ class _BinFoodWasteGuideScreenState extends State<BinFoodWasteGuideScreen> {
                                             decoration: InputDecoration(
                                               hintText: 'Add new item...',
                                               border: OutlineInputBorder(
-                                                borderRadius: BorderRadius.circular(8),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
                                               ),
-                                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                              contentPadding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 8),
                                             ),
-                                            onSubmitted: (_) => _addCanAddItem(),
+                                            onSubmitted: (_) =>
+                                                _addCanAddItem(),
                                           ),
                                         ),
                                         const SizedBox(width: 8),
                                         IconButton(
                                           onPressed: _addCanAddItem,
-                                          icon: const Icon(Icons.add_circle, color: Colors.green),
+                                          icon: const Icon(Icons.add_circle,
+                                              color: Colors.green),
                                           tooltip: 'Add item',
                                         ),
                                       ],
@@ -248,7 +261,8 @@ class _BinFoodWasteGuideScreenState extends State<BinFoodWasteGuideScreen> {
                                   if (_canAddItems.isEmpty)
                                     const Text(
                                       'No items specified yet.',
-                                      style: TextStyle(color: AppTheme.textGray),
+                                      style:
+                                          TextStyle(color: AppTheme.textGray),
                                     )
                                   else
                                     ..._canAddItems.map((item) => _ItemTile(
@@ -273,7 +287,8 @@ class _BinFoodWasteGuideScreenState extends State<BinFoodWasteGuideScreen> {
                                 children: [
                                   Row(
                                     children: [
-                                      const Icon(Icons.cancel, color: Colors.red),
+                                      const Icon(Icons.cancel,
+                                          color: Colors.red),
                                       const SizedBox(width: 8),
                                       const Text(
                                         'Cannot Add',
@@ -296,28 +311,36 @@ class _BinFoodWasteGuideScreenState extends State<BinFoodWasteGuideScreen> {
                                             decoration: InputDecoration(
                                               hintText: 'Add new item...',
                                               border: OutlineInputBorder(
-                                                borderRadius: BorderRadius.circular(8),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
                                               ),
-                                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                              contentPadding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 8),
                                             ),
-                                            onSubmitted: (_) => _addCannotAddItem(),
+                                            onSubmitted: (_) =>
+                                                _addCannotAddItem(),
                                           ),
                                         ),
                                         const SizedBox(width: 8),
                                         IconButton(
                                           onPressed: _addCannotAddItem,
-                                          icon: const Icon(Icons.add_circle, color: Colors.red),
+                                          icon: const Icon(Icons.add_circle,
+                                              color: Colors.red),
                                           tooltip: 'Add item',
                                         ),
                                       ],
                                     ),
-                                  if (widget.isOwner && _cannotAddItems.isNotEmpty)
+                                  if (widget.isOwner &&
+                                      _cannotAddItems.isNotEmpty)
                                     const SizedBox(height: 12),
                                   // Items list
                                   if (_cannotAddItems.isEmpty)
                                     const Text(
                                       'No items specified yet.',
-                                      style: TextStyle(color: AppTheme.textGray),
+                                      style:
+                                          TextStyle(color: AppTheme.textGray),
                                     )
                                   else
                                     ..._cannotAddItems.map((item) => _ItemTile(
@@ -352,7 +375,8 @@ class _BinFoodWasteGuideScreenState extends State<BinFoodWasteGuideScreen> {
                                         ? TextField(
                                             controller: _notesController,
                                             decoration: const InputDecoration(
-                                              hintText: 'Add any additional notes...',
+                                              hintText:
+                                                  'Add any additional notes...',
                                               border: OutlineInputBorder(),
                                             ),
                                             maxLines: 5,
@@ -360,24 +384,30 @@ class _BinFoodWasteGuideScreenState extends State<BinFoodWasteGuideScreen> {
                                           )
                                         : Text(
                                             _guide?['notes'] as String? ?? '',
-                                            style: const TextStyle(color: AppTheme.textGray),
+                                            style: const TextStyle(
+                                                color: AppTheme.textGray),
                                           ),
                                   ],
                                 ),
                               ),
                             ),
                           ],
-                          if (widget.isOwner && _guide == null && _canAddItems.isEmpty && _cannotAddItems.isEmpty)
+                          if (widget.isOwner &&
+                              _guide == null &&
+                              _canAddItems.isEmpty &&
+                              _cannotAddItems.isEmpty)
                             Center(
                               child: Padding(
                                 padding: const EdgeInsets.all(32),
                                 child: Column(
                                   children: [
-                                    const Icon(Icons.info_outline, size: 48, color: AppTheme.textGray),
+                                    const Icon(Icons.info_outline,
+                                        size: 48, color: AppTheme.textGray),
                                     const SizedBox(height: 16),
                                     const Text(
                                       'No guidelines set yet. Start by adding items above.',
-                                      style: TextStyle(color: AppTheme.textGray),
+                                      style:
+                                          TextStyle(color: AppTheme.textGray),
                                       textAlign: TextAlign.center,
                                     ),
                                   ],
@@ -417,7 +447,9 @@ class _ItemTile extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            color == Colors.green ? Icons.check_circle_outline : Icons.cancel_outlined,
+            color == Colors.green
+                ? Icons.check_circle_outline
+                : Icons.cancel_outlined,
             color: color,
             size: 20,
           ),
@@ -426,7 +458,9 @@ class _ItemTile extends StatelessWidget {
             child: Text(
               item,
               style: TextStyle(
-                color: color == Colors.green ? Colors.green.shade700 : Colors.red.shade700,
+                color: color == Colors.green
+                    ? Colors.green.shade700
+                    : Colors.red.shade700,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),

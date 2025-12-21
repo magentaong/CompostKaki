@@ -49,6 +49,18 @@ post_install do |installer|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
       end
       
+      # Fix Swift optimization level warnings
+      # Fixes: "Disabling previews because SWIFT_VERSION is set and SWIFT_OPTIMIZATION_LEVEL=-0, expected -Onone"
+      if config.build_settings['SWIFT_VERSION']
+        # For Debug builds, use -Onone (no optimization) to enable previews
+        if config.name == 'Debug'
+          config.build_settings['SWIFT_OPTIMIZATION_LEVEL'] = '-Onone'
+        # For Release builds, use -O (optimized) but ensure it's properly set
+        elsif config.name == 'Release'
+          config.build_settings['SWIFT_OPTIMIZATION_LEVEL'] = '-O'
+        end
+      end
+      
       # Suppress keyWindow deprecation warnings for third-party pods
       # This is a known issue with some Flutter plugins that haven't updated to iOS 13+ APIs
       config.build_settings['OTHER_CFLAGS'] ||= ['$(inherited)']

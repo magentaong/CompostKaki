@@ -9,13 +9,15 @@ import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Supabase - replace with your actual keys
   await Supabase.initialize(
-    url: 'https://tqpjrlwdgoctacfrbanf.supabase.co', // Replace with your Supabase URL
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRxcGpybHdkZ29jdGFjZnJiYW5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEwMTU5NTIsImV4cCI6MjA2NjU5MTk1Mn0.x94UQ4jY3FhvxxTrRzuZsVgrAL3vmi3qJ_GolN9uHxQ', // Replace with your Supabase anon key
+    url:
+        'https://tqpjrlwdgoctacfrbanf.supabase.co', // Replace with your Supabase URL
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRxcGpybHdkZ29jdGFjZnJiYW5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEwMTU5NTIsImV4cCI6MjA2NjU5MTk1Mn0.x94UQ4jY3FhvxxTrRzuZsVgrAL3vmi3qJ_GolN9uHxQ', // Replace with your Supabase anon key
   );
-  
+
   runApp(const CompostKakiApp());
 }
 
@@ -38,4 +40,3 @@ class CompostKakiApp extends StatelessWidget {
     );
   }
 }
-

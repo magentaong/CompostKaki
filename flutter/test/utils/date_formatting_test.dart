@@ -33,38 +33,61 @@ void main() {
       final now = DateTime.now();
 
       // Just now
-      expect(getRelativeTime(now.subtract(const Duration(seconds: 30))), 'just now');
+      expect(getRelativeTime(now.subtract(const Duration(seconds: 30))),
+          'just now');
 
       // Minutes ago
-      expect(getRelativeTime(now.subtract(const Duration(minutes: 1))), '1 minute ago');
-      expect(getRelativeTime(now.subtract(const Duration(minutes: 5))), '5 minutes ago');
+      expect(getRelativeTime(now.subtract(const Duration(minutes: 1))),
+          '1 minute ago');
+      expect(getRelativeTime(now.subtract(const Duration(minutes: 5))),
+          '5 minutes ago');
 
       // Hours ago
-      expect(getRelativeTime(now.subtract(const Duration(hours: 1))), '1 hour ago');
-      expect(getRelativeTime(now.subtract(const Duration(hours: 3))), '3 hours ago');
+      expect(getRelativeTime(now.subtract(const Duration(hours: 1))),
+          '1 hour ago');
+      expect(getRelativeTime(now.subtract(const Duration(hours: 3))),
+          '3 hours ago');
 
       // Days ago
-      expect(getRelativeTime(now.subtract(const Duration(days: 1))), '1 day ago');
-      expect(getRelativeTime(now.subtract(const Duration(days: 5))), '5 days ago');
+      expect(
+          getRelativeTime(now.subtract(const Duration(days: 1))), '1 day ago');
+      expect(
+          getRelativeTime(now.subtract(const Duration(days: 5))), '5 days ago');
 
       // Weeks ago
-      expect(getRelativeTime(now.subtract(const Duration(days: 7))), '1 week ago');
-      expect(getRelativeTime(now.subtract(const Duration(days: 14))), '2 weeks ago');
+      expect(
+          getRelativeTime(now.subtract(const Duration(days: 7))), '1 week ago');
+      expect(getRelativeTime(now.subtract(const Duration(days: 14))),
+          '2 weeks ago');
 
       // Months ago
-      expect(getRelativeTime(now.subtract(const Duration(days: 30))), '1 month ago');
-      expect(getRelativeTime(now.subtract(const Duration(days: 60))), '2 months ago');
+      expect(getRelativeTime(now.subtract(const Duration(days: 30))),
+          '1 month ago');
+      expect(getRelativeTime(now.subtract(const Duration(days: 60))),
+          '2 months ago');
 
       // Years ago
-      expect(getRelativeTime(now.subtract(const Duration(days: 365))), '1 year ago');
-      expect(getRelativeTime(now.subtract(const Duration(days: 730))), '2 years ago');
+      expect(getRelativeTime(now.subtract(const Duration(days: 365))),
+          '1 year ago');
+      expect(getRelativeTime(now.subtract(const Duration(days: 730))),
+          '2 years ago');
     });
 
     test('formats date to string correctly', () {
       String formatDate(DateTime date) {
         final months = [
-          'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'May',
+          'Jun',
+          'Jul',
+          'Aug',
+          'Sep',
+          'Oct',
+          'Nov',
+          'Dec'
         ];
         return '${months[date.month - 1]} ${date.day}, ${date.year}';
       }
@@ -91,4 +114,3 @@ void main() {
     });
   });
 }
-

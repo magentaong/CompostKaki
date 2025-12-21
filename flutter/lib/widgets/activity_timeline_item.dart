@@ -15,8 +15,9 @@ class ActivityTimelineItem extends StatelessWidget {
     final date = createdAt != null ? DateTime.parse(createdAt) : DateTime.now();
     final formattedDate = DateFormat('MMMM d, y').format(date);
     final formattedTime = DateFormat('h:mm a').format(date);
-    
-    final type = activity['type'] as String? ?? activity['action'] as String? ?? '';
+
+    final type =
+        activity['type'] as String? ?? activity['action'] as String? ?? '';
     final content = activity['content'] as String? ?? '';
     final image = activity['image'];
     final profile = activity['profiles'] as Map<String, dynamic>?;
@@ -32,113 +33,113 @@ class ActivityTimelineItem extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.only(bottom: 24),
         child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Timeline dot
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: AppTheme.borderGray,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-              ),
-              // Only show line if not last item (we'll handle this in parent)
-              Container(
-                width: 2,
-                height: 24, // Fixed height for line
-                color: AppTheme.borderGray,
-              ),
-            ],
-          ),
-          const SizedBox(width: 16),
-          
-          // Content
-          Expanded(
-            child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Timeline dot
+            Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '$formattedDate, $formattedTime',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textGray,
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: AppTheme.borderGray,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  type,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                // Only show line if not last item (we'll handle this in parent)
+                Container(
+                  width: 2,
+                  height: 24, // Fixed height for line
+                  color: AppTheme.borderGray,
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 12,
-                      backgroundColor: AppTheme.backgroundGray,
-                      child: Text(
-                        initials,
+              ],
+            ),
+            const SizedBox(width: 16),
+
+            // Content
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$formattedDate, $formattedTime',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textGray,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    type,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 12,
+                        backgroundColor: AppTheme.backgroundGray,
+                        child: Text(
+                          initials,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: AppTheme.primaryGreen,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Posted by $firstName $lastName',
                         style: const TextStyle(
-                          fontSize: 10,
-                          color: AppTheme.primaryGreen,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: AppTheme.textGray,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (content.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      content,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ],
+                  if (image != null) ...[
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: CachedNetworkImage(
+                        imageUrl: image is List ? image[0] : image,
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          height: 200,
+                          color: AppTheme.backgroundGray,
+                          child:
+                              const Center(child: CircularProgressIndicator()),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          height: 200,
+                          color: AppTheme.backgroundGray,
+                          child: const Icon(Icons.error),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Posted by $firstName $lastName',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textGray,
-                      ),
-                    ),
                   ],
-                ),
-                if (content.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    content,
-                    style: const TextStyle(fontSize: 14),
-                  ),
                 ],
-                if (image != null) ...[
-                  const SizedBox(height: 8),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: CachedNetworkImage(
-                      imageUrl: image is List ? image[0] : image,
-                      height: 200,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        height: 200,
-                        color: AppTheme.backgroundGray,
-                        child: const Center(child: CircularProgressIndicator()),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        height: 200,
-                        color: AppTheme.backgroundGray,
-                        child: const Icon(Icons.error),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
 }
-

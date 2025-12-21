@@ -2,19 +2,18 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('BinDetailScreen - Admin Panel', () {
-    
     group('Admin Panel Access', () {
       test('should show admin button for bin owner', () {
         bool isOwner = true;
         bool shouldShowAdminButton = isOwner;
-        
+
         expect(shouldShowAdminButton, true);
       });
 
       test('should not show admin button for non-owner', () {
         bool isOwner = false;
         bool shouldShowAdminButton = isOwner;
-        
+
         expect(shouldShowAdminButton, false);
       });
 
@@ -22,7 +21,7 @@ void main() {
         String binOwnerId = 'user-123';
         String currentUserId = 'user-123';
         bool isAdmin = binOwnerId == currentUserId;
-        
+
         expect(isAdmin, true);
       });
     });
@@ -33,15 +32,16 @@ void main() {
           {'id': 'req-1', 'user_id': 'user-1', 'status': 'pending'},
           {'id': 'req-2', 'user_id': 'user-2', 'status': 'pending'},
         ];
-        
-        int pendingCount = requests.where((r) => r['status'] == 'pending').length;
+
+        int pendingCount =
+            requests.where((r) => r['status'] == 'pending').length;
         expect(pendingCount, 2);
       });
 
       test('should show empty state when no pending requests', () {
         List<Map<String, dynamic>> requests = [];
         bool isEmpty = requests.isEmpty;
-        
+
         expect(isEmpty, true);
       });
 
@@ -54,12 +54,12 @@ void main() {
             'last_name': 'Doe',
           },
         };
-        
+
         final profile = request['profiles'] as Map<String, dynamic>?;
         String firstName = profile?['first_name'] ?? '';
         String lastName = profile?['last_name'] ?? '';
         String name = '$firstName $lastName'.trim();
-        
+
         expect(name, 'John Doe');
       });
 
@@ -69,10 +69,10 @@ void main() {
           'user_id': 'user-123-456',
           'profiles': null,
         };
-        
+
         String userId = request['user_id'] as String;
         String displayName = userId.substring(0, 8);
-        
+
         expect(displayName, 'user-123');
       });
     });
@@ -82,21 +82,21 @@ void main() {
         bool isAdmin = true;
         bool requestExists = true;
         bool canApprove = isAdmin && requestExists;
-        
+
         expect(canApprove, true);
       });
 
       test('should add user to members after approval', () {
         bool requestApproved = true;
         bool memberAdded = requestApproved;
-        
+
         expect(memberAdded, true);
       });
 
       test('should delete request after approval', () {
         bool requestApproved = true;
         bool requestDeleted = requestApproved;
-        
+
         expect(requestDeleted, true);
       });
 
@@ -108,7 +108,7 @@ void main() {
       test('should refresh requests list after approval', () {
         bool requestApproved = true;
         bool shouldRefresh = requestApproved;
-        
+
         expect(shouldRefresh, true);
       });
     });
@@ -118,14 +118,14 @@ void main() {
         bool isAdmin = true;
         bool requestExists = true;
         bool canReject = isAdmin && requestExists;
-        
+
         expect(canReject, true);
       });
 
       test('should delete request on rejection', () {
         bool requestRejected = true;
         bool requestDeleted = requestRejected;
-        
+
         expect(requestDeleted, true);
       });
 
@@ -146,21 +146,21 @@ void main() {
           {'user_id': 'user-1'},
           {'user_id': 'user-2'},
         ];
-        
+
         expect(members.length, 2);
       });
 
       test('should show empty state when no members', () {
         List<Map<String, dynamic>> members = [];
         bool isEmpty = members.isEmpty;
-        
+
         expect(isEmpty, true);
       });
 
       test('should mark owner in members list', () {
         String binOwnerId = 'user-123';
         Map<String, dynamic> member = {'user_id': 'user-123'};
-        
+
         bool isOwner = member['user_id'] == binOwnerId;
         expect(isOwner, true);
       });
@@ -169,7 +169,7 @@ void main() {
         String binOwnerId = 'user-123';
         String memberUserId = 'user-123';
         bool canRemove = memberUserId != binOwnerId;
-        
+
         expect(canRemove, false);
       });
 
@@ -177,7 +177,7 @@ void main() {
         String binOwnerId = 'user-123';
         String memberUserId = 'user-456';
         bool canRemove = memberUserId != binOwnerId;
-        
+
         expect(canRemove, true);
       });
     });
@@ -187,7 +187,7 @@ void main() {
         bool isAdmin = true;
         bool isNotOwner = true;
         bool canRemove = isAdmin && isNotOwner;
-        
+
         expect(canRemove, true);
       });
 
@@ -195,7 +195,7 @@ void main() {
         String binOwnerId = 'user-123';
         String memberToRemove = 'user-123';
         bool canRemove = memberToRemove != binOwnerId;
-        
+
         expect(canRemove, false);
       });
 
@@ -212,7 +212,7 @@ void main() {
       test('should refresh members list after removal', () {
         bool memberRemoved = true;
         bool shouldRefresh = memberRemoved;
-        
+
         expect(shouldRefresh, true);
       });
     });
@@ -221,24 +221,23 @@ void main() {
       test('should handle error when not admin', () {
         String error = 'Only the bin owner can view requests.';
         bool isExpectedError = error.contains('bin owner');
-        
+
         expect(isExpectedError, true);
       });
 
       test('should handle error when request not found', () {
         String error = 'Request not found.';
         bool isExpectedError = error.contains('not found');
-        
+
         expect(isExpectedError, true);
       });
 
       test('should handle network errors gracefully', () {
         String error = 'Failed to approve: Network error';
         bool hasError = error.isNotEmpty;
-        
+
         expect(hasError, true);
       });
     });
   });
 }
-

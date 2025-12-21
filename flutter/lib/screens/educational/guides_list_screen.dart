@@ -51,8 +51,12 @@ class _GuidesListScreenState extends State<GuidesListScreen> {
   List<Map<String, dynamic>> get _filteredGuides {
     return _guides.where((guide) {
       final matchesSearch = _searchQuery.isEmpty ||
-          (guide['title'] as String? ?? '').toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          (guide['description'] as String? ?? '').toLowerCase().contains(_searchQuery.toLowerCase());
+          (guide['title'] as String? ?? '')
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase()) ||
+          (guide['description'] as String? ?? '')
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase());
       final matchesCategory = _selectedCategory == 'All' ||
           (guide['category'] as String? ?? '') == _selectedCategory;
       return matchesSearch && matchesCategory;
@@ -60,7 +64,11 @@ class _GuidesListScreenState extends State<GuidesListScreen> {
   }
 
   List<String> get _categories {
-    final categories = _guides.map((g) => g['category'] as String? ?? '').where((c) => c.isNotEmpty).toSet().toList();
+    final categories = _guides
+        .map((g) => g['category'] as String? ?? '')
+        .where((c) => c.isNotEmpty)
+        .toSet()
+        .toList();
     return ['All', ...categories];
   }
 
@@ -79,7 +87,8 @@ class _GuidesListScreenState extends State<GuidesListScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                      Text('Error: $_error',
+                          style: const TextStyle(color: Colors.red)),
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: _loadGuides,
@@ -102,11 +111,13 @@ class _GuidesListScreenState extends State<GuidesListScreen> {
                               prefixIcon: const Icon(Icons.search),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: AppTheme.primaryGreen),
+                                borderSide: const BorderSide(
+                                    color: AppTheme.primaryGreen),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: AppTheme.primaryGreen, width: 2),
+                                borderSide: const BorderSide(
+                                    color: AppTheme.primaryGreen, width: 2),
                               ),
                             ),
                             onChanged: (value) {
@@ -140,8 +151,12 @@ class _GuidesListScreenState extends State<GuidesListScreen> {
                                   },
                                   selectedColor: AppTheme.primaryGreen,
                                   labelStyle: TextStyle(
-                                    color: isSelected ? Colors.white : AppTheme.textGray,
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : AppTheme.textGray,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
                                   ),
                                 ),
                               );
@@ -210,7 +225,8 @@ class _GuideCard extends StatelessWidget {
             // Image
             if (imageUrl != null)
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(12)),
                 child: Image.network(
                   imageUrl,
                   height: 200,
@@ -219,7 +235,8 @@ class _GuideCard extends StatelessWidget {
                   errorBuilder: (context, error, stackTrace) => Container(
                     height: 200,
                     color: AppTheme.backgroundGray,
-                    child: const Icon(Icons.image, size: 64, color: AppTheme.textGray),
+                    child: const Icon(Icons.image,
+                        size: 64, color: AppTheme.textGray),
                   ),
                 ),
               ),
@@ -271,28 +288,34 @@ class _GuideCard extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.access_time, size: 16, color: AppTheme.textGray),
+                          const Icon(Icons.access_time,
+                              size: 16, color: AppTheme.textGray),
                           const SizedBox(width: 4),
                           Text(
                             readTime,
-                            style: const TextStyle(fontSize: 12, color: AppTheme.textGray),
+                            style: const TextStyle(
+                                fontSize: 12, color: AppTheme.textGray),
                           ),
                           const SizedBox(width: 16),
-                          const Icon(Icons.visibility, size: 16, color: AppTheme.textGray),
+                          const Icon(Icons.visibility,
+                              size: 16, color: AppTheme.textGray),
                           const SizedBox(width: 4),
                           Text(
                             '$views',
-                            style: const TextStyle(fontSize: 12, color: AppTheme.textGray),
+                            style: const TextStyle(
+                                fontSize: 12, color: AppTheme.textGray),
                           ),
                         ],
                       ),
                       Row(
                         children: [
-                          const Icon(Icons.favorite, size: 16, color: Colors.red),
+                          const Icon(Icons.favorite,
+                              size: 16, color: Colors.red),
                           const SizedBox(width: 4),
                           Text(
                             '$likes',
-                            style: const TextStyle(fontSize: 12, color: AppTheme.textGray),
+                            style: const TextStyle(
+                                fontSize: 12, color: AppTheme.textGray),
                           ),
                         ],
                       ),
@@ -307,4 +330,3 @@ class _GuideCard extends StatelessWidget {
     );
   }
 }
-

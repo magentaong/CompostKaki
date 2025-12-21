@@ -48,8 +48,10 @@ void main() {
       });
 
       test('returns error for short password', () {
-        expect(validatePassword('12345'), 'Password must be at least 6 characters');
-        expect(validatePassword('abc'), 'Password must be at least 6 characters');
+        expect(validatePassword('12345'),
+            'Password must be at least 6 characters');
+        expect(
+            validatePassword('abc'), 'Password must be at least 6 characters');
       });
 
       test('returns null for valid password', () {
@@ -77,8 +79,8 @@ void main() {
       });
 
       test('returns error for too short name', () {
-        expect(validateName('A', 'First name'), 
-          'First name must be at least 2 characters');
+        expect(validateName('A', 'First name'),
+            'First name must be at least 2 characters');
       });
 
       test('returns null for valid name', () {
@@ -113,8 +115,8 @@ void main() {
 
       test('returns error for too long bin name', () {
         final longName = 'a' * 51;
-        expect(validateBinName(longName), 
-          'Bin name must be less than 50 characters');
+        expect(validateBinName(longName),
+            'Bin name must be less than 50 characters');
       });
 
       test('returns null for valid bin name', () {
@@ -150,10 +152,10 @@ void main() {
       });
 
       test('returns error for out of range temperature', () {
-        expect(validateTemperature('-30'), 
-          'Temperature must be between -20°C and 100°C');
-        expect(validateTemperature('150'), 
-          'Temperature must be between -20°C and 100°C');
+        expect(validateTemperature('-30'),
+            'Temperature must be between -20°C and 100°C');
+        expect(validateTemperature('150'),
+            'Temperature must be between -20°C and 100°C');
       });
 
       test('returns null for valid temperature', () {
@@ -209,4 +211,3 @@ void main() {
     });
   });
 }
-

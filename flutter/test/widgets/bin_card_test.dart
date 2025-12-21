@@ -25,45 +25,48 @@ void main() {
   });
 
   group('BinCard - Pending Request Display', () {
-    test('should show pending request badge when hasPendingRequest is true', () {
+    test('should show pending request badge when hasPendingRequest is true',
+        () {
       bool hasPendingRequest = true;
       bool shouldShowPendingBadge = hasPendingRequest;
-      
+
       expect(shouldShowPendingBadge, true);
     });
 
-    test('should not show pending request badge when hasPendingRequest is false', () {
+    test(
+        'should not show pending request badge when hasPendingRequest is false',
+        () {
       bool hasPendingRequest = false;
       bool shouldShowPendingBadge = hasPendingRequest;
-      
+
       expect(shouldShowPendingBadge, false);
     });
 
     test('should hide health status when pending request exists', () {
       bool hasPendingRequest = true;
       bool shouldShowHealthStatus = !hasPendingRequest;
-      
+
       expect(shouldShowHealthStatus, false);
     });
 
     test('should show health status when no pending request', () {
       bool hasPendingRequest = false;
       bool shouldShowHealthStatus = !hasPendingRequest;
-      
+
       expect(shouldShowHealthStatus, true);
     });
 
     test('should hide temperature when pending request exists', () {
       bool hasPendingRequest = true;
       bool shouldShowTemperature = !hasPendingRequest;
-      
+
       expect(shouldShowTemperature, false);
     });
 
     test('should show temperature when no pending request', () {
       bool hasPendingRequest = false;
       bool shouldShowTemperature = !hasPendingRequest;
-      
+
       expect(shouldShowTemperature, true);
     });
 
@@ -78,7 +81,7 @@ void main() {
         'name': 'Test Bin',
         'has_pending_request': true,
       };
-      
+
       bool shouldShowPending = bin['has_pending_request'] == true;
       expect(shouldShowPending, true);
     });
@@ -128,7 +131,8 @@ void main() {
   group('BinCard - Image Handling', () {
     test('default image is used when bin has no image', () {
       String getBinImage(String? imageUrl) {
-        const defaultImage = 'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735';
+        const defaultImage =
+            'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735';
         // Only use default if imageUrl is null or empty
         if (imageUrl == null || imageUrl.isEmpty) {
           return defaultImage;
@@ -138,8 +142,8 @@ void main() {
 
       expect(getBinImage(null), contains('unsplash'));
       expect(getBinImage(''), contains('unsplash'));
-      expect(getBinImage('https://example.com/image.jpg'), 'https://example.com/image.jpg');
+      expect(getBinImage('https://example.com/image.jpg'),
+          'https://example.com/image.jpg');
     });
   });
 }
-

@@ -10,8 +10,8 @@ void main() {
             appBar: AppBar(
               title: const Text('Task Details'),
             ),
-            body: const Text('Need help flipping compost', 
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            body: const Text('Need help flipping compost',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
           ),
         ),
       );
@@ -29,7 +29,8 @@ void main() {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const [
-                    Text('Description', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text('Description',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     SizedBox(height: 8),
                     Text('The compost bin is too heavy for me to flip alone'),
                   ],
@@ -41,7 +42,8 @@ void main() {
       );
 
       expect(find.text('Description'), findsOneWidget);
-      expect(find.text('The compost bin is too heavy for me to flip alone'), findsOneWidget);
+      expect(find.text('The compost bin is too heavy for me to flip alone'),
+          findsOneWidget);
     });
 
     testWidgets('displays task status badge', (WidgetTester tester) async {
@@ -115,7 +117,8 @@ void main() {
       expect(find.text('2 hours ago'), findsOneWidget);
     });
 
-    testWidgets('displays accept button for open task', (WidgetTester tester) async {
+    testWidgets('displays accept button for open task',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -153,7 +156,8 @@ void main() {
       expect(wasTapped, true);
     });
 
-    testWidgets('displays complete button for in-progress task', (WidgetTester tester) async {
+    testWidgets('displays complete button for in-progress task',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -168,7 +172,8 @@ void main() {
       expect(find.text('Mark as Complete'), findsOneWidget);
     });
 
-    testWidgets('displays assignee info for in-progress task', (WidgetTester tester) async {
+    testWidgets('displays assignee info for in-progress task',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -185,7 +190,8 @@ void main() {
       expect(find.text('Jane Smith'), findsOneWidget);
     });
 
-    testWidgets('shows accept confirmation dialog', (WidgetTester tester) async {
+    testWidgets('shows accept confirmation dialog',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -196,7 +202,8 @@ void main() {
                     context: context,
                     builder: (context) => AlertDialog(
                       title: const Text('Accept Task'),
-                      content: const Text('Are you sure you want to accept this task?'),
+                      content: const Text(
+                          'Are you sure you want to accept this task?'),
                       actions: [
                         TextButton(
                           onPressed: () {},
@@ -221,12 +228,14 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Accept Task'), findsOneWidget);
-      expect(find.text('Are you sure you want to accept this task?'), findsOneWidget);
+      expect(find.text('Are you sure you want to accept this task?'),
+          findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
       expect(find.text('Accept'), findsOneWidget);
     });
 
-    testWidgets('shows complete confirmation dialog', (WidgetTester tester) async {
+    testWidgets('shows complete confirmation dialog',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -265,7 +274,8 @@ void main() {
       expect(find.text('Mark this task as completed?'), findsOneWidget);
     });
 
-    testWidgets('displays loading indicator when accepting task', (WidgetTester tester) async {
+    testWidgets('displays loading indicator when accepting task',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -279,7 +289,8 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('shows error message when action fails', (WidgetTester tester) async {
+    testWidgets('shows error message when action fails',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -305,7 +316,8 @@ void main() {
       // Tap button to show snackbar
       await tester.tap(find.text('Show Error'));
       await tester.pump(); // Start animation
-      await tester.pump(const Duration(milliseconds: 750)); // Wait for snackbar to appear
+      await tester.pump(
+          const Duration(milliseconds: 750)); // Wait for snackbar to appear
 
       expect(find.text('Failed to accept task'), findsOneWidget);
     });
@@ -315,8 +327,8 @@ void main() {
     test('accept button visible for open tasks (not creator)', () {
       bool shouldShowAcceptButton(Map<String, dynamic> task, String userId) {
         return task['status'] == 'open' &&
-               task['creator_id'] != userId &&
-               task['assigned_to'] == null;
+            task['creator_id'] != userId &&
+            task['assigned_to'] == null;
       }
 
       final task = {
@@ -331,8 +343,7 @@ void main() {
 
     test('complete button visible for assignee of in-progress task', () {
       bool shouldShowCompleteButton(Map<String, dynamic> task, String userId) {
-        return task['status'] == 'in_progress' &&
-               task['assigned_to'] == userId;
+        return task['status'] == 'in_progress' && task['assigned_to'] == userId;
       }
 
       final task = {
@@ -360,7 +371,7 @@ void main() {
       }
 
       final task = {'creator_id': 'user-123'};
-      
+
       expect(canAcceptTask(task, 'user-123'), false);
       expect(canAcceptTask(task, 'other-user'), true);
     });
@@ -395,7 +406,8 @@ void main() {
     });
 
     test('accepting task assigns user', () {
-      Map<String, dynamic> acceptTask(Map<String, dynamic> task, String userId) {
+      Map<String, dynamic> acceptTask(
+          Map<String, dynamic> task, String userId) {
         return {
           ...task,
           'status': 'in_progress',
@@ -415,4 +427,3 @@ void main() {
     });
   });
 }
-

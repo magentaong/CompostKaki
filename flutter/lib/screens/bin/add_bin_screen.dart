@@ -103,7 +103,8 @@ class _AddBinScreenState extends State<AddBinScreen> {
                         Navigator.pop(dialogContext);
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Request sent! The bin owner will review your request.'),
+                            content: Text(
+                                'Request sent! The bin owner will review your request.'),
                             backgroundColor: AppTheme.primaryGreen,
                           ),
                         );
@@ -153,7 +154,7 @@ class _AddBinScreenState extends State<AddBinScreen> {
       if (_imageFile != null) {
         await _binService.updateBinImage(newBin['id'] as String, _imageFile!);
       }
-      
+
       if (mounted) {
         Navigator.pop(context, newBin['id']);
       }
@@ -308,4 +309,3 @@ class _AddBinScreenState extends State<AddBinScreen> {
     );
   }
 }
-

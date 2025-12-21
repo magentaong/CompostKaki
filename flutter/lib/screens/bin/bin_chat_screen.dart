@@ -19,7 +19,7 @@ class _BinChatScreenState extends State<BinChatScreen> {
   final BinService _binService = BinService();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  
+
   List<Map<String, dynamic>> _messages = [];
   Map<String, dynamic>? _bin;
   bool _isLoading = true;
@@ -94,7 +94,8 @@ class _BinChatScreenState extends State<BinChatScreen> {
 
   void _subscribeToMessages() {
     try {
-      _channel = _chatService.subscribeToBinMessages(widget.binId, (newMessage) {
+      _channel =
+          _chatService.subscribeToBinMessages(widget.binId, (newMessage) {
         if (mounted && !_isDisposing) {
           setState(() {
             _messages.add(newMessage);
@@ -133,13 +134,14 @@ class _BinChatScreenState extends State<BinChatScreen> {
       if (!_isOwner && _bin != null) {
         receiverId = _bin!['user_id'] as String?;
       }
-      
-      await _chatService.sendBinMessage(widget.binId, message, receiverId: receiverId);
+
+      await _chatService.sendBinMessage(widget.binId, message,
+          receiverId: receiverId);
       if (_isDisposing) return;
       _messageController.clear();
       if (!_isDisposing) {
         await _loadMessages(); // Reload to get the new message with profile data
-        
+
         // Mark messages as read when sending
         if (!_isDisposing) {
           await _chatService.markMessagesAsRead(widget.binId);
@@ -166,7 +168,7 @@ class _BinChatScreenState extends State<BinChatScreen> {
   @override
   Widget build(BuildContext context) {
     final binName = _bin?['name'] as String? ?? 'Bin';
-    
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -214,7 +216,8 @@ class _BinChatScreenState extends State<BinChatScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                            Text('Error: $_error',
+                                style: const TextStyle(color: Colors.red)),
                             const SizedBox(height: 16),
                             ElevatedButton(
                               onPressed: _loadMessages,
@@ -228,18 +231,21 @@ class _BinChatScreenState extends State<BinChatScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.chat_bubble_outline, size: 64, color: AppTheme.textGray),
+                                const Icon(Icons.chat_bubble_outline,
+                                    size: 64, color: AppTheme.textGray),
                                 const SizedBox(height: 16),
                                 Text(
                                   'No messages yet',
-                                  style: const TextStyle(color: AppTheme.textGray),
+                                  style:
+                                      const TextStyle(color: AppTheme.textGray),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   _isOwner
                                       ? 'Start a conversation with your bin members!'
                                       : 'Start a conversation with the bin admin!',
-                                  style: const TextStyle(color: AppTheme.textGray, fontSize: 12),
+                                  style: const TextStyle(
+                                      color: AppTheme.textGray, fontSize: 12),
                                 ),
                               ],
                             ),
@@ -252,22 +258,31 @@ class _BinChatScreenState extends State<BinChatScreen> {
                               itemCount: _messages.length,
                               itemBuilder: (context, index) {
                                 final message = _messages[index];
-                                final senderId = message['sender_id'] as String?;
-                                final isCurrentUser = senderId == _chatService.currentUserId;
-                                
+                                final senderId =
+                                    message['sender_id'] as String?;
+                                final isCurrentUser =
+                                    senderId == _chatService.currentUserId;
+
                                 // Get sender profile
-                                final senderProfile = message['sender_profile'] as Map<String, dynamic>?;
-                                final senderFirstName = senderProfile?['first_name'] as String? ?? 'User';
-                                final senderLastName = senderProfile?['last_name'] as String? ?? '';
-                                final senderName = '$senderFirstName $senderLastName'.trim();
-                                
+                                final senderProfile = message['sender_profile']
+                                    as Map<String, dynamic>?;
+                                final senderFirstName =
+                                    senderProfile?['first_name'] as String? ??
+                                        'User';
+                                final senderLastName =
+                                    senderProfile?['last_name'] as String? ??
+                                        '';
+                                final senderName =
+                                    '$senderFirstName $senderLastName'.trim();
+
                                 // Check if sender is admin (bin owner)
                                 final isAdmin = senderId == _bin?['user_id'];
-                                
+
                                 return _MessageBubble(
                                   message: message['message'] as String? ?? '',
                                   isUser: isCurrentUser,
-                                  senderName: isCurrentUser ? 'You' : senderName,
+                                  senderName:
+                                      isCurrentUser ? 'You' : senderName,
                                   isAdmin: isAdmin,
                                   timestamp: message['created_at'] as String?,
                                 );
@@ -295,16 +310,21 @@ class _BinChatScreenState extends State<BinChatScreen> {
                     child: TextField(
                       controller: _messageController,
                       decoration: InputDecoration(
-                        hintText: _isOwner ? 'Message your bin members...' : 'Message the admin...',
+                        hintText: _isOwner
+                            ? 'Message your bin members...'
+                            : 'Message the admin...',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
-                          borderSide: const BorderSide(color: AppTheme.primaryGreen),
+                          borderSide:
+                              const BorderSide(color: AppTheme.primaryGreen),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
-                          borderSide: const BorderSide(color: AppTheme.primaryGreen, width: 2),
+                          borderSide: const BorderSide(
+                              color: AppTheme.primaryGreen, width: 2),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
                       ),
                       maxLines: null,
                       textCapitalization: TextCapitalization.sentences,
@@ -377,12 +397,15 @@ class _MessageBubble extends StatelessWidget {
                 child: Row(
                   children: [
                     if (isAdmin)
-                      const Icon(Icons.admin_panel_settings, size: 12, color: Colors.white),
+                      const Icon(Icons.admin_panel_settings,
+                          size: 12, color: Colors.white),
                     if (isAdmin) const SizedBox(width: 4),
                     Text(
                       senderName,
                       style: TextStyle(
-                        color: isUser ? Colors.white70 : AppTheme.textGray.withOpacity(0.7),
+                        color: isUser
+                            ? Colors.white70
+                            : AppTheme.textGray.withOpacity(0.7),
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                       ),
@@ -403,7 +426,9 @@ class _MessageBubble extends StatelessWidget {
                 child: Text(
                   _formatTimestamp(timestamp!),
                   style: TextStyle(
-                    color: isUser ? Colors.white70 : AppTheme.textGray.withOpacity(0.7),
+                    color: isUser
+                        ? Colors.white70
+                        : AppTheme.textGray.withOpacity(0.7),
                     fontSize: 10,
                   ),
                 ),
@@ -434,4 +459,3 @@ class _MessageBubble extends StatelessWidget {
     }
   }
 }
-

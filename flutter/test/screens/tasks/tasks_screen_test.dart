@@ -44,7 +44,8 @@ void main() {
       expect(find.text('Completed'), findsOneWidget);
     });
 
-    testWidgets('displays floating action button for creating task', (WidgetTester tester) async {
+    testWidgets('displays floating action button for creating task',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -84,7 +85,8 @@ void main() {
       expect(wasTapped, true);
     });
 
-    testWidgets('displays empty state when no tasks', (WidgetTester tester) async {
+    testWidgets('displays empty state when no tasks',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -108,7 +110,8 @@ void main() {
       expect(find.byIcon(Icons.task_alt), findsOneWidget);
     });
 
-    testWidgets('displays task card with title and description', (WidgetTester tester) async {
+    testWidgets('displays task card with title and description',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -155,7 +158,8 @@ void main() {
       expect(wasTapped, true);
     });
 
-    testWidgets('displays loading indicator when fetching tasks', (WidgetTester tester) async {
+    testWidgets('displays loading indicator when fetching tasks',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -169,7 +173,8 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('displays error message when fetch fails', (WidgetTester tester) async {
+    testWidgets('displays error message when fetch fails',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -256,7 +261,8 @@ void main() {
           home: Scaffold(
             body: ListTile(
               title: const Text('Task Title'),
-              trailing: const Text('2 hours ago', style: TextStyle(fontSize: 12)),
+              trailing:
+                  const Text('2 hours ago', style: TextStyle(fontSize: 12)),
             ),
           ),
         ),
@@ -309,8 +315,8 @@ void main() {
     test('checks if user can accept task', () {
       bool canAcceptTask(Map<String, dynamic> task, String userId) {
         return task['status'] == 'open' &&
-               task['creator_id'] != userId &&
-               task['assigned_to'] == null;
+            task['creator_id'] != userId &&
+            task['assigned_to'] == null;
       }
 
       final task = {
@@ -321,10 +327,10 @@ void main() {
 
       expect(canAcceptTask(task, 'other-user'), true);
       expect(canAcceptTask(task, 'creator-123'), false);
-      
+
       task['assigned_to'] = 'someone';
       expect(canAcceptTask(task, 'other-user'), false);
-      
+
       task['assigned_to'] = null;
       task['status'] = 'completed';
       expect(canAcceptTask(task, 'other-user'), false);
@@ -332,8 +338,7 @@ void main() {
 
     test('checks if user can complete task', () {
       bool canCompleteTask(Map<String, dynamic> task, String userId) {
-        return task['status'] == 'in_progress' &&
-               task['assigned_to'] == userId;
+        return task['status'] == 'in_progress' && task['assigned_to'] == userId;
       }
 
       final task = {
@@ -343,7 +348,7 @@ void main() {
 
       expect(canCompleteTask(task, 'user-123'), true);
       expect(canCompleteTask(task, 'other-user'), false);
-      
+
       task['status'] = 'open';
       expect(canCompleteTask(task, 'user-123'), false);
     });
@@ -358,7 +363,8 @@ void main() {
         {'id': '4', 'status': 'completed'},
       ];
 
-      List<Map<String, dynamic>> filterByStatus(List<Map<String, dynamic>> tasks, String status) {
+      List<Map<String, dynamic>> filterByStatus(
+          List<Map<String, dynamic>> tasks, String status) {
         return tasks.where((task) => task['status'] == status).toList();
       }
 
@@ -383,7 +389,8 @@ void main() {
         {'id': '3', 'bin_id': 'bin-a'},
       ];
 
-      List<Map<String, dynamic>> filterByBin(List<Map<String, dynamic>> tasks, String binId) {
+      List<Map<String, dynamic>> filterByBin(
+          List<Map<String, dynamic>> tasks, String binId) {
         return tasks.where((task) => task['bin_id'] == binId).toList();
       }
 
@@ -395,4 +402,3 @@ void main() {
     });
   });
 }
-

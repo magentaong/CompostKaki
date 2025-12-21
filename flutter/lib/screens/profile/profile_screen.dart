@@ -14,18 +14,18 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? _profile;
-  
+
   @override
   void initState() {
     super.initState();
     _loadProfile();
   }
-  
+
   Future<void> _loadProfile() async {
     final authService = context.read<AuthService>();
     final user = authService.currentUser;
     if (user == null) return;
-    
+
     try {
       final supabaseService = SupabaseService();
       final response = await supabaseService.client
@@ -33,19 +33,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .select('id, first_name, last_name')
           .eq('id', user.id)
           .maybeSingle();
-      
+
       if (mounted) {
         setState(() {
-          _profile = response != null ? Map<String, dynamic>.from(response) : null;
+          _profile =
+              response != null ? Map<String, dynamic>.from(response) : null;
         });
       }
     } catch (e) {
       // Silently fail - we'll fall back to userMetadata
     }
   }
+
   void _showDeleteAccountDialog(BuildContext context) {
     final authService = context.read<AuthService>();
-    
+
     showDialog(
       context: context,
       builder: (dialogContext) => _DeleteAccountDialog(
@@ -77,7 +79,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showResetPasswordDialog(BuildContext context) {
     final authService = context.read<AuthService>();
     final currentEmail = authService.currentUser?.email ?? '';
-    
+
     showDialog(
       context: context,
       builder: (dialogContext) => _ResetPasswordDialog(
@@ -89,7 +91,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Navigator.pop(dialogContext);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Password reset email sent! Please check your inbox.'),
+                  content: Text(
+                      'Password reset email sent! Please check your inbox.'),
                   backgroundColor: AppTheme.primaryGreen,
                 ),
               );
@@ -114,18 +117,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final authService = context.watch<AuthService>();
     final user = authService.currentUser;
     final email = user?.email ?? '';
-    
+
     // Get firstName and lastName from profiles table (source of truth), fallback to userMetadata
-    final firstName = _profile?['first_name'] as String? ?? 
-                      user?.userMetadata?['first_name'] as String? ?? '';
-    final lastName = _profile?['last_name'] as String? ?? 
-                     user?.userMetadata?['last_name'] as String? ?? '';
-    
+    final firstName = _profile?['first_name'] as String? ??
+        user?.userMetadata?['first_name'] as String? ??
+        '';
+    final lastName = _profile?['last_name'] as String? ??
+        user?.userMetadata?['last_name'] as String? ??
+        '';
+
     // Build avatar initials safely
     String getAvatarInitials() {
       String firstInitial = '';
       String lastInitial = '';
-      
+
       if (firstName.isNotEmpty) {
         firstInitial = firstName[0];
       } else if (email.isNotEmpty) {
@@ -133,11 +138,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } else {
         firstInitial = 'U'; // Fallback to 'U' for User
       }
-      
+
       if (lastName.isNotEmpty) {
         lastInitial = lastName[0];
       }
-      
+
       return '$firstInitial$lastInitial'.toUpperCase();
     }
 
@@ -168,7 +173,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    '$firstName $lastName'.trim().isEmpty ? email : '$firstName $lastName',
+                    '$firstName $lastName'.trim().isEmpty
+                        ? email
+                        : '$firstName $lastName',
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -186,7 +193,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           // Settings
           Card(
             child: Column(
@@ -201,7 +208,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const Divider(),
                 ListTile(
-                  leading: const Icon(Icons.lock_reset, color: AppTheme.primaryGreen),
+                  leading: const Icon(Icons.lock_reset,
+                      color: AppTheme.primaryGreen),
                   title: const Text('Reset Password'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _showResetPasswordDialog(context),
@@ -209,13 +217,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const Divider(),
                 ListTile(
                   leading: const Icon(Icons.logout, color: Colors.red),
-                  title: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+                  title: const Text('Sign Out',
+                      style: TextStyle(color: Colors.red)),
                   onTap: () async {
                     final confirmed = await showDialog<bool>(
                       context: context,
                       builder: (context) => AlertDialog(
                         title: const Text('Sign Out'),
-                        content: const Text('Are you sure you want to sign out?'),
+                        content:
+                            const Text('Are you sure you want to sign out?'),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(context, false),
@@ -223,12 +233,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           TextButton(
                             onPressed: () => Navigator.pop(context, true),
-                            child: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+                            child: const Text('Sign Out',
+                                style: TextStyle(color: Colors.red)),
                           ),
                         ],
                       ),
                     );
-                    
+
                     if (confirmed == true) {
                       await authService.signOut();
                       if (context.mounted) {
@@ -240,7 +251,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const Divider(),
                 ListTile(
                   leading: const Icon(Icons.delete_forever, color: Colors.red),
-                  title: const Text('Delete Account', style: TextStyle(color: Colors.red)),
+                  title: const Text('Delete Account',
+                      style: TextStyle(color: Colors.red)),
                   onTap: () => _showDeleteAccountDialog(context),
                 ),
               ],
@@ -398,8 +410,10 @@ class _DeleteAccountDialog extends StatelessWidget {
           ),
           SizedBox(height: 8),
           Text('• Your profile', style: TextStyle(color: AppTheme.textGray)),
-          Text('• All bins you own', style: TextStyle(color: AppTheme.textGray)),
-          Text('• Your messages (will be anonymized)', style: TextStyle(color: AppTheme.textGray)),
+          Text('• All bins you own',
+              style: TextStyle(color: AppTheme.textGray)),
+          Text('• Your messages (will be anonymized)',
+              style: TextStyle(color: AppTheme.textGray)),
           Text('• All your tasks', style: TextStyle(color: AppTheme.textGray)),
           SizedBox(height: 12),
           Text(
@@ -428,4 +442,3 @@ class _DeleteAccountDialog extends StatelessWidget {
     );
   }
 }
-
