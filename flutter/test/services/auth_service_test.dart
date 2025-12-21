@@ -13,10 +13,10 @@ void main() {
       // Note: This regex doesn't support + in emails, which is a known limitation
       // TLD must be 2-4 characters (e.g., .com, .co.uk)
       final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-      
+
       for (final email in validEmails) {
-        expect(emailRegex.hasMatch(email), true, 
-          reason: '$email should be valid');
+        expect(emailRegex.hasMatch(email), true,
+            reason: '$email should be valid');
       }
     });
 
@@ -32,10 +32,10 @@ void main() {
       ];
 
       final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-      
+
       for (final email in invalidEmails) {
         expect(emailRegex.hasMatch(email), false,
-          reason: '$email should be invalid');
+            reason: '$email should be invalid');
       }
     });
   });
@@ -43,7 +43,7 @@ void main() {
   group('AuthService - Password Validation', () {
     test('password meets minimum length requirement', () {
       const minLength = 6;
-      
+
       expect('12345'.length >= minLength, false);
       expect('123456'.length >= minLength, true);
       expect('password123'.length >= minLength, true);
@@ -71,8 +71,7 @@ void main() {
       ];
 
       for (final name in validNames) {
-        expect(name.trim().isNotEmpty, true,
-          reason: '$name should be valid');
+        expect(name.trim().isNotEmpty, true, reason: '$name should be valid');
       }
     });
 
@@ -81,7 +80,7 @@ void main() {
 
       for (final name in invalidNames) {
         expect(name.trim().isEmpty, true,
-          reason: 'Empty name should be invalid');
+            reason: 'Empty name should be invalid');
       }
     });
   });

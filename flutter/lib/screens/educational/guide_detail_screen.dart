@@ -75,7 +75,8 @@ class _GuideDetailScreenState extends State<GuideDetailScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                      Text('Error: $_error',
+                          style: const TextStyle(color: Colors.red)),
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: _loadGuide,
@@ -97,10 +98,12 @@ class _GuideDetailScreenState extends State<GuideDetailScreen> {
                               height: 200,
                               width: double.infinity,
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => Container(
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Container(
                                 height: 200,
                                 color: AppTheme.backgroundGray,
-                                child: const Icon(Icons.image, size: 64, color: AppTheme.textGray),
+                                child: const Icon(Icons.image,
+                                    size: 64, color: AppTheme.textGray),
                               ),
                             ),
                           Padding(
@@ -113,8 +116,10 @@ class _GuideDetailScreenState extends State<GuideDetailScreen> {
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 12),
                                     child: Chip(
-                                      label: Text(_guide!['category'] as String),
-                                      backgroundColor: AppTheme.primaryGreen.withOpacity(0.1),
+                                      label:
+                                          Text(_guide!['category'] as String),
+                                      backgroundColor: AppTheme.primaryGreen
+                                          .withOpacity(0.1),
                                       labelStyle: const TextStyle(
                                         color: AppTheme.primaryGreen,
                                         fontWeight: FontWeight.bold,
@@ -123,7 +128,8 @@ class _GuideDetailScreenState extends State<GuideDetailScreen> {
                                   ),
                                 // Title
                                 Text(
-                                  _guide!['title'] as String? ?? 'Untitled Guide',
+                                  _guide!['title'] as String? ??
+                                      'Untitled Guide',
                                   style: const TextStyle(
                                     fontSize: 24,
                                     fontWeight: FontWeight.bold,
@@ -134,18 +140,23 @@ class _GuideDetailScreenState extends State<GuideDetailScreen> {
                                 // Meta info
                                 Row(
                                   children: [
-                                    const Icon(Icons.access_time, size: 16, color: AppTheme.textGray),
+                                    const Icon(Icons.access_time,
+                                        size: 16, color: AppTheme.textGray),
                                     const SizedBox(width: 4),
                                     Text(
-                                      _guide!['read_time'] as String? ?? '5 min',
-                                      style: const TextStyle(color: AppTheme.textGray),
+                                      _guide!['read_time'] as String? ??
+                                          '5 min',
+                                      style: const TextStyle(
+                                          color: AppTheme.textGray),
                                     ),
                                     const SizedBox(width: 16),
-                                    const Icon(Icons.visibility, size: 16, color: AppTheme.textGray),
+                                    const Icon(Icons.visibility,
+                                        size: 16, color: AppTheme.textGray),
                                     const SizedBox(width: 4),
                                     Text(
                                       '${_guide!['views'] ?? 0} views',
-                                      style: const TextStyle(color: AppTheme.textGray),
+                                      style: const TextStyle(
+                                          color: AppTheme.textGray),
                                     ),
                                   ],
                                 ),
@@ -161,9 +172,11 @@ class _GuideDetailScreenState extends State<GuideDetailScreen> {
                                 ),
                                 const SizedBox(height: 24),
                                 // Sections (if available)
-                                if (_guide!['sections'] != null && (_guide!['sections'] as List).isNotEmpty)
+                                if (_guide!['sections'] != null &&
+                                    (_guide!['sections'] as List).isNotEmpty)
                                   Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       const Text(
                                         'Table of Contents',
@@ -174,21 +187,30 @@ class _GuideDetailScreenState extends State<GuideDetailScreen> {
                                         ),
                                       ),
                                       const SizedBox(height: 12),
-                                      ...((_guide!['sections'] as List).map((section) {
-                                        final sectionMap = section as Map<String, dynamic>;
+                                      ...((_guide!['sections'] as List)
+                                          .map((section) {
+                                        final sectionMap =
+                                            section as Map<String, dynamic>;
                                         return Card(
-                                          margin: const EdgeInsets.only(bottom: 8),
+                                          margin:
+                                              const EdgeInsets.only(bottom: 8),
                                           child: ListTile(
-                                            leading: const Icon(Icons.book, color: AppTheme.primaryGreen),
+                                            leading: const Icon(Icons.book,
+                                                color: AppTheme.primaryGreen),
                                             title: Text(
-                                              sectionMap['title'] as String? ?? 'Section',
-                                              style: const TextStyle(fontWeight: FontWeight.bold),
+                                              sectionMap['title'] as String? ??
+                                                  'Section',
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.bold),
                                             ),
-                                            subtitle: sectionMap['content'] != null
+                                            subtitle: sectionMap['content'] !=
+                                                    null
                                                 ? Text(
-                                                    sectionMap['content'] as String,
+                                                    sectionMap['content']
+                                                        as String,
                                                     maxLines: 2,
-                                                    overflow: TextOverflow.ellipsis,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                   )
                                                 : null,
                                           ),
@@ -202,11 +224,13 @@ class _GuideDetailScreenState extends State<GuideDetailScreen> {
                                   child: ElevatedButton.icon(
                                     onPressed: _likeGuide,
                                     icon: const Icon(Icons.favorite),
-                                    label: Text('Like (${_guide!['likes'] ?? 0})'),
+                                    label:
+                                        Text('Like (${_guide!['likes'] ?? 0})'),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: AppTheme.primaryGreen,
                                       foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 24, vertical: 12),
                                     ),
                                   ),
                                 ),
@@ -219,4 +243,3 @@ class _GuideDetailScreenState extends State<GuideDetailScreen> {
     );
   }
 }
-

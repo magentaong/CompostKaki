@@ -22,7 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _checkEmail() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() {
       _isLoading = true;
       _error = null;
@@ -30,8 +30,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final authService = context.read<AuthService>();
-      final emailExists = await authService.checkEmailExists(_emailController.text);
-      
+      final emailExists =
+          await authService.checkEmailExists(_emailController.text);
+
       if (emailExists) {
         // Email exists, show password field
         if (mounted) {
@@ -44,7 +45,8 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         // Email doesn't exist, go to signup
         if (mounted) {
-          context.push('/signup?email=${Uri.encodeComponent(_emailController.text)}');
+          context.push(
+              '/signup?email=${Uri.encodeComponent(_emailController.text)}');
         }
       }
     } catch (e) {
@@ -59,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _signIn() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() {
       _isLoading = true;
       _error = null;
@@ -76,8 +78,8 @@ class _LoginScreenState extends State<LoginScreen> {
         context.go('/main');
       } else {
         setState(() {
-          _error = response.session == null 
-              ? 'Invalid email or password' 
+          _error = response.session == null
+              ? 'Invalid email or password'
               : 'Sign in failed';
           _isLoading = false;
         });
@@ -96,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _showResetPasswordDialog(BuildContext context) {
     final email = _emailController.text;
-    
+
     showDialog(
       context: context,
       builder: (dialogContext) => _ResetPasswordDialog(
@@ -109,7 +111,8 @@ class _LoginScreenState extends State<LoginScreen> {
               Navigator.pop(dialogContext);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Password reset email sent! Please check your inbox.'),
+                  content: Text(
+                      'Password reset email sent! Please check your inbox.'),
                   backgroundColor: AppTheme.primaryGreen,
                 ),
               );
@@ -188,7 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 48),
-                    
+
                     // Email field
                     TextFormField(
                       controller: _emailController,
@@ -208,7 +211,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Password field (shown after email check)
                     if (_showPasswordField)
                       TextFormField(
@@ -237,7 +240,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           return null;
                         },
                       ),
-                    
+
                     if (_error != null) ...[
                       const SizedBox(height: 16),
                       Container(
@@ -252,33 +255,33 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ],
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Continue/Sign In button
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _isLoading ? null : 
-                            _showPasswordField
+                        onPressed: _isLoading
+                            ? null
+                            : _showPasswordField
                                 ? _signIn
                                 : _checkEmail,
                         child: _isLoading
                             ? const SizedBox(
                                 height: 20,
                                 width: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
                               )
                             : Text(
-                                _showPasswordField
-                                    ? 'Sign In'
-                                    : 'Continue',
+                                _showPasswordField ? 'Sign In' : 'Continue',
                               ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 12),
-                    
+
                     // Forgot password link - always visible, centered
                     Center(
                       child: TextButton(
@@ -286,7 +289,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: const Text('Forgot password?'),
                       ),
                     ),
-                    
+
                     if (_showPasswordField) ...[
                       const SizedBox(height: 4),
                       Align(
@@ -305,7 +308,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
 
                     const SizedBox(height: 16),
-                    
+
                     // OR divider
                     Row(
                       children: [
@@ -333,15 +336,17 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ],
                     ),
-                    
+
                     const SizedBox(height: 16),
-                    
+
                     Center(
                       child: TextButton(
                         onPressed: () {
-                          context.push('/signup?email=${Uri.encodeComponent(_emailController.text)}');
+                          context.push(
+                              '/signup?email=${Uri.encodeComponent(_emailController.text)}');
                         },
-                        child: const Text("New to CompostKaki? Create an account!"),
+                        child: const Text(
+                            "New to CompostKaki? Create an account!"),
                       ),
                     ),
                   ],
@@ -468,4 +473,3 @@ class _ResetPasswordDialogState extends State<_ResetPasswordDialog> {
     );
   }
 }
-

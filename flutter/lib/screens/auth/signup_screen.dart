@@ -6,7 +6,7 @@ import '../../theme/app_theme.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key, this.email});
-  
+
   final String? email;
 
   @override
@@ -32,7 +32,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() {
       _isLoading = true;
       _error = null;
@@ -105,7 +105,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                     ),
                     const SizedBox(height: 32),
-                    
+
                     // First Name and Last Name
                     Row(
                       children: [
@@ -141,7 +141,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Email field
                     TextFormField(
                       controller: _emailController,
@@ -161,7 +161,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Password field
                     TextFormField(
                       controller: _passwordController,
@@ -180,7 +180,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         return null;
                       },
                     ),
-                    
+
                     if (_error != null) ...[
                       const SizedBox(height: 16),
                       Container(
@@ -195,9 +195,9 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                       ),
                     ],
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Sign Up button
                     SizedBox(
                       width: double.infinity,
@@ -207,12 +207,13 @@ class _SignupScreenState extends State<SignupScreen> {
                             ? const SizedBox(
                                 height: 20,
                                 width: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
                               )
                             : const Text('Sign Up'),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 12),
                     TextButton(
                       onPressed: () => context.go('/login'),
@@ -228,4 +229,3 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 }
-

@@ -68,7 +68,8 @@ class _BinChatListScreenState extends State<BinChatListScreen> {
 
     try {
       // Admin: Get all unique users who have sent messages in this bin
-      final conversations = await _chatService.getBinConversations(widget.binId);
+      final conversations =
+          await _chatService.getBinConversations(widget.binId);
       if (mounted) {
         setState(() {
           _conversations = conversations;
@@ -113,7 +114,8 @@ class _BinChatListScreenState extends State<BinChatListScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                      Text('Error: $_error',
+                          style: const TextStyle(color: Colors.red)),
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: _loadConversations,
@@ -129,7 +131,8 @@ class _BinChatListScreenState extends State<BinChatListScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.chat_bubble_outline, size: 64, color: AppTheme.textGray),
+                              const Icon(Icons.chat_bubble_outline,
+                                  size: 64, color: AppTheme.textGray),
                               const SizedBox(height: 16),
                               const Text(
                                 'No conversations yet',
@@ -138,7 +141,8 @@ class _BinChatListScreenState extends State<BinChatListScreen> {
                               const SizedBox(height: 8),
                               const Text(
                                 'Users will appear here when they send messages',
-                                style: TextStyle(color: AppTheme.textGray, fontSize: 12),
+                                style: TextStyle(
+                                    color: AppTheme.textGray, fontSize: 12),
                               ),
                             ],
                           ),
@@ -149,15 +153,22 @@ class _BinChatListScreenState extends State<BinChatListScreen> {
                           itemBuilder: (context, index) {
                             final conversation = _conversations[index];
                             final userId = conversation['user_id'] as String;
-                            final profile = conversation['profile'] as Map<String, dynamic>?;
-                            final firstName = profile?['first_name'] as String? ?? 'User';
-                            final lastName = profile?['last_name'] as String? ?? '';
+                            final profile = conversation['profile']
+                                as Map<String, dynamic>?;
+                            final firstName =
+                                profile?['first_name'] as String? ?? 'User';
+                            final lastName =
+                                profile?['last_name'] as String? ?? '';
                             final userName = '$firstName $lastName'.trim();
                             // Ensure userName is never empty
-                            final displayName = userName.isNotEmpty ? userName : 'User';
-                            final lastMessage = conversation['last_message'] as String? ?? '';
-                            final lastMessageTime = conversation['last_message_time'] as String?;
-                            final unreadCount = conversation['unread_count'] as int? ?? 0;
+                            final displayName =
+                                userName.isNotEmpty ? userName : 'User';
+                            final lastMessage =
+                                conversation['last_message'] as String? ?? '';
+                            final lastMessageTime =
+                                conversation['last_message_time'] as String?;
+                            final unreadCount =
+                                conversation['unread_count'] as int? ?? 0;
 
                             return ListTile(
                               leading: CircleAvatar(
@@ -169,7 +180,8 @@ class _BinChatListScreenState extends State<BinChatListScreen> {
                               ),
                               title: Text(
                                 displayName,
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
                               ),
                               subtitle: Text(
                                 lastMessage,
@@ -191,13 +203,16 @@ class _BinChatListScreenState extends State<BinChatListScreen> {
                                   if (unreadCount > 0) ...[
                                     const SizedBox(height: 4),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
                                         color: AppTheme.primaryGreen,
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: Text(
-                                        unreadCount > 99 ? '99+' : '$unreadCount',
+                                        unreadCount > 99
+                                            ? '99+'
+                                            : '$unreadCount',
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 10,
@@ -209,7 +224,8 @@ class _BinChatListScreenState extends State<BinChatListScreen> {
                                 ],
                               ),
                               onTap: () {
-                                context.push('/bin/${widget.binId}/chat/$userId');
+                                context
+                                    .push('/bin/${widget.binId}/chat/$userId');
                               },
                             );
                           },
@@ -238,4 +254,3 @@ class _BinChatListScreenState extends State<BinChatListScreen> {
     }
   }
 }
-

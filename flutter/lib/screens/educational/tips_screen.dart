@@ -60,7 +60,8 @@ class _TipsScreenState extends State<TipsScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                      Text('Error: $_error',
+                          style: const TextStyle(color: Colors.red)),
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: _loadTips,
@@ -94,7 +95,8 @@ class _TipCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final title = tip['title'] as String? ?? 'Tip';
-    final content = tip['content'] as String? ?? tip['description'] as String? ?? '';
+    final content =
+        tip['content'] as String? ?? tip['description'] as String? ?? '';
     final category = tip['category'] as String? ?? '';
 
     return Card(
@@ -146,4 +148,3 @@ class _TipCard extends StatelessWidget {
     );
   }
 }
-

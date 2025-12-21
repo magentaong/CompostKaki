@@ -85,4 +85,3 @@ class _JoinBinScannerScreenState extends State<JoinBinScannerScreen> {
     );
   }
 }
-

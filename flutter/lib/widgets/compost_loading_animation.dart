@@ -14,7 +14,8 @@ class CompostLoadingAnimation extends StatefulWidget {
   });
 
   @override
-  State<CompostLoadingAnimation> createState() => _CompostLoadingAnimationState();
+  State<CompostLoadingAnimation> createState() =>
+      _CompostLoadingAnimationState();
 }
 
 class _CompostLoadingAnimationState extends State<CompostLoadingAnimation>
@@ -111,13 +112,16 @@ class _CompostLoadingAnimationState extends State<CompostLoadingAnimation>
                     final angle = (index * 60) * 3.14159 / 180;
                     final radius = widget.size * 0.4;
                     final offset = _fallAnimation.value * 20 - 10;
-                    
-                    final x = radius * (1 + _fallAnimation.value * 0.3) * 
-                             (1 + 0.1 * (index % 2)) * 
-                             (index % 2 == 0 ? 1 : -1);
-                    final y = radius * (1 + _fallAnimation.value * 0.3) * 
-                             (1 + 0.1 * (index % 3)) * 
-                             (index % 3 == 0 ? 1 : -1) + offset;
+
+                    final x = radius *
+                        (1 + _fallAnimation.value * 0.3) *
+                        (1 + 0.1 * (index % 2)) *
+                        (index % 2 == 0 ? 1 : -1);
+                    final y = radius *
+                            (1 + _fallAnimation.value * 0.3) *
+                            (1 + 0.1 * (index % 3)) *
+                            (index % 3 == 0 ? 1 : -1) +
+                        offset;
 
                     return Positioned(
                       left: widget.size / 2 + x - 6,
@@ -228,4 +232,3 @@ class _SimpleCompostLoaderState extends State<SimpleCompostLoader>
     );
   }
 }
-

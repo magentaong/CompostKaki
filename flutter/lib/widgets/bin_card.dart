@@ -30,7 +30,6 @@ class BinCard extends StatelessWidget {
     return trimmed;
   }
 
-
   Color _getHealthColor(String? status) {
     switch (status) {
       case 'Critical':
@@ -62,7 +61,7 @@ class BinCard extends StatelessWidget {
     final healthStatus = bin['health_status'] as String? ?? 'Healthy';
     final temperature = bin['latest_temperature'];
     final binImage = _resolveBinImage(bin['image'] as String?);
-    
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: InkWell(
@@ -76,7 +75,8 @@ class BinCard extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: CachedNetworkImage(
-                  key: ValueKey('${bin['id']}_${bin['updated_at'] ?? DateTime.now().millisecondsSinceEpoch}'),
+                  key: ValueKey(
+                      '${bin['id']}_${bin['updated_at'] ?? DateTime.now().millisecondsSinceEpoch}'),
                   imageUrl: binImage,
                   width: 48,
                   height: 48,
@@ -96,7 +96,7 @@ class BinCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              
+
               // Bin info
               Expanded(
                 child: Column(
@@ -121,14 +121,15 @@ class BinCard extends StatelessWidget {
                   ],
                 ),
               ),
-              
+
               // Health status and temp (or Request under review)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   if (hasPendingRequest)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.orange.shade100,
                         borderRadius: BorderRadius.circular(12),
@@ -155,7 +156,8 @@ class BinCard extends StatelessWidget {
                     )
                   else ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: _getHealthColor(healthStatus),
                         borderRadius: BorderRadius.circular(12),
@@ -189,4 +191,3 @@ class BinCard extends StatelessWidget {
     );
   }
 }
-

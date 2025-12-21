@@ -8,21 +8,21 @@ class AppTheme {
   static const Color backgroundGray = Color(0xFFF3F3F3);
   static const Color textGray = Color(0xFF5A5A5A);
   static const Color borderGray = Color(0xFFE0E0E0);
-  
+
   // Health Status Colors
   static const Color healthCritical = Color(0xFFE8B5B5);
   static const Color healthCriticalText = Color(0xFF6D2222);
   static const Color healthHealthy = Color(0xFFCBE7B5);
   static const Color healthNeedsAttention = Color(0xFFF0E1A6);
   static const Color healthNeedsAttentionText = Color(0xFF694F00);
-  
+
   // Urgency Colors
   static const Color urgencyHigh = Color(0xFFE8B5B5);
   static const Color urgencyHighText = Color(0xFF6D2222);
   static const Color urgencyNormal = Color(0xFFF0E1A6);
   static const Color urgencyNormalText = Color(0xFF694F00);
   static const Color urgencyLow = Color(0xFFDCE8E1);
-  
+
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
@@ -85,7 +85,8 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: primaryGreen, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
       cardTheme: CardThemeData(
         elevation: 2,
@@ -97,4 +98,3 @@ class AppTheme {
     );
   }
 }
-

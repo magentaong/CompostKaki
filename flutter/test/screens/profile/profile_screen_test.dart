@@ -64,7 +64,8 @@ void main() {
           home: Scaffold(
             body: ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+              title:
+                  const Text('Sign Out', style: TextStyle(color: Colors.red)),
               onTap: () {},
             ),
           ),
@@ -119,7 +120,8 @@ void main() {
       expect(wasTapped, true);
     });
 
-    testWidgets('displays sign out confirmation dialog', (WidgetTester tester) async {
+    testWidgets('displays sign out confirmation dialog',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -138,7 +140,8 @@ void main() {
                         ),
                         TextButton(
                           onPressed: () {},
-                          style: TextButton.styleFrom(foregroundColor: Colors.red),
+                          style:
+                              TextButton.styleFrom(foregroundColor: Colors.red),
                           child: const Text('Sign Out'),
                         ),
                       ],
@@ -227,7 +230,8 @@ void main() {
       expect(wasTapped, true);
     });
 
-    testWidgets('shows error for empty first name', (WidgetTester tester) async {
+    testWidgets('shows error for empty first name',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -245,4 +249,3 @@ void main() {
     });
   });
 }
-

@@ -58,7 +58,8 @@ void main() {
       expect(find.text('Task Title'), findsOneWidget);
     });
 
-    testWidgets('task title field accepts text input', (WidgetTester tester) async {
+    testWidgets('task title field accepts text input',
+        (WidgetTester tester) async {
       final controller = TextEditingController();
 
       await tester.pumpWidget(
@@ -76,7 +77,8 @@ void main() {
       expect(controller.text, 'Need help flipping');
     });
 
-    testWidgets('displays description input field', (WidgetTester tester) async {
+    testWidgets('displays description input field',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -96,7 +98,8 @@ void main() {
       expect(textField.maxLines, 5);
     });
 
-    testWidgets('description field accepts text input', (WidgetTester tester) async {
+    testWidgets('description field accepts text input',
+        (WidgetTester tester) async {
       final controller = TextEditingController();
 
       await tester.pumpWidget(
@@ -153,7 +156,8 @@ void main() {
       expect(wasTapped, true);
     });
 
-    testWidgets('shows loading indicator when posting', (WidgetTester tester) async {
+    testWidgets('shows loading indicator when posting',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -184,7 +188,8 @@ void main() {
       expect(find.text('Title is required'), findsOneWidget);
     });
 
-    testWidgets('displays error for empty description', (WidgetTester tester) async {
+    testWidgets('displays error for empty description',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -201,7 +206,8 @@ void main() {
       expect(find.text('Description is required'), findsOneWidget);
     });
 
-    testWidgets('displays error for no bin selected', (WidgetTester tester) async {
+    testWidgets('displays error for no bin selected',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -262,7 +268,8 @@ void main() {
       }
 
       final longTitle = 'a' * 101;
-      expect(validateTitle(longTitle), 'Title must be less than 100 characters');
+      expect(
+          validateTitle(longTitle), 'Title must be less than 100 characters');
       expect(validateTitle('Normal title'), null);
     });
 
@@ -289,8 +296,8 @@ void main() {
         return null;
       }
 
-      expect(validateDescription('Too short'), 
-        'Description must be at least 10 characters');
+      expect(validateDescription('Too short'),
+          'Description must be at least 10 characters');
       expect(validateDescription('This is a longer description'), null);
     });
 
@@ -324,7 +331,7 @@ void main() {
       bool isUserMember(Map<String, dynamic> bin, String userId) {
         final ownerId = bin['user_id'] as String?;
         final contributors = bin['contributors_list'] as List?;
-        
+
         if (ownerId == userId) return true;
         if (contributors != null && contributors.contains(userId)) return true;
         return false;
@@ -381,4 +388,3 @@ void main() {
     });
   });
 }
-

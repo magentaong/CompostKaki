@@ -2,34 +2,33 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('BinService - Request to Join Functionality', () {
-    
     group('Request Validation', () {
       test('should prevent duplicate pending requests', () {
         // Logic: Check if request already exists before creating
         bool hasExistingRequest = true;
         bool canCreateRequest = !hasExistingRequest;
-        
+
         expect(canCreateRequest, false);
       });
 
       test('should allow request when no existing request', () {
         bool hasExistingRequest = false;
         bool canCreateRequest = !hasExistingRequest;
-        
+
         expect(canCreateRequest, true);
       });
 
       test('should prevent request if already a member', () {
         bool isMember = true;
         bool canRequest = !isMember;
-        
+
         expect(canRequest, false);
       });
 
       test('should allow request if not a member', () {
         bool isMember = false;
         bool canRequest = !isMember;
-        
+
         expect(canRequest, true);
       });
     });
@@ -41,7 +40,7 @@ void main() {
           'bin_id': 'bin-123',
           'user_id': 'user-456',
         };
-        
+
         bool isPending = request['status'] == 'pending';
         expect(isPending, true);
       });
@@ -52,7 +51,7 @@ void main() {
           'bin_id': 'bin-123',
           'user_id': 'user-456',
         };
-        
+
         bool isPending = request['status'] == 'pending';
         expect(isPending, false);
       });
@@ -63,7 +62,7 @@ void main() {
           'bin_id': 'bin-123',
           'user_id': 'user-456',
         };
-        
+
         bool isPending = request['status'] == 'pending';
         expect(isPending, false);
       });
@@ -73,7 +72,7 @@ void main() {
       test('should identify bin owner as admin', () {
         String binOwnerId = 'user-123';
         String currentUserId = 'user-123';
-        
+
         bool isAdmin = binOwnerId == currentUserId;
         expect(isAdmin, true);
       });
@@ -81,7 +80,7 @@ void main() {
       test('should not identify non-owner as admin', () {
         String binOwnerId = 'user-123';
         String currentUserId = 'user-456';
-        
+
         bool isAdmin = binOwnerId == currentUserId;
         expect(isAdmin, false);
       });
@@ -92,7 +91,7 @@ void main() {
         // Simulate approval: delete request, add to members
         bool requestDeleted = true;
         bool memberAdded = true;
-        
+
         bool approvalSuccessful = requestDeleted && memberAdded;
         expect(approvalSuccessful, true);
       });
@@ -100,14 +99,14 @@ void main() {
       test('should only allow admin to approve', () {
         bool isAdmin = true;
         bool canApprove = isAdmin;
-        
+
         expect(canApprove, true);
       });
 
       test('should not allow non-admin to approve', () {
         bool isAdmin = false;
         bool canApprove = isAdmin;
-        
+
         expect(canApprove, false);
       });
     });
@@ -121,7 +120,7 @@ void main() {
       test('should only allow admin to reject', () {
         bool isAdmin = true;
         bool canReject = isAdmin;
-        
+
         expect(canReject, true);
       });
     });
@@ -130,7 +129,7 @@ void main() {
       test('should prevent removing bin owner', () {
         String binOwnerId = 'user-123';
         String memberToRemove = 'user-123';
-        
+
         bool canRemove = memberToRemove != binOwnerId;
         expect(canRemove, false);
       });
@@ -138,7 +137,7 @@ void main() {
       test('should allow removing regular member', () {
         String binOwnerId = 'user-123';
         String memberToRemove = 'user-456';
-        
+
         bool canRemove = memberToRemove != binOwnerId;
         expect(canRemove, true);
       });
@@ -146,7 +145,7 @@ void main() {
       test('should only allow admin to remove members', () {
         bool isAdmin = true;
         bool canRemove = isAdmin;
-        
+
         expect(canRemove, true);
       });
     });
@@ -158,7 +157,7 @@ void main() {
           'name': 'Test Bin',
           'has_pending_request': true,
         };
-        
+
         bool hasPendingRequest = bin['has_pending_request'] == true;
         expect(hasPendingRequest, true);
       });
@@ -169,7 +168,7 @@ void main() {
           'name': 'Test Bin',
           'has_pending_request': false,
         };
-        
+
         bool hasPendingRequest = bin['has_pending_request'] == true;
         expect(hasPendingRequest, false);
       });
@@ -184,13 +183,13 @@ void main() {
         List<Map<String, dynamic>> requestedBins = [
           {'id': 'bin-3', 'name': 'Requested Bin', 'has_pending_request': true},
         ];
-        
+
         List<Map<String, dynamic>> allBins = [
           ...ownedBins,
           ...memberBins,
           ...requestedBins,
         ];
-        
+
         expect(allBins.length, 3);
         expect(allBins[2]['has_pending_request'], true);
       });
@@ -200,14 +199,14 @@ void main() {
       test('should handle null user gracefully', () {
         String? userId = null;
         bool canRequest = userId != null;
-        
+
         expect(canRequest, false);
       });
 
       test('should handle empty bin ID gracefully', () {
         String binId = '';
         bool isValid = binId.isNotEmpty;
-        
+
         expect(isValid, false);
       });
 
@@ -216,11 +215,11 @@ void main() {
           {'user_id': 'user-1', 'status': 'pending'},
           {'user_id': 'user-2', 'status': 'pending'},
         ];
-        
-        int pendingCount = requests.where((r) => r['status'] == 'pending').length;
+
+        int pendingCount =
+            requests.where((r) => r['status'] == 'pending').length;
         expect(pendingCount, 2);
       });
     });
   });
 }
-

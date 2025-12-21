@@ -23,8 +23,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.initState();
     final authService = context.read<AuthService>();
     final user = authService.currentUser;
-    _firstNameController.text = user?.userMetadata?['first_name'] as String? ?? '';
-    _lastNameController.text = user?.userMetadata?['last_name'] as String? ?? '';
+    _firstNameController.text =
+        user?.userMetadata?['first_name'] as String? ?? '';
+    _lastNameController.text =
+        user?.userMetadata?['last_name'] as String? ?? '';
   }
 
   @override
@@ -146,7 +148,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
                     : const Text(
@@ -161,4 +164,3 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 }
-

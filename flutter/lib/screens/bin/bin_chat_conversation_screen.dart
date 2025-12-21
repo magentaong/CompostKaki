@@ -7,7 +7,8 @@ import '../../theme/app_theme.dart';
 
 class BinChatConversationScreen extends StatefulWidget {
   final String binId;
-  final String? userId; // If null, user chats with admin. If set, admin chats with this user.
+  final String?
+      userId; // If null, user chats with admin. If set, admin chats with this user.
 
   const BinChatConversationScreen({
     super.key,
@@ -16,7 +17,8 @@ class BinChatConversationScreen extends StatefulWidget {
   });
 
   @override
-  State<BinChatConversationScreen> createState() => _BinChatConversationScreenState();
+  State<BinChatConversationScreen> createState() =>
+      _BinChatConversationScreenState();
 }
 
 class _BinChatConversationScreenState extends State<BinChatConversationScreen> {
@@ -24,7 +26,7 @@ class _BinChatConversationScreenState extends State<BinChatConversationScreen> {
   final BinService _binService = BinService();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  
+
   List<Map<String, dynamic>> _messages = [];
   Map<String, dynamic>? _bin;
   Map<String, dynamic>? _otherUserProfile;
@@ -72,8 +74,9 @@ class _BinChatConversationScreenState extends State<BinChatConversationScreen> {
   }
 
   Future<void> _loadOtherUserProfile() async {
-    if (widget.userId == null) return; // User chatting with admin, no need to load
-    
+    if (widget.userId == null)
+      return; // User chatting with admin, no need to load
+
     try {
       final profile = await _binService.getUserProfile(widget.userId!);
       if (mounted) {
@@ -96,12 +99,13 @@ class _BinChatConversationScreenState extends State<BinChatConversationScreen> {
       List<Map<String, dynamic>> messages;
       if (widget.userId != null) {
         // Admin chatting with specific user
-        messages = await _chatService.getConversationWithUser(widget.binId, widget.userId!);
+        messages = await _chatService.getConversationWithUser(
+            widget.binId, widget.userId!);
       } else {
         // User chatting with admin
         messages = await _chatService.getBinMessages(widget.binId);
       }
-      
+
       if (mounted && !_isDisposing) {
         setState(() {
           _messages = messages;
@@ -124,22 +128,24 @@ class _BinChatConversationScreenState extends State<BinChatConversationScreen> {
 
   void _subscribeToMessages() {
     try {
-      _channel = _chatService.subscribeToBinMessages(widget.binId, (newMessage) {
+      _channel =
+          _chatService.subscribeToBinMessages(widget.binId, (newMessage) {
         // Only show messages relevant to this conversation
         final senderId = newMessage['sender_id'] as String?;
         final receiverId = newMessage['receiver_id'] as String?;
         final currentUserId = _chatService.currentUserId;
-        
+
         bool shouldShow = false;
         if (widget.userId != null) {
           // Admin conversation: show if message is between admin and this user
-          shouldShow = (senderId == widget.userId && receiverId == currentUserId) ||
-                       (senderId == currentUserId && receiverId == widget.userId);
+          shouldShow =
+              (senderId == widget.userId && receiverId == currentUserId) ||
+                  (senderId == currentUserId && receiverId == widget.userId);
         } else {
           // User conversation: show if message involves current user
           shouldShow = senderId == currentUserId || receiverId == currentUserId;
         }
-        
+
         if (shouldShow && mounted && !_isDisposing) {
           setState(() {
             _messages.add(newMessage);
@@ -181,8 +187,9 @@ class _BinChatConversationScreenState extends State<BinChatConversationScreen> {
         // User sending to admin
         receiverId = _bin!['user_id'] as String?;
       }
-      
-      await _chatService.sendBinMessage(widget.binId, message, receiverId: receiverId);
+
+      await _chatService.sendBinMessage(widget.binId, message,
+          receiverId: receiverId);
       if (_isDisposing) return;
       _messageController.clear();
       if (!_isDisposing) {
@@ -268,7 +275,8 @@ class _BinChatConversationScreenState extends State<BinChatConversationScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                            Text('Error: $_error',
+                                style: const TextStyle(color: Colors.red)),
                             const SizedBox(height: 16),
                             ElevatedButton(
                               onPressed: _loadMessages,
@@ -282,18 +290,21 @@ class _BinChatConversationScreenState extends State<BinChatConversationScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.chat_bubble_outline, size: 64, color: AppTheme.textGray),
+                                const Icon(Icons.chat_bubble_outline,
+                                    size: 64, color: AppTheme.textGray),
                                 const SizedBox(height: 16),
                                 Text(
                                   'No messages yet',
-                                  style: const TextStyle(color: AppTheme.textGray),
+                                  style:
+                                      const TextStyle(color: AppTheme.textGray),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   _isOwner
                                       ? 'Start a conversation!'
                                       : 'Start a conversation with the bin admin!',
-                                  style: const TextStyle(color: AppTheme.textGray, fontSize: 12),
+                                  style: const TextStyle(
+                                      color: AppTheme.textGray, fontSize: 12),
                                 ),
                               ],
                             ),
@@ -306,20 +317,29 @@ class _BinChatConversationScreenState extends State<BinChatConversationScreen> {
                               itemCount: _messages.length,
                               itemBuilder: (context, index) {
                                 final message = _messages[index];
-                                final senderId = message['sender_id'] as String?;
-                                final isCurrentUser = senderId == _chatService.currentUserId;
-                                
-                                final senderProfile = message['sender_profile'] as Map<String, dynamic>?;
-                                final senderFirstName = senderProfile?['first_name'] as String? ?? 'User';
-                                final senderLastName = senderProfile?['last_name'] as String? ?? '';
-                                final senderName = '$senderFirstName $senderLastName'.trim();
-                                
+                                final senderId =
+                                    message['sender_id'] as String?;
+                                final isCurrentUser =
+                                    senderId == _chatService.currentUserId;
+
+                                final senderProfile = message['sender_profile']
+                                    as Map<String, dynamic>?;
+                                final senderFirstName =
+                                    senderProfile?['first_name'] as String? ??
+                                        'User';
+                                final senderLastName =
+                                    senderProfile?['last_name'] as String? ??
+                                        '';
+                                final senderName =
+                                    '$senderFirstName $senderLastName'.trim();
+
                                 final isAdmin = senderId == _bin?['user_id'];
-                                
+
                                 return _MessageBubble(
                                   message: message['message'] as String? ?? '',
                                   isUser: isCurrentUser,
-                                  senderName: isCurrentUser ? 'You' : senderName,
+                                  senderName:
+                                      isCurrentUser ? 'You' : senderName,
                                   isAdmin: isAdmin,
                                   timestamp: message['created_at'] as String?,
                                 );
@@ -346,16 +366,21 @@ class _BinChatConversationScreenState extends State<BinChatConversationScreen> {
                     child: TextField(
                       controller: _messageController,
                       decoration: InputDecoration(
-                        hintText: _isOwner ? 'Type a message...' : 'Message the admin...',
+                        hintText: _isOwner
+                            ? 'Type a message...'
+                            : 'Message the admin...',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
-                          borderSide: const BorderSide(color: AppTheme.primaryGreen),
+                          borderSide:
+                              const BorderSide(color: AppTheme.primaryGreen),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
-                          borderSide: const BorderSide(color: AppTheme.primaryGreen, width: 2),
+                          borderSide: const BorderSide(
+                              color: AppTheme.primaryGreen, width: 2),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
                       ),
                       maxLines: null,
                       textCapitalization: TextCapitalization.sentences,
@@ -428,12 +453,15 @@ class _MessageBubble extends StatelessWidget {
                 child: Row(
                   children: [
                     if (isAdmin)
-                      const Icon(Icons.admin_panel_settings, size: 12, color: Colors.white),
+                      const Icon(Icons.admin_panel_settings,
+                          size: 12, color: Colors.white),
                     if (isAdmin) const SizedBox(width: 4),
                     Text(
                       senderName,
                       style: TextStyle(
-                        color: isUser ? Colors.white70 : AppTheme.textGray.withOpacity(0.7),
+                        color: isUser
+                            ? Colors.white70
+                            : AppTheme.textGray.withOpacity(0.7),
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                       ),
@@ -454,7 +482,9 @@ class _MessageBubble extends StatelessWidget {
                 child: Text(
                   _formatTimestamp(timestamp!),
                   style: TextStyle(
-                    color: isUser ? Colors.white70 : AppTheme.textGray.withOpacity(0.7),
+                    color: isUser
+                        ? Colors.white70
+                        : AppTheme.textGray.withOpacity(0.7),
                     fontSize: 10,
                   ),
                 ),
@@ -485,4 +515,3 @@ class _MessageBubble extends StatelessWidget {
     }
   }
 }
-

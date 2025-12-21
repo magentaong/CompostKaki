@@ -45,7 +45,8 @@ void main() {
       expect(textField.maxLines, 3);
     });
 
-    testWidgets('displays temperature input for Monitor type', (WidgetTester tester) async {
+    testWidgets('displays temperature input for Monitor type',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -65,7 +66,8 @@ void main() {
       expect(textField.keyboardType, TextInputType.number);
     });
 
-    testWidgets('displays moisture level dropdown for Monitor type', (WidgetTester tester) async {
+    testWidgets('displays moisture level dropdown for Monitor type',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -87,7 +89,8 @@ void main() {
       expect(find.text('Moisture Level'), findsOneWidget);
     });
 
-    testWidgets('displays weight input for Add type', (WidgetTester tester) async {
+    testWidgets('displays weight input for Add type',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -159,7 +162,8 @@ void main() {
       expect(wasTapped, true);
     });
 
-    testWidgets('shows loading indicator when submitting', (WidgetTester tester) async {
+    testWidgets('shows loading indicator when submitting',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -173,7 +177,8 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('displays error for empty description', (WidgetTester tester) async {
+    testWidgets('displays error for empty description',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -222,8 +227,10 @@ void main() {
 
       expect(validateTemperature(''), null);
       expect(validateTemperature('45'), null);
-      expect(validateTemperature('-30'), 'Temperature must be between -20°C and 100°C');
-      expect(validateTemperature('150'), 'Temperature must be between -20°C and 100°C');
+      expect(validateTemperature('-30'),
+          'Temperature must be between -20°C and 100°C');
+      expect(validateTemperature('150'),
+          'Temperature must be between -20°C and 100°C');
       expect(validateTemperature('abc'), 'Please enter a valid number');
     });
 
@@ -256,30 +263,29 @@ void main() {
       for (final type in validTypes) {
         expect(validTypes.contains(type), true);
       }
-      
+
       expect(validTypes.contains('Invalid'), false);
     });
 
     test('Monitor type shows temperature and moisture fields', () {
       const activityType = 'Monitor';
       final shouldShowMonitorFields = activityType == 'Monitor';
-      
+
       expect(shouldShowMonitorFields, true);
     });
 
     test('Add type shows weight field', () {
       const activityType = 'Add';
       final shouldShowWeightField = activityType == 'Add';
-      
+
       expect(shouldShowWeightField, true);
     });
 
     test('Flip type increments flip counter', () {
       const activityType = 'Flip';
       final shouldIncrementFlips = activityType == 'Flip';
-      
+
       expect(shouldIncrementFlips, true);
     });
   });
 }
-

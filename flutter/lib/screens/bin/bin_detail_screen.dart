@@ -81,7 +81,8 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
     } catch (e) {
       if (mounted) {
         // Check if bin was deleted
-        if (e.toString().contains('deleted') || e.toString().contains('no longer exists')) {
+        if (e.toString().contains('deleted') ||
+            e.toString().contains('no longer exists')) {
           // Show dialog and navigate back
           await showDialog(
             context: context,
@@ -228,14 +229,16 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
 
   Future<void> _shareBin() async {
     final name = _bin?['name'] ?? 'our compost bin';
-    final message = 'Join $name on CompostKaki!\n\nTap here to join: $_deepLink';
+    final message =
+        'Join $name on CompostKaki!\n\nTap here to join: $_deepLink';
     await Share.share(message);
   }
 
   Future<void> _changePhoto() async {
     if (!_isOwner) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Only the bin owner can update the photo.')),
+        const SnackBar(
+            content: Text('Only the bin owner can update the photo.')),
       );
       return;
     }
@@ -313,7 +316,8 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
               final picData = await qrPainter.toImageData(220);
               if (picData != null) {
                 await file.writeAsBytes(picData.buffer.asUint8List());
-                await Share.shareXFiles([XFile(file.path)], text: 'Scan to join this bin!');
+                await Share.shareXFiles([XFile(file.path)],
+                    text: 'Scan to join this bin!');
               }
             },
             icon: const Icon(Icons.download),
@@ -374,12 +378,12 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                   child: SingleChildScrollView(child: content),
                 )
               : content,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
         );
       },
     );
@@ -387,12 +391,12 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
 
   Future<void> _showAdminPanel(BuildContext context) async {
     if (!_isOwner) return;
-    
+
     List<Map<String, dynamic>> members = [];
     List<Map<String, dynamic>> pendingRequests = [];
     bool isLoading = true;
     String? error;
-    
+
     // Load data
     try {
       members = await _binService.getBinMembers(widget.binId);
@@ -402,9 +406,9 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
       error = e.toString();
       isLoading = false;
     }
-    
+
     if (!context.mounted) return;
-    
+
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -417,7 +421,8 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
             setSheetState(() => isLoading = true);
             try {
               final newMembers = await _binService.getBinMembers(widget.binId);
-              final newRequests = await _binService.getPendingRequests(widget.binId);
+              final newRequests =
+                  await _binService.getPendingRequests(widget.binId);
               setSheetState(() {
                 members = newMembers;
                 pendingRequests = newRequests;
@@ -431,7 +436,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
               });
             }
           }
-          
+
           Future<void> handleApprove(String requestId) async {
             try {
               await _binService.approveRequest(requestId);
@@ -452,13 +457,14 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
               }
             }
           }
-          
+
           Future<void> handleReject(String requestId) async {
             final confirmed = await showDialog<bool>(
               context: context,
               builder: (context) => AlertDialog(
                 title: const Text('Reject Request'),
-                content: const Text('Are you sure you want to reject this request?'),
+                content:
+                    const Text('Are you sure you want to reject this request?'),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(context, false),
@@ -466,15 +472,16 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                   ),
                   ElevatedButton(
                     onPressed: () => Navigator.pop(context, true),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    style:
+                        ElevatedButton.styleFrom(backgroundColor: Colors.red),
                     child: const Text('Reject'),
                   ),
                 ],
               ),
             );
-            
+
             if (confirmed != true) return;
-            
+
             try {
               await _binService.rejectRequest(requestId);
               await refreshData();
@@ -491,13 +498,15 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
               }
             }
           }
-          
-          Future<void> handleRemoveMember(String memberUserId, String memberName) async {
+
+          Future<void> handleRemoveMember(
+              String memberUserId, String memberName) async {
             final confirmed = await showDialog<bool>(
               context: context,
               builder: (context) => AlertDialog(
                 title: const Text('Remove Member'),
-                content: Text('Are you sure you want to remove $memberName from this bin?'),
+                content: Text(
+                    'Are you sure you want to remove $memberName from this bin?'),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(context, false),
@@ -505,15 +514,16 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                   ),
                   ElevatedButton(
                     onPressed: () => Navigator.pop(context, true),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    style:
+                        ElevatedButton.styleFrom(backgroundColor: Colors.red),
                     child: const Text('Remove'),
                   ),
                 ],
               ),
             );
-            
+
             if (confirmed != true) return;
-            
+
             try {
               await _binService.removeMember(widget.binId, memberUserId);
               await refreshData();
@@ -530,7 +540,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
               }
             }
           }
-          
+
           return SafeArea(
             child: Container(
               constraints: BoxConstraints(
@@ -544,7 +554,8 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
-                        const Icon(Icons.admin_panel_settings, color: AppTheme.primaryGreen),
+                        const Icon(Icons.admin_panel_settings,
+                            color: AppTheme.primaryGreen),
                         const SizedBox(width: 8),
                         const Expanded(
                           child: Text(
@@ -563,7 +574,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                     ),
                   ),
                   const Divider(),
-                  
+
                   // Content
                   Expanded(
                     child: isLoading
@@ -575,7 +586,9 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Text('Error: $error', style: const TextStyle(color: Colors.red)),
+                                      Text('Error: $error',
+                                          style: const TextStyle(
+                                              color: Colors.red)),
                                       const SizedBox(height: 16),
                                       ElevatedButton(
                                         onPressed: refreshData,
@@ -603,81 +616,162 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                                               ? const Center(
                                                   child: Padding(
                                                     padding: EdgeInsets.all(32),
-                                                    child: Text('No members yet.'),
+                                                    child:
+                                                        Text('No members yet.'),
                                                   ),
                                                 )
                                               : ListView.builder(
-                                                  padding: const EdgeInsets.all(16),
+                                                  padding:
+                                                      const EdgeInsets.all(16),
                                                   itemCount: members.length,
-                                                  itemBuilder: (context, index) {
-                                                    final member = members[index];
-                                                    final profile = member['profiles'] as Map<String, dynamic>?;
-                                                    final firstName = profile?['first_name'] ?? '';
-                                                    final lastName = profile?['last_name'] ?? '';
-                                                    final memberName = '$firstName $lastName'.trim();
-                                                    final memberUserId = member['user_id'] as String;
-                                                    final isOwner = _bin?['user_id'] == memberUserId;
-                                                    
+                                                  itemBuilder:
+                                                      (context, index) {
+                                                    final member =
+                                                        members[index];
+                                                    final profile =
+                                                        member['profiles']
+                                                            as Map<String,
+                                                                dynamic>?;
+                                                    final firstName = profile?[
+                                                            'first_name'] ??
+                                                        '';
+                                                    final lastName =
+                                                        profile?['last_name'] ??
+                                                            '';
+                                                    final memberName =
+                                                        '$firstName $lastName'
+                                                            .trim();
+                                                    final memberUserId =
+                                                        member['user_id']
+                                                            as String;
+                                                    final isOwner =
+                                                        _bin?['user_id'] ==
+                                                            memberUserId;
+
                                                     return Card(
-                                                      margin: const EdgeInsets.only(bottom: 8),
+                                                      margin:
+                                                          const EdgeInsets.only(
+                                                              bottom: 8),
                                                       child: ListTile(
-                                                        title: Text(memberName.isEmpty ? 'User ${memberUserId.substring(0, 8)}...' : memberName),
-                                                        subtitle: memberName.isEmpty 
-                                                            ? Text('User ID: ${memberUserId.substring(0, 8)}...', style: const TextStyle(fontSize: 12))
+                                                        title: Text(memberName
+                                                                .isEmpty
+                                                            ? 'User ${memberUserId.substring(0, 8)}...'
+                                                            : memberName),
+                                                        subtitle: memberName
+                                                                .isEmpty
+                                                            ? Text(
+                                                                'User ID: ${memberUserId.substring(0, 8)}...',
+                                                                style:
+                                                                    const TextStyle(
+                                                                        fontSize:
+                                                                            12))
                                                             : null,
                                                         trailing: isOwner
                                                             ? Chip(
-                                                                label: const Text('Owner'),
-                                                                backgroundColor: AppTheme.primaryGreenLight,
+                                                                label:
+                                                                    const Text(
+                                                                        'Owner'),
+                                                                backgroundColor:
+                                                                    AppTheme
+                                                                        .primaryGreenLight,
                                                               )
                                                             : IconButton(
-                                                                icon: const Icon(Icons.remove_circle, color: Colors.red),
-                                                                onPressed: () => handleRemoveMember(memberUserId, memberName),
-                                                                tooltip: 'Remove member',
+                                                                icon: const Icon(
+                                                                    Icons
+                                                                        .remove_circle,
+                                                                    color: Colors
+                                                                        .red),
+                                                                onPressed: () =>
+                                                                    handleRemoveMember(
+                                                                        memberUserId,
+                                                                        memberName),
+                                                                tooltip:
+                                                                    'Remove member',
                                                               ),
                                                       ),
                                                     );
                                                   },
                                                 ),
-                                          
+
                                           // Requests Tab
                                           pendingRequests.isEmpty
                                               ? const Center(
                                                   child: Padding(
                                                     padding: EdgeInsets.all(32),
-                                                    child: Text('No pending requests.'),
+                                                    child: Text(
+                                                        'No pending requests.'),
                                                   ),
                                                 )
                                               : ListView.builder(
-                                                  padding: const EdgeInsets.all(16),
-                                                  itemCount: pendingRequests.length,
-                                                  itemBuilder: (context, index) {
-                                                    final request = pendingRequests[index];
-                                                    final profile = request['profiles'] as Map<String, dynamic>?;
-                                                    final firstName = profile?['first_name'] ?? '';
-                                                    final lastName = profile?['last_name'] ?? '';
-                                                    final requesterName = '$firstName $lastName'.trim();
-                                                    final requestId = request['id'] as String;
-                                                    final userId = request['user_id'] as String;
-                                                    
+                                                  padding:
+                                                      const EdgeInsets.all(16),
+                                                  itemCount:
+                                                      pendingRequests.length,
+                                                  itemBuilder:
+                                                      (context, index) {
+                                                    final request =
+                                                        pendingRequests[index];
+                                                    final profile =
+                                                        request['profiles']
+                                                            as Map<String,
+                                                                dynamic>?;
+                                                    final firstName = profile?[
+                                                            'first_name'] ??
+                                                        '';
+                                                    final lastName =
+                                                        profile?['last_name'] ??
+                                                            '';
+                                                    final requesterName =
+                                                        '$firstName $lastName'
+                                                            .trim();
+                                                    final requestId =
+                                                        request['id'] as String;
+                                                    final userId =
+                                                        request['user_id']
+                                                            as String;
+
                                                     return Card(
-                                                      margin: const EdgeInsets.only(bottom: 8),
+                                                      margin:
+                                                          const EdgeInsets.only(
+                                                              bottom: 8),
                                                       child: ListTile(
-                                                        title: Text(requesterName.isEmpty ? 'User ${userId.substring(0, 8)}...' : requesterName),
-                                                        subtitle: requesterName.isEmpty 
-                                                            ? Text('User ID: ${userId.substring(0, 8)}...', style: const TextStyle(fontSize: 12))
+                                                        title: Text(requesterName
+                                                                .isEmpty
+                                                            ? 'User ${userId.substring(0, 8)}...'
+                                                            : requesterName),
+                                                        subtitle: requesterName
+                                                                .isEmpty
+                                                            ? Text(
+                                                                'User ID: ${userId.substring(0, 8)}...',
+                                                                style:
+                                                                    const TextStyle(
+                                                                        fontSize:
+                                                                            12))
                                                             : null,
                                                         trailing: Row(
-                                                          mainAxisSize: MainAxisSize.min,
+                                                          mainAxisSize:
+                                                              MainAxisSize.min,
                                                           children: [
                                                             IconButton(
-                                                              icon: const Icon(Icons.check_circle, color: AppTheme.primaryGreen),
-                                                              onPressed: () => handleApprove(requestId),
-                                                              tooltip: 'Approve',
+                                                              icon: const Icon(
+                                                                  Icons
+                                                                      .check_circle,
+                                                                  color: AppTheme
+                                                                      .primaryGreen),
+                                                              onPressed: () =>
+                                                                  handleApprove(
+                                                                      requestId),
+                                                              tooltip:
+                                                                  'Approve',
                                                             ),
                                                             IconButton(
-                                                              icon: const Icon(Icons.cancel, color: Colors.red),
-                                                              onPressed: () => handleReject(requestId),
+                                                              icon: const Icon(
+                                                                  Icons.cancel,
+                                                                  color: Colors
+                                                                      .red),
+                                                              onPressed: () =>
+                                                                  handleReject(
+                                                                      requestId),
                                                               tooltip: 'Reject',
                                                             ),
                                                           ],
@@ -729,7 +823,8 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
             builder: (context, setSheetState) {
               Future<void> submit() async {
                 if (descController.text.trim().isEmpty) {
-                  setSheetState(() => errorText = 'Please describe the help you need.');
+                  setSheetState(
+                      () => errorText = 'Please describe the help you need.');
                   return;
                 }
                 setSheetState(() {
@@ -834,7 +929,8 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                           context: context,
                           initialDate: dueDate ?? DateTime.now(),
                           firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(const Duration(days: 60)),
+                          lastDate:
+                              DateTime.now().add(const Duration(days: 60)),
                         );
                         if (picked != null) {
                           setSheetState(() => dueDate = picked);
@@ -924,78 +1020,56 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
       },
       child: Scaffold(
         body: CustomScrollView(
-        slivers: [
-          // Header
-          SliverAppBar(
-            expandedHeight: 220,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  CachedNetworkImage(
-                    imageUrl: binImage,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      color: AppTheme.backgroundGray,
-                      child: const Icon(Icons.image, size: 64),
-                    ),
-                    errorWidget: (_, __, ___) => Container(
-                      color: AppTheme.backgroundGray,
-                      child: const Icon(Icons.eco,
-                          size: 64, color: AppTheme.primaryGreen),
-                    ),
-                  ),
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.5),
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.2),
-                        ],
+          slivers: [
+            // Header
+            SliverAppBar(
+              expandedHeight: 220,
+              pinned: true,
+              flexibleSpace: FlexibleSpaceBar(
+                background: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CachedNetworkImage(
+                      imageUrl: binImage,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        color: AppTheme.backgroundGray,
+                        child: const Icon(Icons.image, size: 64),
+                      ),
+                      errorWidget: (_, __, ___) => Container(
+                        color: AppTheme.backgroundGray,
+                        child: const Icon(Icons.eco,
+                            size: 64, color: AppTheme.primaryGreen),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            leading: Padding(
-              padding: const EdgeInsets.all(8),
-              child: IconButton(
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.black54,
-                  shape: const CircleBorder(),
-                ),
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: _popWithResult,
-              ),
-            ),
-            actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.black54,
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.chat, color: Colors.white),
-                    onPressed: () {
-                      // Admin goes to chat list, normal users go directly to chat
-                      if (_isOwner) {
-                        context.push('/bin/${widget.binId}/chat-list');
-                      } else {
-                        context.push('/bin/${widget.binId}/chat');
-                      }
-                    },
-                    tooltip: _isOwner ? 'View Messages' : 'Chat with Admin',
-                  ),
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.5),
+                            Colors.transparent,
+                            Colors.black.withOpacity(0.2),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              if (_isOwner)
+              leading: Padding(
+                padding: const EdgeInsets.all(8),
+                child: IconButton(
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.black54,
+                    shape: const CircleBorder(),
+                  ),
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: _popWithResult,
+                ),
+              ),
+              actions: [
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: Container(
@@ -1004,229 +1078,258 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.admin_panel_settings, color: Colors.white),
-                      onPressed: () => _showAdminPanel(context),
-                      tooltip: 'Manage Bin',
-                    ),
-                  ),
-                ),
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.black54,
-                    shape: BoxShape.circle,
-                  ),
-                  child: PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, color: Colors.white),
-                    color: Colors.white,
-                    onSelected: (value) {
-                      if (value == 'share') _shareBin();
-                      if (value == 'qr') _showQrCodeDialog();
-                      if (value == 'photo' && _isOwner) _changePhoto();
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'share',
-                        child: ListTile(
-                          leading: Icon(Icons.share),
-                          title: Text('Share'),
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'qr',
-                        child: ListTile(
-                          leading: Icon(Icons.qr_code),
-                          title: Text('QR Code'),
-                        ),
-                      ),
-                      if (_isOwner)
-                        const PopupMenuItem(
-                          value: 'photo',
-                          child: ListTile(
-                            leading: Icon(Icons.photo_library),
-                            title: Text('Edit Image'),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          
-          // Bin info
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Text(
-                    _bin!['name'] as String? ?? 'Bin',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryGreen,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: _getHealthColor(healthStatus),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      healthStatus,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: _getHealthTextColor(healthStatus),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Stats
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _StatTile(
-                          value: temperature != null ? '$temperature°C' : '-°C',
-                          label: 'Temp',
-                          icon: Icons.thermostat,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _StatTile(
-                          value: moisture?.toString() ?? '-',
-                          label: 'Moisture',
-                          icon: Icons.water_drop,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _StatTile(
-                          value: flips?.toString() ?? '-',
-                          label: 'Flips',
-                          icon: Icons.refresh,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          // Action buttons
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () async {
-                        final result = await context.push('/bin/${widget.binId}/log');
-                        if (result == true) {
-                          _hasUpdates = true;
-                          _loadBin();
+                      icon: const Icon(Icons.chat, color: Colors.white),
+                      onPressed: () {
+                        // Admin goes to chat list, normal users go directly to chat
+                        if (_isOwner) {
+                          context.push('/bin/${widget.binId}/chat-list');
+                        } else {
+                          context.push('/bin/${widget.binId}/chat');
                         }
                       },
-                      icon: const Icon(Icons.add),
-                      label: const Text('Log Activity'),
+                      tooltip: _isOwner ? 'View Messages' : 'Chat with Admin',
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _showHelpSheet,
-                      icon: const Text('💪'),
-                      label: const Text('Ask for Help'),
+                ),
+                if (_isOwner)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.admin_panel_settings,
+                            color: Colors.white),
+                        onPressed: () => _showAdminPanel(context),
+                        tooltip: 'Manage Bin',
+                      ),
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
-          
-          // Tabs
-          SliverToBoxAdapter(
-            child: DefaultTabController(
-              length: 2,
-              child: Column(
-                children: [
-                  TabBar(
-                    tabs: const [
-                      Tab(icon: Icon(Icons.timeline), text: 'Activity'),
-                      Tab(icon: Icon(Icons.school), text: 'Guides'),
-                    ],
-                    labelColor: AppTheme.primaryGreen,
-                    unselectedLabelColor: AppTheme.textGray,
-                    indicatorColor: AppTheme.primaryGreen,
-                  ),
-                  SizedBox(
-                    height: MediaQuery.of(context).size.height * 0.5,
-                    child: TabBarView(
-                      children: [
-                        // Activity Tab
-                        _buildActivityTab(),
-                        // Guides Tab
-                        _buildGuidesTab(),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert, color: Colors.white),
+                      color: Colors.white,
+                      onSelected: (value) {
+                        if (value == 'share') _shareBin();
+                        if (value == 'qr') _showQrCodeDialog();
+                        if (value == 'photo' && _isOwner) _changePhoto();
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'share',
+                          child: ListTile(
+                            leading: Icon(Icons.share),
+                            title: Text('Share'),
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'qr',
+                          child: ListTile(
+                            leading: Icon(Icons.qr_code),
+                            title: Text('QR Code'),
+                          ),
+                        ),
+                        if (_isOwner)
+                          const PopupMenuItem(
+                            value: 'photo',
+                            child: ListTile(
+                              leading: Icon(Icons.photo_library),
+                              title: Text('Edit Image'),
+                            ),
+                          ),
                       ],
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ),
-          
-          // Delete or Leave button
-          if (_canDelete)
+
+            // Bin info
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red.shade600,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: _isDeleting ? null : _confirmDelete,
-                  child: _isDeleting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Delete Bin'),
-                ),
-              ),
-            )
-          else if (!_isOwner) // Member but not owner
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.orange.shade700,
-                    side: BorderSide(color: Colors.orange.shade700, width: 2),
-                  ),
-                  onPressed: _isDeleting ? null : _confirmLeave,
-                  child: _isDeleting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Leave Bin'),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Text(
+                      _bin!['name'] as String? ?? 'Bin',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryGreen,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _getHealthColor(healthStatus),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        healthStatus,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _getHealthTextColor(healthStatus),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Stats
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _StatTile(
+                            value:
+                                temperature != null ? '$temperature°C' : '-°C',
+                            label: 'Temp',
+                            icon: Icons.thermostat,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _StatTile(
+                            value: moisture?.toString() ?? '-',
+                            label: 'Moisture',
+                            icon: Icons.water_drop,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _StatTile(
+                            value: flips?.toString() ?? '-',
+                            label: 'Flips',
+                            icon: Icons.refresh,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
-        ],
-      ),
+
+            // Action buttons
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          final result =
+                              await context.push('/bin/${widget.binId}/log');
+                          if (result == true) {
+                            _hasUpdates = true;
+                            _loadBin();
+                          }
+                        },
+                        icon: const Icon(Icons.add),
+                        label: const Text('Log Activity'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _showHelpSheet,
+                        icon: const Text('💪'),
+                        label: const Text('Ask for Help'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Tabs
+            SliverToBoxAdapter(
+              child: DefaultTabController(
+                length: 2,
+                child: Column(
+                  children: [
+                    TabBar(
+                      tabs: const [
+                        Tab(icon: Icon(Icons.timeline), text: 'Activity'),
+                        Tab(icon: Icon(Icons.school), text: 'Guides'),
+                      ],
+                      labelColor: AppTheme.primaryGreen,
+                      unselectedLabelColor: AppTheme.textGray,
+                      indicatorColor: AppTheme.primaryGreen,
+                    ),
+                    SizedBox(
+                      height: MediaQuery.of(context).size.height * 0.5,
+                      child: TabBarView(
+                        children: [
+                          // Activity Tab
+                          _buildActivityTab(),
+                          // Guides Tab
+                          _buildGuidesTab(),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Delete or Leave button
+            if (_canDelete)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red.shade600,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: _isDeleting ? null : _confirmDelete,
+                    child: _isDeleting
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text('Delete Bin'),
+                  ),
+                ),
+              )
+            else if (!_isOwner) // Member but not owner
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.orange.shade700,
+                      side: BorderSide(color: Colors.orange.shade700, width: 2),
+                    ),
+                    onPressed: _isDeleting ? null : _confirmLeave,
+                    child: _isDeleting
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Leave Bin'),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -1258,12 +1361,12 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                 ),
               )
             else
-              ..._activities.take(_logsToShow).map((activity) => 
-                ActivityTimelineItem(
-                  activity: activity,
-                  onTap: () => _showLogDetail(activity),
-                ),
-              ),
+              ..._activities.take(_logsToShow).map(
+                    (activity) => ActivityTimelineItem(
+                      activity: activity,
+                      onTap: () => _showLogDetail(activity),
+                    ),
+                  ),
             if (_activities.length > _logsToShow)
               Center(
                 child: TextButton(
@@ -1272,7 +1375,8 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                       _logsToShow += 7;
                     });
                   },
-                  child: Text('Load ${_activities.length - _logsToShow} more logs'),
+                  child: Text(
+                      'Load ${_activities.length - _logsToShow} more logs'),
                 ),
               ),
           ],
@@ -1287,7 +1391,6 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
       isOwner: _isOwner,
     );
   }
-
 }
 
 class _StatTile extends StatelessWidget {
@@ -1344,7 +1447,8 @@ class _BinFoodWasteGuideContent extends StatefulWidget {
   });
 
   @override
-  State<_BinFoodWasteGuideContent> createState() => _BinFoodWasteGuideContentState();
+  State<_BinFoodWasteGuideContent> createState() =>
+      _BinFoodWasteGuideContentState();
 }
 
 class _BinFoodWasteGuideContentState extends State<_BinFoodWasteGuideContent> {
@@ -1352,7 +1456,7 @@ class _BinFoodWasteGuideContentState extends State<_BinFoodWasteGuideContent> {
   final TextEditingController _newCanAddController = TextEditingController();
   final TextEditingController _newCannotAddController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
-  
+
   Map<String, dynamic>? _guide;
   bool _isLoading = true;
   String? _error;
@@ -1380,13 +1484,15 @@ class _BinFoodWasteGuideContentState extends State<_BinFoodWasteGuideContent> {
     });
 
     try {
-      final guide = await _educationalService.getBinFoodWasteGuide(widget.binId);
+      final guide =
+          await _educationalService.getBinFoodWasteGuide(widget.binId);
       if (mounted) {
         setState(() {
           _guide = guide;
           if (guide != null) {
             _canAddItems = List<String>.from(guide['can_add'] as List? ?? []);
-            _cannotAddItems = List<String>.from(guide['cannot_add'] as List? ?? []);
+            _cannotAddItems =
+                List<String>.from(guide['cannot_add'] as List? ?? []);
             _notesController.text = guide['notes'] as String? ?? '';
           } else {
             _canAddItems = [];
@@ -1418,7 +1524,9 @@ class _BinFoodWasteGuideContentState extends State<_BinFoodWasteGuideContent> {
         binId: widget.binId,
         canAdd: _canAddItems,
         cannotAdd: _cannotAddItems,
-        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+        notes: _notesController.text.trim().isEmpty
+            ? null
+            : _notesController.text.trim(),
       );
 
       if (mounted) {
@@ -1491,7 +1599,8 @@ class _BinFoodWasteGuideContentState extends State<_BinFoodWasteGuideContent> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                    Text('Error: $_error',
+                        style: const TextStyle(color: Colors.red)),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _loadGuide,
@@ -1529,7 +1638,8 @@ class _BinFoodWasteGuideContentState extends State<_BinFoodWasteGuideContent> {
                               children: [
                                 Row(
                                   children: [
-                                    const Icon(Icons.check_circle, color: Colors.green),
+                                    const Icon(Icons.check_circle,
+                                        color: Colors.green),
                                     const SizedBox(width: 8),
                                     const Text(
                                       'Can Add',
@@ -1551,9 +1661,13 @@ class _BinFoodWasteGuideContentState extends State<_BinFoodWasteGuideContent> {
                                           decoration: InputDecoration(
                                             hintText: 'Add new item...',
                                             border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(8),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                             ),
-                                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 8),
                                           ),
                                           onSubmitted: (_) => _addCanAddItem(),
                                         ),
@@ -1561,7 +1675,8 @@ class _BinFoodWasteGuideContentState extends State<_BinFoodWasteGuideContent> {
                                       const SizedBox(width: 8),
                                       IconButton(
                                         onPressed: _addCanAddItem,
-                                        icon: const Icon(Icons.add_circle, color: Colors.green),
+                                        icon: const Icon(Icons.add_circle,
+                                            color: Colors.green),
                                         tooltip: 'Add item',
                                       ),
                                     ],
@@ -1618,22 +1733,29 @@ class _BinFoodWasteGuideContentState extends State<_BinFoodWasteGuideContent> {
                                           decoration: InputDecoration(
                                             hintText: 'Add new item...',
                                             border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(8),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                             ),
-                                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 8),
                                           ),
-                                          onSubmitted: (_) => _addCannotAddItem(),
+                                          onSubmitted: (_) =>
+                                              _addCannotAddItem(),
                                         ),
                                       ),
                                       const SizedBox(width: 8),
                                       IconButton(
                                         onPressed: _addCannotAddItem,
-                                        icon: const Icon(Icons.add_circle, color: Colors.red),
+                                        icon: const Icon(Icons.add_circle,
+                                            color: Colors.red),
                                         tooltip: 'Add item',
                                       ),
                                     ],
                                   ),
-                                if (widget.isOwner && _cannotAddItems.isNotEmpty)
+                                if (widget.isOwner &&
+                                    _cannotAddItems.isNotEmpty)
                                   const SizedBox(height: 12),
                                 if (_cannotAddItems.isEmpty)
                                   const Text(
@@ -1641,13 +1763,15 @@ class _BinFoodWasteGuideContentState extends State<_BinFoodWasteGuideContent> {
                                     style: TextStyle(color: AppTheme.textGray),
                                   )
                                 else
-                                  ..._cannotAddItems.map((item) => _GuideItemTile(
-                                        item: item,
-                                        color: Colors.red,
-                                        onDelete: widget.isOwner
-                                            ? () => _removeCannotAddItem(item)
-                                            : null,
-                                      )),
+                                  ..._cannotAddItems
+                                      .map((item) => _GuideItemTile(
+                                            item: item,
+                                            color: Colors.red,
+                                            onDelete: widget.isOwner
+                                                ? () =>
+                                                    _removeCannotAddItem(item)
+                                                : null,
+                                          )),
                               ],
                             ),
                           ),
@@ -1672,7 +1796,8 @@ class _BinFoodWasteGuideContentState extends State<_BinFoodWasteGuideContent> {
                                       ? TextField(
                                           controller: _notesController,
                                           decoration: const InputDecoration(
-                                            hintText: 'Add any additional notes...',
+                                            hintText:
+                                                'Add any additional notes...',
                                             border: OutlineInputBorder(),
                                           ),
                                           maxLines: 5,
@@ -1680,20 +1805,25 @@ class _BinFoodWasteGuideContentState extends State<_BinFoodWasteGuideContent> {
                                         )
                                       : Text(
                                           _guide?['notes'] as String? ?? '',
-                                          style: const TextStyle(color: AppTheme.textGray),
+                                          style: const TextStyle(
+                                              color: AppTheme.textGray),
                                         ),
                                 ],
                               ),
                             ),
                           ),
                         ],
-                        if (widget.isOwner && _guide == null && _canAddItems.isEmpty && _cannotAddItems.isEmpty)
+                        if (widget.isOwner &&
+                            _guide == null &&
+                            _canAddItems.isEmpty &&
+                            _cannotAddItems.isEmpty)
                           Center(
                             child: Padding(
                               padding: const EdgeInsets.all(32),
                               child: Column(
                                 children: [
-                                  const Icon(Icons.info_outline, size: 48, color: AppTheme.textGray),
+                                  const Icon(Icons.info_outline,
+                                      size: 48, color: AppTheme.textGray),
                                   const SizedBox(height: 16),
                                   const Text(
                                     'No guidelines set yet. Start by adding items above.',
@@ -1736,7 +1866,9 @@ class _GuideItemTile extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            color == Colors.green ? Icons.check_circle_outline : Icons.cancel_outlined,
+            color == Colors.green
+                ? Icons.check_circle_outline
+                : Icons.cancel_outlined,
             color: color,
             size: 20,
           ),
@@ -1745,7 +1877,9 @@ class _GuideItemTile extends StatelessWidget {
             child: Text(
               item,
               style: TextStyle(
-                color: color == Colors.green ? Colors.green.shade700 : Colors.red.shade700,
+                color: color == Colors.green
+                    ? Colors.green.shade700
+                    : Colors.red.shade700,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
@@ -1765,4 +1899,3 @@ class _GuideItemTile extends StatelessWidget {
     );
   }
 }
-

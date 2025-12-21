@@ -20,7 +20,7 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
   final _contentController = TextEditingController();
   final _temperatureController = TextEditingController();
   final _weightController = TextEditingController();
-  
+
   String? _selectedType;
   String? _selectedMoisture;
   Map<String, bool> _materials = {
@@ -91,8 +91,8 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
       return _materials.values.every((v) => v);
     }
     if (_selectedType == 'Monitor') {
-      return _temperatureController.text.isNotEmpty && 
-             _selectedMoisture != null;
+      return _temperatureController.text.isNotEmpty &&
+          _selectedMoisture != null;
     }
     return true;
   }
@@ -195,7 +195,7 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                 ],
               ),
               const SizedBox(height: 24),
-              
+
               // Materials checkboxes
               if (_selectedType == 'Add Materials') ...[
                 Container(
@@ -216,7 +216,8 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                       ),
                       const SizedBox(height: 12),
                       CheckboxListTile(
-                        title: const Text('Greens (e.g. fresh leaves, compostable food waste)'),
+                        title: const Text(
+                            'Greens (e.g. fresh leaves, compostable food waste)'),
                         value: _materials['greens'],
                         onChanged: (value) {
                           setState(() {
@@ -250,7 +251,7 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                 ),
                 const SizedBox(height: 16),
               ],
-              
+
               // Temperature and Moisture
               if (_selectedType == 'Monitor') ...[
                 TextFormField(
@@ -294,7 +295,7 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                 ),
                 const SizedBox(height: 16),
               ],
-              
+
               // Content
               TextFormField(
                 controller: _contentController,
@@ -306,7 +307,7 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                 enabled: _selectedType != null,
               ),
               const SizedBox(height: 16),
-              
+
               // Image picker
               if (_imageFile != null)
                 Image.file(
@@ -320,7 +321,7 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                 icon: const Icon(Icons.camera_alt),
                 label: const Text('Add Photo (Optional)'),
               ),
-              
+
               if (_error != null) ...[
                 const SizedBox(height: 16),
                 Container(
@@ -335,7 +336,7 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                   ),
                 ),
               ],
-              
+
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
@@ -386,7 +387,8 @@ class _ActionButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: Container(
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryGreen : AppTheme.primaryGreenLight,
+          color:
+              isSelected ? AppTheme.primaryGreen : AppTheme.primaryGreenLight,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -412,4 +414,3 @@ class _ActionButton extends StatelessWidget {
     );
   }
 }
-

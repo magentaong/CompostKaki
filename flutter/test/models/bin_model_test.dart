@@ -34,7 +34,7 @@ void main() {
       expect(binData['latest_moisture'], null);
       expect(binData['health_status'], null);
       expect(binData['image'], null);
-      
+
       // Should not throw errors
       final temp = binData['latest_temperature'] as int?;
       final moisture = binData['latest_moisture'] as String?;
@@ -51,8 +51,16 @@ void main() {
 
       expect(getContributorCount({'contributors_list': null}), 0);
       expect(getContributorCount({'contributors_list': []}), 0);
-      expect(getContributorCount({'contributors_list': ['user1']}), 1);
-      expect(getContributorCount({'contributors_list': ['user1', 'user2', 'user3']}), 3);
+      expect(
+          getContributorCount({
+            'contributors_list': ['user1']
+          }),
+          1);
+      expect(
+          getContributorCount({
+            'contributors_list': ['user1', 'user2', 'user3']
+          }),
+          3);
     });
 
     test('checks if user is bin owner', () {
@@ -61,7 +69,7 @@ void main() {
       }
 
       final bin = {'user_id': 'owner-123'};
-      
+
       expect(isOwner(bin, 'owner-123'), true);
       expect(isOwner(bin, 'other-user'), false);
       expect(isOwner(bin, ''), false);
@@ -77,7 +85,7 @@ void main() {
       final bin = {
         'contributors_list': ['user-1', 'user-2', 'user-3']
       };
-      
+
       expect(isMember(bin, 'user-1'), true);
       expect(isMember(bin, 'user-2'), true);
       expect(isMember(bin, 'user-4'), false);
@@ -109,7 +117,7 @@ void main() {
 
     test('handles different log types correctly', () {
       final logTypes = ['Monitor', 'Add', 'Flip', 'Other'];
-      
+
       for (final type in logTypes) {
         final log = {'type': type, 'content': 'Test'};
         expect(log['type'], type);
@@ -119,26 +127,19 @@ void main() {
 
     test('validates log has required fields', () {
       bool hasRequiredFields(Map<String, dynamic> log) {
-        return log.containsKey('bin_id') && 
-               log.containsKey('type') && 
-               log.containsKey('content');
+        return log.containsKey('bin_id') &&
+            log.containsKey('type') &&
+            log.containsKey('content');
       }
 
-      expect(hasRequiredFields({
-        'bin_id': '123',
-        'type': 'Monitor',
-        'content': 'Test'
-      }), true);
+      expect(
+          hasRequiredFields(
+              {'bin_id': '123', 'type': 'Monitor', 'content': 'Test'}),
+          true);
 
-      expect(hasRequiredFields({
-        'type': 'Monitor',
-        'content': 'Test'
-      }), false);
+      expect(hasRequiredFields({'type': 'Monitor', 'content': 'Test'}), false);
 
-      expect(hasRequiredFields({
-        'bin_id': '123',
-        'content': 'Test'
-      }), false);
+      expect(hasRequiredFields({'bin_id': '123', 'content': 'Test'}), false);
     });
   });
 
@@ -163,11 +164,11 @@ void main() {
 
     test('handles task status transitions correctly', () {
       final validStatuses = ['open', 'in_progress', 'completed'];
-      
+
       for (final status in validStatuses) {
         expect(validStatuses.contains(status), true);
       }
-      
+
       expect(validStatuses.contains('invalid'), false);
     });
 
@@ -182,9 +183,9 @@ void main() {
 
     test('checks if user can accept task', () {
       bool canAccept(Map<String, dynamic> task, String userId) {
-        return task['status'] == 'open' && 
-               task['creator_id'] != userId &&
-               task['assigned_to'] == null;
+        return task['status'] == 'open' &&
+            task['creator_id'] != userId &&
+            task['assigned_to'] == null;
       }
 
       final task = {
@@ -195,14 +196,13 @@ void main() {
 
       expect(canAccept(task, 'other-user'), true);
       expect(canAccept(task, 'creator-123'), false);
-      
+
       task['assigned_to'] = 'someone';
       expect(canAccept(task, 'other-user'), false);
-      
+
       task['assigned_to'] = null;
       task['status'] = 'completed';
       expect(canAccept(task, 'other-user'), false);
     });
   });
 }
-

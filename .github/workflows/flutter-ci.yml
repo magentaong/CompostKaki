@@ -131,6 +131,15 @@ jobs:
       working-directory: ./flutter
       run: flutter pub get
     
+    - name: Install CocoaPods
+      run: |
+        sudo gem install cocoapods
+        pod --version
+    
+    - name: Install iOS dependencies
+      working-directory: ./flutter/ios
+      run: pod install --repo-update
+    
     - name: Build iOS (No Codesign)
       working-directory: ./flutter
       run: flutter build ios --release --no-codesign
@@ -138,9 +147,19 @@ jobs:
     - name: Create IPA
       working-directory: ./flutter
       run: |
+        if [ ! -d "build/ios/iphoneos/Runner.app" ]; then
+          echo "Error: Runner.app not found in build/ios/iphoneos/"
+          ls -la build/ios/iphoneos/ || echo "Directory does not exist"
+          exit 1
+        fi
         mkdir -p Payload
         cp -r build/ios/iphoneos/Runner.app Payload/
         zip -r app.ipa Payload
+        if [ ! -f "app.ipa" ]; then
+          echo "Error: Failed to create app.ipa"
+          exit 1
+        fi
+        echo "IPA created successfully: $(ls -lh app.ipa)"
     
     - name: Upload IPA
       uses: actions/upload-artifact@v4

@@ -3,7 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('SignupScreen Widget Tests', () {
-    testWidgets('displays all required input fields', (WidgetTester tester) async {
+    testWidgets('displays all required input fields',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -107,7 +108,8 @@ void main() {
       expect(wasTapped, true);
     });
 
-    testWidgets('displays error for empty first name', (WidgetTester tester) async {
+    testWidgets('displays error for empty first name',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -183,9 +185,9 @@ void main() {
       }
 
       expect(validatePassword(''), 'Password is required');
-      expect(validatePassword('12345'), 'Password must be at least 6 characters');
+      expect(
+          validatePassword('12345'), 'Password must be at least 6 characters');
       expect(validatePassword('123456'), null);
     });
   });
 }
-

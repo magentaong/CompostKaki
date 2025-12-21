@@ -132,7 +132,8 @@ void main() {
       expect(find.byType(TextButton), findsOneWidget);
     });
 
-    testWidgets('shows loading indicator when processing', (WidgetTester tester) async {
+    testWidgets('shows loading indicator when processing',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -146,7 +147,8 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('displays error message when login fails', (WidgetTester tester) async {
+    testWidgets('displays error message when login fails',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(

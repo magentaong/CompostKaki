@@ -24,7 +24,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   final BinService _binService = BinService();
   final TaskService _taskService = TaskService();
-  
+
   List<Map<String, dynamic>> _bins = [];
   List<Map<String, dynamic>> _tasks = [];
   bool _isLoading = true;
@@ -46,17 +46,17 @@ class _MainScreenState extends State<MainScreen> {
 
     try {
       final bins = await _binService.getUserBins();
-      
+
       // Get log count
       int logCount = 0;
       for (var bin in bins) {
         final logs = await _binService.getBinLogs(bin['id'] as String);
         logCount += logs.length;
       }
-      
+
       // Always fetch tasks so community tab is ready
       final tasks = await _taskService.getCommunityTasks();
-      
+
       if (mounted) {
         setState(() {
           _bins = bins;
@@ -95,7 +95,8 @@ class _MainScreenState extends State<MainScreen> {
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Request Under Review'),
-            content: const Text('Your request to join this bin is currently under review by the bin owner. You will be notified once your request is approved.'),
+            content: const Text(
+                'Your request to join this bin is currently under review by the bin owner. You will be notified once your request is approved.'),
             actions: [
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
@@ -107,7 +108,7 @@ class _MainScreenState extends State<MainScreen> {
       }
       return;
     }
-    
+
     final result = await context.push('/bin/$binId');
     if (result == true) {
       await _loadData();
@@ -255,7 +256,7 @@ class _MainScreenState extends State<MainScreen> {
               ),
             ),
           ),
-          
+
           // Header
           SliverToBoxAdapter(
             child: Padding(
@@ -281,13 +282,13 @@ class _MainScreenState extends State<MainScreen> {
               ),
             ),
           ),
-          
+
           // Bins list
           if (sortedBins.isEmpty)
             SliverFillRemaining(
               child: _EmptyState(
                 onJoinBin: () => _showJoinBinDialog(context),
-              onCreateBin: _openAddBin,
+                onCreateBin: _openAddBin,
               ),
             )
           else
@@ -312,10 +313,11 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _buildCommunityTab() {
     final newTasks = _tasks.where((t) => t['status'] == 'open').toList();
-    final ongoingTasks = _tasks.where((t) => 
-      t['status'] == 'accepted' && 
-      t['accepted_by'] == _taskService.currentUserId
-    ).toList();
+    final ongoingTasks = _tasks
+        .where((t) =>
+            t['status'] == 'accepted' &&
+            t['accepted_by'] == _taskService.currentUserId)
+        .toList();
 
     return RefreshIndicator(
       onRefresh: _loadTasks,
@@ -345,14 +347,14 @@ class _MainScreenState extends State<MainScreen> {
                       )
                     else
                       ...newTasks.map((task) => TaskCard(
-                        task: task,
-                        bins: _bins,
-                        onTap: () => _showTaskDetail(task),
-                      )),
+                            task: task,
+                            bins: _bins,
+                            onTap: () => _showTaskDetail(task),
+                          )),
                     const SizedBox(height: 24),
                   ],
                 ),
-                
+
                 // Ongoing Tasks
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -373,10 +375,10 @@ class _MainScreenState extends State<MainScreen> {
                       )
                     else
                       ...ongoingTasks.map((task) => TaskCard(
-                        task: task,
-                        bins: _bins,
-                        onTap: () => _showTaskDetail(task),
-                      )),
+                            task: task,
+                            bins: _bins,
+                            onTap: () => _showTaskDetail(task),
+                          )),
                   ],
                 ),
               ]),
@@ -401,10 +403,11 @@ class _MainScreenState extends State<MainScreen> {
             final isOwner = bin['user_id'] == currentUserId;
             final isMember = contributors.contains(currentUserId);
             final isAlreadyPartOfBin = isOwner || isMember;
-            final hasPendingRequest = await _binService.hasPendingRequest(binId);
-            
+            final hasPendingRequest =
+                await _binService.hasPendingRequest(binId);
+
             if (!context.mounted) return;
-            
+
             if (isAlreadyPartOfBin) {
               // User is already part of this bin
               final goToBin = await showDialog<bool>(
@@ -424,34 +427,36 @@ class _MainScreenState extends State<MainScreen> {
                   ],
                 ),
               );
-              
+
               if (goToBin == true && context.mounted) {
                 Navigator.pop(context);
                 await _openBin(binId);
               }
               return;
             }
-            
+
             if (hasPendingRequest) {
               // User already has a pending request
               if (context.mounted) {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('You already have a pending request to join "$binName".'),
+                    content: Text(
+                        'You already have a pending request to join "$binName".'),
                     backgroundColor: AppTheme.primaryGreen,
                   ),
                 );
               }
               return;
             }
-            
+
             // Show confirmation dialog
             final confirmed = await showDialog<bool>(
               context: context,
               builder: (context) => AlertDialog(
                 title: const Text('Request to Join Bin'),
-                content: Text('You are not part of "$binName". Would you like to request to join? The bin owner will review your request.'),
+                content: Text(
+                    'You are not part of "$binName". Would you like to request to join? The bin owner will review your request.'),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(context, false),
@@ -464,16 +469,17 @@ class _MainScreenState extends State<MainScreen> {
                 ],
               ),
             );
-            
+
             if (confirmed != true) return;
-            
+
             // Now request to join the bin
             await _binService.requestToJoinBin(binId);
             if (context.mounted) {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Request sent to join "$binName"! The owner will review your request.'),
+                  content: Text(
+                      'Request sent to join "$binName"! The owner will review your request.'),
                   backgroundColor: AppTheme.primaryGreen,
                 ),
               );
@@ -500,24 +506,26 @@ class _MainScreenState extends State<MainScreen> {
           final picker = ImagePicker();
           final picked = await picker.pickImage(source: ImageSource.gallery);
           if (picked == null) return null;
-          
+
           try {
             final controller = MobileScannerController();
             final result = await controller.analyzeImage(picked.path);
             await controller.dispose();
-            
+
             if (result?.barcodes.isNotEmpty ?? false) {
               final rawValue = result!.barcodes.first.rawValue;
               if (rawValue != null) {
-                final uuidRegex = RegExp(r'([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})');
+                final uuidRegex = RegExp(
+                    r'([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})');
                 final match = uuidRegex.firstMatch(rawValue);
                 if (match != null) return match.group(1);
               }
             }
-            
+
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('No QR code detected in that image.')),
+                const SnackBar(
+                    content: Text('No QR code detected in that image.')),
               );
             }
           } catch (e) {
@@ -719,8 +727,7 @@ class _MainScreenState extends State<MainScreen> {
                   subtitle: Text(bin['location'] as String? ?? ''),
                   onTap: () async {
                     Navigator.pop(sheetContext);
-                    final result =
-                        await context.push('/bin/${bin['id']}/log');
+                    final result = await context.push('/bin/${bin['id']}/log');
                     if (result == true && mounted) {
                       _loadData();
                     }
@@ -732,7 +739,6 @@ class _MainScreenState extends State<MainScreen> {
       ),
     );
   }
-
 }
 
 class _StatCard extends StatelessWidget {
@@ -860,7 +866,7 @@ class _JoinBinDialogState extends State<_JoinBinDialog> {
   Future<void> _joinBin() async {
     final text = _controller.text;
     final binId = _extractBinId(text);
-    
+
     if (binId == null) {
       setState(() {
         _error = 'Please enter a valid bin ID, link, or scan a QR code.';
@@ -883,7 +889,8 @@ class _JoinBinDialogState extends State<_JoinBinDialog> {
 
   String? _extractBinId(String? text) {
     if (text == null) return null;
-    final uuidRegex = RegExp(r'([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})');
+    final uuidRegex = RegExp(
+        r'([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})');
     final match = uuidRegex.firstMatch(text);
     return match?.group(1);
   }

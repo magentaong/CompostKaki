@@ -6,16 +6,16 @@ import 'supabase_service.dart';
 
 class AuthService extends ChangeNotifier {
   final SupabaseService _supabaseService = SupabaseService();
-  
+
   User? get currentUser => _supabaseService.currentUser;
   bool get isAuthenticated => _supabaseService.isAuthenticated;
-  
+
   AuthService() {
     _supabaseService.client.auth.onAuthStateChange.listen((data) {
       notifyListeners();
     });
   }
-  
+
   // Sign up
   Future<AuthResponse> signUp({
     required String email,
@@ -31,7 +31,7 @@ class AuthService extends ChangeNotifier {
         'last_name': lastName,
       },
     );
-    
+
     if (response.user != null) {
       // Create profile
       await _supabaseService.client.from('profiles').upsert({
@@ -40,11 +40,11 @@ class AuthService extends ChangeNotifier {
         'last_name': lastName,
       });
     }
-    
+
     notifyListeners();
     return response;
   }
-  
+
   // Sign in
   Future<AuthResponse> signIn({
     required String email,
@@ -57,7 +57,7 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
     return response;
   }
-  
+
   // Sign out
   Future<void> signOut() async {
     await _supabaseService.client.auth.signOut();
@@ -91,7 +91,7 @@ class AuthService extends ChangeNotifier {
 
     notifyListeners();
   }
-  
+
   // Reset password - sends password reset email
   Future<void> resetPassword(String email) async {
     await _supabaseService.client.auth.resetPasswordForEmail(
@@ -116,13 +116,13 @@ class AuthService extends ChangeNotifier {
     } catch (e) {
       final error = e.toString().toLowerCase();
       // If error says "invalid login credentials", email exists but password is wrong
-      if (error.contains('invalid login credentials') || 
+      if (error.contains('invalid login credentials') ||
           error.contains('invalid credentials') ||
           error.contains('email and password')) {
         return true; // Email exists
       }
       // If error says "user not found" or "email not found", email doesn't exist
-      if (error.contains('user not found') || 
+      if (error.contains('user not found') ||
           error.contains('email not found') ||
           error.contains('no user found')) {
         return false; // Email doesn't exist
@@ -148,7 +148,7 @@ class AuthService extends ChangeNotifier {
     const apiBaseUrl = 'https://compostkaki.vercel.app';
 
     final url = Uri.parse('$apiBaseUrl/api/user/delete');
-    
+
     try {
       // Use POST instead of DELETE for better compatibility
       // The API route supports both methods
@@ -173,22 +173,24 @@ class AuthService extends ChangeNotifier {
       } else {
         // Handle error response
         String errorMessage = 'Failed to delete account';
-        
+
         if (response.body.isNotEmpty) {
           try {
             final errorData = jsonDecode(response.body);
             errorMessage = errorData['error'] ?? errorMessage;
           } catch (e) {
             // If response is not valid JSON, use the raw body or status code
-            errorMessage = 'Failed to delete account (Status: ${response.statusCode})';
+            errorMessage =
+                'Failed to delete account (Status: ${response.statusCode})';
             if (response.body.isNotEmpty) {
               errorMessage += ': ${response.body}';
             }
           }
         } else {
-          errorMessage = 'Failed to delete account (Status: ${response.statusCode})';
+          errorMessage =
+              'Failed to delete account (Status: ${response.statusCode})';
         }
-        
+
         throw Exception(errorMessage);
       }
     } catch (e) {
@@ -200,4 +202,3 @@ class AuthService extends ChangeNotifier {
     }
   }
 }
-

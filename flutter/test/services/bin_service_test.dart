@@ -10,7 +10,7 @@ String calculateHealthStatus(int? temperature, String? moisture) {
   if (moisture == 'Very Dry' || moisture == 'Very Wet') {
     return 'Critical';
   }
-  
+
   // Needs Attention conditions
   if (temperature != null && (temperature < 30 || temperature > 60)) {
     return 'Needs Attention';
@@ -18,14 +18,13 @@ String calculateHealthStatus(int? temperature, String? moisture) {
   if (moisture == 'Dry' || moisture == 'Wet') {
     return 'Needs Attention';
   }
-  
+
   // Healthy (temperature 30-60°C, moisture Perfect)
   return 'Healthy';
 }
 
 void main() {
   group('BinService - Health Status Calculation', () {
-
     group('Critical Status', () {
       test('returns Critical when temperature is below 20°C', () {
         final status = calculateHealthStatus(15, 'Perfect');
@@ -57,7 +56,8 @@ void main() {
         expect(status, 'Critical');
       });
 
-      test('returns Critical for low temperature even with perfect moisture', () {
+      test('returns Critical for low temperature even with perfect moisture',
+          () {
         final status = calculateHealthStatus(10, 'Perfect');
         expect(status, 'Critical');
       });
@@ -101,7 +101,8 @@ void main() {
     });
 
     group('Healthy Status', () {
-      test('returns Healthy when temperature is 30-60°C with Perfect moisture', () {
+      test('returns Healthy when temperature is 30-60°C with Perfect moisture',
+          () {
         final status = calculateHealthStatus(45, 'Perfect');
         expect(status, 'Healthy');
       });
@@ -116,7 +117,8 @@ void main() {
         expect(status, 'Healthy');
       });
 
-      test('returns Healthy when only temperature is optimal (null moisture)', () {
+      test('returns Healthy when only temperature is optimal (null moisture)',
+          () {
         final status = calculateHealthStatus(45, null);
         expect(status, 'Healthy');
       });
@@ -126,7 +128,8 @@ void main() {
         expect(status, 'Healthy');
       });
 
-      test('returns Healthy when temperature is null and moisture is Perfect', () {
+      test('returns Healthy when temperature is null and moisture is Perfect',
+          () {
         final status = calculateHealthStatus(null, 'Perfect');
         expect(status, 'Healthy');
       });

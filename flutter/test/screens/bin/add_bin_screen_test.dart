@@ -21,7 +21,8 @@ void main() {
       expect(find.byType(TextField), findsOneWidget);
     });
 
-    testWidgets('bin name field accepts text input', (WidgetTester tester) async {
+    testWidgets('bin name field accepts text input',
+        (WidgetTester tester) async {
       final controller = TextEditingController();
 
       await tester.pumpWidget(
@@ -94,7 +95,8 @@ void main() {
       expect(find.byIcon(Icons.add_photo_alternate), findsOneWidget);
     });
 
-    testWidgets('displays join existing bin option', (WidgetTester tester) async {
+    testWidgets('displays join existing bin option',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -109,7 +111,8 @@ void main() {
       expect(find.textContaining('join an existing bin'), findsOneWidget);
     });
 
-    testWidgets('shows loading indicator when creating', (WidgetTester tester) async {
+    testWidgets('shows loading indicator when creating',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -123,7 +126,8 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('displays error message for empty bin name', (WidgetTester tester) async {
+    testWidgets('displays error message for empty bin name',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -182,7 +186,8 @@ void main() {
       }
 
       final longName = 'a' * 51;
-      expect(validateBinName(longName), 'Bin name must be less than 50 characters');
+      expect(validateBinName(longName),
+          'Bin name must be less than 50 characters');
       expect(validateBinName('Normal Length Name'), null);
     });
   });
@@ -251,4 +256,3 @@ void main() {
     });
   });
 }
-
