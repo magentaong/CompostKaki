@@ -246,5 +246,22 @@ class ChatService {
     
     return channel;
   }
+
+  // Methods for AdminChatScreen (general admin chat)
+  // Note: These require context - AdminChatScreen should be updated to accept binId/userId
+  Future<List<Map<String, dynamic>>> getMessages() async {
+    // Return empty list - AdminChatScreen needs binId/userId to work properly
+    return [];
+  }
+
+  RealtimeChannel subscribeToMessages(Function(Map<String, dynamic>) onNewMessage) {
+    // Return a dummy channel - AdminChatScreen needs binId to work properly
+    return _supabaseService.client.channel('admin_chat_dummy');
+  }
+
+  Future<void> sendMessage(String message) async {
+    // Throw error - AdminChatScreen needs binId to work properly
+    throw Exception('AdminChatScreen requires binId. Use BinChatConversationScreen instead.');
+  }
 }
 
