@@ -202,7 +202,9 @@ class _BinFoodWasteGuideScreenState extends State<BinFoodWasteGuideScreen> {
                         else ...[
                           // Can Add Section
                           Card(
-                            color: Colors.green.shade50,
+                            color: widget.isOwner
+                                ? Colors.green.shade50
+                                : Colors.grey.shade50,
                             child: Padding(
                               padding: const EdgeInsets.all(16),
                               child: Column(
@@ -210,15 +212,19 @@ class _BinFoodWasteGuideScreenState extends State<BinFoodWasteGuideScreen> {
                                 children: [
                                   Row(
                                     children: [
-                                      const Icon(Icons.check_circle,
-                                          color: Colors.green),
+                                      Icon(Icons.check_circle,
+                                          color: widget.isOwner
+                                              ? Colors.green
+                                              : Colors.black87),
                                       const SizedBox(width: 8),
-                                      const Text(
+                                      Text(
                                         'Can Add',
                                         style: TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
-                                          color: Colors.green,
+                                          color: widget.isOwner
+                                              ? Colors.green
+                                              : Colors.black87,
                                         ),
                                       ),
                                     ],
@@ -249,8 +255,10 @@ class _BinFoodWasteGuideScreenState extends State<BinFoodWasteGuideScreen> {
                                         const SizedBox(width: 8),
                                         IconButton(
                                           onPressed: _addCanAddItem,
-                                          icon: const Icon(Icons.add_circle,
-                                              color: Colors.green),
+                                          icon: Icon(Icons.add_circle,
+                                              color: widget.isOwner
+                                                  ? Colors.green
+                                                  : Colors.black87),
                                           tooltip: 'Add item',
                                         ),
                                       ],
@@ -267,7 +275,11 @@ class _BinFoodWasteGuideScreenState extends State<BinFoodWasteGuideScreen> {
                                   else
                                     ..._canAddItems.map((item) => _ItemTile(
                                           item: item,
-                                          color: Colors.green,
+                                          color: widget.isOwner
+                                              ? Colors.green
+                                              : Colors.black87,
+                                          isOwner: widget.isOwner,
+                                          isCanAdd: true,
                                           onDelete: widget.isOwner
                                               ? () => _removeCanAddItem(item)
                                               : null,
@@ -279,7 +291,9 @@ class _BinFoodWasteGuideScreenState extends State<BinFoodWasteGuideScreen> {
                           const SizedBox(height: 16),
                           // Cannot Add Section
                           Card(
-                            color: Colors.red.shade50,
+                            color: widget.isOwner
+                                ? Colors.red.shade50
+                                : Colors.grey.shade50,
                             child: Padding(
                               padding: const EdgeInsets.all(16),
                               child: Column(
@@ -287,15 +301,19 @@ class _BinFoodWasteGuideScreenState extends State<BinFoodWasteGuideScreen> {
                                 children: [
                                   Row(
                                     children: [
-                                      const Icon(Icons.cancel,
-                                          color: Colors.red),
+                                      Icon(Icons.cancel,
+                                          color: widget.isOwner
+                                              ? Colors.red
+                                              : Colors.black87),
                                       const SizedBox(width: 8),
-                                      const Text(
+                                      Text(
                                         'Cannot Add',
                                         style: TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
-                                          color: Colors.red,
+                                          color: widget.isOwner
+                                              ? Colors.red
+                                              : Colors.black87,
                                         ),
                                       ),
                                     ],
@@ -326,8 +344,10 @@ class _BinFoodWasteGuideScreenState extends State<BinFoodWasteGuideScreen> {
                                         const SizedBox(width: 8),
                                         IconButton(
                                           onPressed: _addCannotAddItem,
-                                          icon: const Icon(Icons.add_circle,
-                                              color: Colors.red),
+                                          icon: Icon(Icons.add_circle,
+                                              color: widget.isOwner
+                                                  ? Colors.red
+                                                  : Colors.black87),
                                           tooltip: 'Add item',
                                         ),
                                       ],
@@ -345,7 +365,11 @@ class _BinFoodWasteGuideScreenState extends State<BinFoodWasteGuideScreen> {
                                   else
                                     ..._cannotAddItems.map((item) => _ItemTile(
                                           item: item,
-                                          color: Colors.red,
+                                          color: widget.isOwner
+                                              ? Colors.red
+                                              : Colors.black87,
+                                          isOwner: widget.isOwner,
+                                          isCanAdd: false,
                                           onDelete: widget.isOwner
                                               ? () => _removeCannotAddItem(item)
                                               : null,
@@ -426,31 +450,49 @@ class _BinFoodWasteGuideScreenState extends State<BinFoodWasteGuideScreen> {
 class _ItemTile extends StatelessWidget {
   final String item;
   final Color color;
+  final bool isOwner;
+  final bool isCanAdd;
   final VoidCallback? onDelete;
 
   const _ItemTile({
     required this.item,
     required this.color,
+    required this.isOwner,
+    required this.isCanAdd,
     this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
+    // For normal users, use black/white/gray colors
+    final displayColor = isOwner ? color : Colors.black87;
+    final backgroundColor = isOwner
+        ? color.withOpacity(0.1)
+        : Colors.grey.shade100;
+    final borderColor = isOwner
+        ? color.withOpacity(0.3)
+        : Colors.grey.shade300;
+    final textColor = isOwner
+        ? (color == Colors.green
+            ? Colors.green.shade700
+            : Colors.red.shade700)
+        : Colors.black87;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: borderColor),
       ),
       child: Row(
         children: [
           Icon(
-            color == Colors.green
+            isCanAdd
                 ? Icons.check_circle_outline
                 : Icons.cancel_outlined,
-            color: color,
+            color: displayColor,
             size: 20,
           ),
           const SizedBox(width: 12),
@@ -458,9 +500,7 @@ class _ItemTile extends StatelessWidget {
             child: Text(
               item,
               style: TextStyle(
-                color: color == Colors.green
-                    ? Colors.green.shade700
-                    : Colors.red.shade700,
+                color: textColor,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
