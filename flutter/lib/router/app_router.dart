@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
@@ -48,7 +49,13 @@ class AppRouter {
       ),
       GoRoute(
         path: '/main',
-        builder: (context, state) => const MainScreen(),
+        builder: (context, state) {
+          final tab = state.uri.queryParameters['tab'];
+          // Don't use ValueKey to allow MainScreen to preserve state
+          return MainScreen(
+            initialTab: tab == 'tasks' ? 1 : 0,
+          );
+        },
       ),
       GoRoute(
         path: '/bin/:id',

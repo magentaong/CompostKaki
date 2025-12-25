@@ -66,5 +66,7 @@ flutter:
   
   assets:
     - assets/images/
+    - assets/images/badges/
+    - assets/images/mascot/
     - assets/icons/
 

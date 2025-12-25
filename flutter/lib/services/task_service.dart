@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_service.dart';
+import 'xp_service.dart';
 
 class TaskService {
   final SupabaseService _supabaseService = SupabaseService();
@@ -76,22 +77,99 @@ class TaskService {
   }
 
   // Accept task
-  Future<void> acceptTask(String taskId) async {
+  Future<Map<String, dynamic>?> acceptTask(String taskId) async {
     final user = _supabaseService.currentUser;
     if (user == null) throw Exception('Not authenticated');
+
+    // Get task to find bin_id
+    final taskResponse = await _supabaseService.client
+        .from('tasks')
+        .select('bin_id')
+        .eq('id', taskId)
+        .single();
+    final binId = taskResponse['bin_id'] as String?;
 
     await _supabaseService.client.from('tasks').update({
       'status': 'accepted',
       'accepted_by': user.id,
       'accepted_at': DateTime.now().toIso8601String(),
     }).eq('id', taskId);
+
+    // Award XP for accepting task
+    Map<String, dynamic>? xpResult;
+    if (binId != null) {
+      try {
+        final xpService = XPService();
+        xpResult = await xpService.awardXPForTaskAccept(binId: binId);
+      } catch (e) {
+        print('Error awarding XP: $e');
+      }
+    }
+    return xpResult;
   }
 
   // Complete task
-  Future<void> completeTask(String taskId) async {
+  Future<Map<String, dynamic>?> completeTask(String taskId) async {
+    // Get task to find bin_id
+    final taskResponse = await _supabaseService.client
+        .from('tasks')
+        .select('bin_id')
+        .eq('id', taskId)
+        .single();
+    final binId = taskResponse['bin_id'] as String?;
+
     await _supabaseService.client.from('tasks').update({
       'status': 'completed',
     }).eq('id', taskId);
+
+    // Award XP for completing task
+    Map<String, dynamic>? xpResult;
+    if (binId != null) {
+      try {
+        final xpService = XPService();
+        xpResult = await xpService.awardXPForTaskCompletion(binId: binId);
+        // Check for badges after awarding XP
+        final newBadges = await xpService.checkAndAwardBadges();
+        if (xpResult != null && newBadges.isNotEmpty) {
+          xpResult['badgesEarned'] = newBadges;
+        }
+      } catch (e) {
+        print('Error awarding XP: $e');
+      }
+    }
+    return xpResult;
+  }
+
+  // Unassign task (release task back to open status)
+  Future<Map<String, dynamic>?> unassignTask(String taskId) async {
+    final user = _supabaseService.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    // Get task to find bin_id
+    final taskResponse = await _supabaseService.client
+        .from('tasks')
+        .select('bin_id')
+        .eq('id', taskId)
+        .single();
+    final binId = taskResponse['bin_id'] as String?;
+
+    await _supabaseService.client.from('tasks').update({
+      'status': 'open',
+      'accepted_by': null,
+      'accepted_at': null,
+    }).eq('id', taskId);
+
+    // Apply penalty for unassigning
+    Map<String, dynamic>? xpResult;
+    if (binId != null) {
+      try {
+        final xpService = XPService();
+        xpResult = await xpService.penaltyForUnassign(binId: binId);
+      } catch (e) {
+        print('Error applying penalty: $e');
+      }
+    }
+    return xpResult;
   }
 
   // Create task
@@ -118,6 +196,14 @@ class TaskService {
       'photo_url': photoUrl,
       'status': 'open',
     });
+
+    // Award XP for posting a task
+    try {
+      final xpService = XPService();
+      await xpService.awardXPForTaskPost(binId: binId);
+    } catch (e) {
+      print('Error awarding XP: $e');
+    }
   }
 
   // Delete task
