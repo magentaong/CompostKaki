@@ -12,6 +12,7 @@ import '../../services/task_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/activity_timeline_item.dart';
 import '../../widgets/compost_loading_animation.dart';
+import '../../widgets/bin_leaderboard_widget.dart';
 import '../../services/educational_service.dart';
 
 class BinDetailScreen extends StatefulWidget {
@@ -139,9 +140,9 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
   }
 
   void _popWithResult() {
-    if (Navigator.of(context).canPop()) {
-      context.pop(_hasUpdates);
-    }
+    // Always navigate to Home tab explicitly
+    // This ensures we don't go to Tasks tab
+    context.go('/main?tab=home');
   }
 
   Future<void> _confirmDelete() async {
@@ -1277,37 +1278,65 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
               ),
             ),
 
-            // Action buttons
+            // Action buttons - Sticky
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _StickyButtonsDelegate(
+                child: SizedBox(
+                  height: 108,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                final result =
+                                    await context.push('/bin/${widget.binId}/log');
+                                if (result == true) {
+                                  _hasUpdates = true;
+                                  _loadBin();
+                                }
+                              },
+                              icon: const Icon(Icons.add, size: 18),
+                              label: const Text('Log Activity'),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Expanded(
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: _showHelpSheet,
+                              icon: const Text('💪', style: TextStyle(fontSize: 16)),
+                              label: const Text('Ask for Help'),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Leaderboard
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  children: [
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () async {
-                          final result =
-                              await context.push('/bin/${widget.binId}/log');
-                          if (result == true) {
-                            _hasUpdates = true;
-                            _loadBin();
-                          }
-                        },
-                        icon: const Icon(Icons.add),
-                        label: const Text('Log Activity'),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: _showHelpSheet,
-                        icon: const Text('💪'),
-                        label: const Text('Ask for Help'),
-                      ),
-                    ),
-                  ],
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: BinLeaderboardWidget(
+                  key: ValueKey('leaderboard_${_activities.length}_${DateTime.now().millisecondsSinceEpoch}'),
+                  binId: widget.binId,
                 ),
               ),
             ),
@@ -1394,52 +1423,49 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
   }
 
   Widget _buildActivityTab() {
-    return RefreshIndicator(
-      onRefresh: _loadBin,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Activity Timeline',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Activity Timeline',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (_activities.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32),
+                child: Text(
+                  'No activities logged yet.',
+                  style: TextStyle(color: AppTheme.textGray),
+                ),
+              ),
+            )
+          else
+            ..._activities.take(_logsToShow).map(
+                  (activity) => ActivityTimelineItem(
+                    activity: activity,
+                    onTap: () => _showLogDetail(activity),
+                  ),
+                ),
+          if (_activities.length > _logsToShow)
+            Center(
+              child: TextButton(
+                onPressed: () {
+                  setState(() {
+                    _logsToShow += 7;
+                  });
+                },
+                child: Text(
+                    'Load ${_activities.length - _logsToShow} more logs'),
               ),
             ),
-            const SizedBox(height: 16),
-            if (_activities.isEmpty)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(32),
-                  child: Text(
-                    'No activities logged yet.',
-                    style: TextStyle(color: AppTheme.textGray),
-                  ),
-                ),
-              )
-            else
-              ..._activities.take(_logsToShow).map(
-                    (activity) => ActivityTimelineItem(
-                      activity: activity,
-                      onTap: () => _showLogDetail(activity),
-                    ),
-                  ),
-            if (_activities.length > _logsToShow)
-              Center(
-                child: TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _logsToShow += 7;
-                    });
-                  },
-                  child: Text(
-                      'Load ${_activities.length - _logsToShow} more logs'),
-                ),
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -1449,6 +1475,37 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
       binId: widget.binId,
       isOwner: _isOwner,
     );
+  }
+}
+
+// Delegate for sticky buttons
+class _StickyButtonsDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+
+  _StickyButtonsDelegate({required this.child});
+
+  @override
+  double get minExtent => 108; // Minimum height: 2 buttons (48px each) + spacing (6px) + padding (8px) = 110px, but use 108 for safety
+
+  @override
+  double get maxExtent => 108; // Maximum height
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      constraints: BoxConstraints(
+        minHeight: minExtent,
+        maxHeight: maxExtent,
+      ),
+      child: child,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_StickyButtonsDelegate oldDelegate) {
+    return child != oldDelegate.child;
   }
 }
 

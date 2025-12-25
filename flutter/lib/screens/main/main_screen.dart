@@ -6,10 +6,13 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../services/bin_service.dart';
 import '../../services/task_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/xp_service.dart';
+import '../../widgets/xp_floating_animation.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/bin_card.dart';
 import '../../widgets/task_card.dart';
 import '../../widgets/compost_loading_animation.dart';
+import '../../widgets/kaki_mascot_widget.dart';
 import '../bin/add_bin_screen.dart';
 import '../bin/join_bin_scanner_screen.dart';
 import '../profile/profile_screen.dart';
@@ -26,9 +29,11 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   final BinService _binService = BinService();
   final TaskService _taskService = TaskService();
+  final XPService _xpService = XPService();
 
   List<Map<String, dynamic>> _bins = [];
   List<Map<String, dynamic>> _tasks = [];
+  Map<String, dynamic>? _xpStats;
   bool _isLoading = true;
   bool _isLoadingBins = false; // Separate flag for loading bins in background
   String? _error;
@@ -52,7 +57,13 @@ class _MainScreenState extends State<MainScreen> {
         return;
       }
     }
-    _loadData();
+    // Only load data if we don't already have bins (to avoid reload on navigation back)
+    if (_bins.isEmpty) {
+      _loadData();
+    } else {
+      // We already have data, just mark as not loading
+      _isLoading = false;
+    }
   }
 
   @override
@@ -71,6 +82,10 @@ class _MainScreenState extends State<MainScreen> {
           });
           if (targetTab == 1) {
             _loadTasks();
+          }
+          // If switching to home tab and we have no bins loaded, reload
+          if (targetTab == 0 && _bins.isEmpty && !_isLoading && !_isLoadingBins) {
+            _loadData();
           }
         }
       });
@@ -96,11 +111,20 @@ class _MainScreenState extends State<MainScreen> {
       // Always fetch tasks so community tab is ready
       final tasks = await _taskService.getCommunityTasks();
 
+      // Load XP stats for Kaki mascot
+      Map<String, dynamic>? xpStats;
+      try {
+        xpStats = await _xpService.getUserStats();
+      } catch (e) {
+        // Silently fail - XP stats are optional
+      }
+
       if (mounted) {
         setState(() {
           _bins = bins;
           _userLogCount = logCount;
           _tasks = tasks;
+          _xpStats = xpStats;
           _isLoading = false;
         });
       }
@@ -184,6 +208,12 @@ class _MainScreenState extends State<MainScreen> {
     final result = await context.push('/bin/$binId');
     if (result == true) {
       await _loadData();
+    }
+    // Ensure we're on Home tab when returning from bin
+    if (mounted && _selectedIndex != 0) {
+      setState(() {
+        _selectedIndex = 0;
+      });
     }
   }
 
@@ -306,6 +336,17 @@ class _MainScreenState extends State<MainScreen> {
       onRefresh: _loadData,
       child: CustomScrollView(
         slivers: [
+          // Kaki Mascot
+          SliverToBoxAdapter(
+            child: KakiMascotWidget(
+              bins: _bins,
+              xpStats: _xpStats,
+              onTap: () {
+                // Optional: Add any action when Kaki is tapped
+                // Could show a dialog, navigate, etc.
+              },
+            ),
+          ),
           // Stats
           SliverToBoxAdapter(
             child: Padding(
@@ -623,31 +664,77 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _showTaskDetail(Map<String, dynamic> task) {
+    // Capture parent context before showing dialog
+    final parentContext = context;
+    
     showDialog(
       context: context,
-      builder: (context) => _TaskDetailDialog(
+      builder: (dialogContext) => _TaskDetailDialog(
         task: task,
         bins: _bins,
         onAccept: () async {
-          await _taskService.acceptTask(task['id']);
+          // Show animation immediately (before closing dialog)
+          showXPFloatingAnimation(
+            dialogContext,
+            xpAmount: 5, // Show immediately with expected value
+            isLevelUp: false,
+          );
+          
+          final xpResult = await _taskService.acceptTask(task['id']);
           _updateLocalTask(task['id'], {
             'status': 'accepted',
             'accepted_by': _taskService.currentUserId,
           });
-          if (mounted) _loadTasks();
+          if (mounted) {
+            _loadTasks();
+            // Close dialog after a short delay to let animation start
+            await Future.delayed(const Duration(milliseconds: 300));
+            Navigator.pop(dialogContext);
+          }
         },
         onComplete: () async {
-          await _taskService.completeTask(task['id']);
+          final xpResult = await _taskService.completeTask(task['id']);
           _updateLocalTask(task['id'], {'status': 'completed'});
-          if (mounted) _loadTasks();
+          if (mounted) {
+            _loadTasks();
+            // Close dialog first
+            Navigator.pop(dialogContext);
+            // Wait a bit for dialog to close
+            await Future.delayed(const Duration(milliseconds: 200));
+            // Show celebration using parent context
+            if (xpResult != null && parentContext.mounted) {
+              final xpGained = (xpResult['xpGained'] as int?) ?? 25; // Default to 25 for task completion
+              final isLevelUp = (xpResult['levelUp'] as bool?) ?? false;
+              
+              if (xpGained > 0) {
+                showXPFloatingAnimation(
+                  parentContext,
+                  xpAmount: xpGained,
+                  isLevelUp: isLevelUp,
+                );
+              }
+            }
+          }
         },
         onUnassign: () async {
-          await _taskService.unassignTask(task['id']);
+          // Show penalty animation immediately
+          showXPFloatingAnimation(
+            dialogContext,
+            xpAmount: -5, // Show penalty immediately
+            isLevelUp: false,
+          );
+          
+          final xpResult = await _taskService.unassignTask(task['id']);
           _updateLocalTask(task['id'], {
             'status': 'open',
             'accepted_by': null,
           });
-          if (mounted) _loadTasks();
+          if (mounted) {
+            _loadTasks();
+            // Close dialog after a short delay to let animation start
+            await Future.delayed(const Duration(milliseconds: 300));
+            Navigator.pop(dialogContext);
+          }
         },
       ),
     );
@@ -1345,7 +1432,6 @@ class _TaskDetailDialog extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: () {
                       onComplete();
-                      Navigator.pop(context);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryGreen,
@@ -1360,8 +1446,8 @@ class _TaskDetailDialog extends StatelessWidget {
                   width: double.infinity,
                   child: OutlinedButton(
                     onPressed: () {
-                      onUnassign();
                       Navigator.pop(context);
+                      onUnassign();
                     },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.orange,
@@ -1378,7 +1464,6 @@ class _TaskDetailDialog extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: () {
                       onAccept();
-                      Navigator.pop(context);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryGreen,

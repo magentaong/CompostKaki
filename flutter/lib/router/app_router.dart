@@ -51,9 +51,8 @@ class AppRouter {
         path: '/main',
         builder: (context, state) {
           final tab = state.uri.queryParameters['tab'];
-          // Use a key based on tab to force widget recreation when tab changes
+          // Don't use ValueKey to allow MainScreen to preserve state
           return MainScreen(
-            key: ValueKey('main_${tab ?? 'home'}'),
             initialTab: tab == 'tasks' ? 1 : 0,
           );
         },

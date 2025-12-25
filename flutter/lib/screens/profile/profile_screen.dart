@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/supabase_service.dart';
+import '../../services/xp_service.dart';
 import '../../theme/app_theme.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -14,11 +16,19 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? _profile;
+  Map<String, dynamic>? _xpStats;
+  List<Map<String, dynamic>> _badges = [];
+  Map<String, int>? _badgeProgressStats;
+  bool _isLoadingStats = true;
+  final XPService _xpService = XPService();
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
+    _loadXPStats();
+    _loadBadges();
+    _loadBadgeProgress();
   }
 
   Future<void> _loadProfile() async {
@@ -42,6 +52,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } catch (e) {
       // Silently fail - we'll fall back to userMetadata
+    }
+  }
+
+  Future<void> _loadXPStats() async {
+    try {
+      final stats = await _xpService.getUserStats();
+      if (mounted) {
+        setState(() {
+          _xpStats = stats;
+          _isLoadingStats = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingStats = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadBadges() async {
+    try {
+      final badges = await _xpService.getUserBadges();
+      if (mounted) {
+        setState(() {
+          _badges = badges;
+        });
+      }
+    } catch (e) {
+      // Silently fail
+    }
+  }
+
+  Future<void> _loadBadgeProgress() async {
+    try {
+      final progressStats = await _xpService.getBadgeProgressStats();
+      if (mounted) {
+        setState(() {
+          _badgeProgressStats = progressStats;
+        });
+      }
+    } catch (e) {
+      // Silently fail
     }
   }
 
@@ -191,6 +245,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
+          ),
+          const SizedBox(height: 16),
+
+          // XP & Level Display
+          if (_xpStats != null) _XPLevelCard(stats: _xpStats!),
+          const SizedBox(height: 16),
+
+          // Stats Overview
+          if (_xpStats != null) _StatsOverviewCard(stats: _xpStats!),
+          const SizedBox(height: 16),
+
+          // Badges Collection
+          _BadgesCard(
+            badges: _badges,
+            progressStats: _badgeProgressStats,
           ),
           const SizedBox(height: 16),
 
@@ -437,6 +506,684 @@ class _DeleteAccountDialog extends StatelessWidget {
             foregroundColor: Colors.white,
           ),
           child: const Text('Delete Account'),
+        ),
+      ],
+    );
+  }
+}
+
+// XP & Level Display Card
+class _XPLevelCard extends StatelessWidget {
+  final Map<String, dynamic> stats;
+
+  const _XPLevelCard({required this.stats});
+
+  @override
+  Widget build(BuildContext context) {
+    final totalXP = stats['totalXP'] as int;
+    final currentLevel = stats['currentLevel'] as int;
+    final xpProgress = stats['xpProgress'] as int;
+    final xpNeeded = stats['xpNeeded'] as int;
+    final progress = xpNeeded > 0 ? (xpProgress / xpNeeded).clamp(0.0, 1.0) : 1.0;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Level $currentLevel',
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryGreen,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$totalXP XP',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: AppTheme.textGray,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryGreen.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Level $currentLevel',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryGreen,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Progress to Next Level',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textGray,
+                      ),
+                    ),
+                    Text(
+                      '$xpProgress / $xpNeeded XP',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryGreen,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 12,
+                    backgroundColor: AppTheme.backgroundGray,
+                    valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryGreen),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Stats Overview Card
+class _StatsOverviewCard extends StatelessWidget {
+  final Map<String, dynamic> stats;
+
+  const _StatsOverviewCard({required this.stats});
+
+  @override
+  Widget build(BuildContext context) {
+    final streakDays = stats['streakDays'] as int;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Stats',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _StatItem(
+                    icon: Icons.local_fire_department,
+                    label: 'Streak',
+                    value: '$streakDays days',
+                    color: Colors.orange,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _StatItem(
+                    icon: Icons.star,
+                    label: 'Level',
+                    value: '${stats['currentLevel']}',
+                    color: AppTheme.primaryGreen,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _StatItem(
+                    icon: Icons.workspace_premium,
+                    label: 'Total XP',
+                    value: '${stats['totalXP']}',
+                    color: Colors.amber,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _StatItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 28),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppTheme.textGray,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// Badges Collection Card
+class _BadgesCard extends StatefulWidget {
+  final List<Map<String, dynamic>> badges;
+  final Map<String, int>? progressStats;
+
+  const _BadgesCard({
+    required this.badges,
+    this.progressStats,
+  });
+
+  @override
+  State<_BadgesCard> createState() => _BadgesCardState();
+}
+
+class _BadgesCardState extends State<_BadgesCard> {
+  bool _showAll = false;
+
+  // Fallback emojis for badges (used if images not found)
+  String _getFallbackEmoji(String badgeId) {
+    const fallbackEmojis = {
+      'first_log': '🌱',
+      'log_10': '📝',
+      'log_50': '🔥',
+      'log_100': '📊',
+      'complete_1': '✅',
+      'complete_5': '🤝',
+      'complete_10': '⭐',
+      'complete_25': '🏅',
+      'streak_3': '🔥',
+      'streak_7': '💪',
+      'streak_30': '🌟',
+      'streak_100': '👑',
+    };
+    return fallbackEmojis[badgeId] ?? '🏆';
+  }
+
+  // Calculate progress for a badge
+  Map<String, dynamic> _getBadgeProgress(String badgeId) {
+    if (widget.progressStats == null) {
+      return {'current': 0, 'target': 1, 'progress': 0.0};
+    }
+
+    final stats = widget.progressStats!;
+    final totalLogs = stats['totalLogs'] ?? 0;
+    final totalTasks = stats['totalTasks'] ?? 0;
+    final streakDays = stats['streakDays'] ?? 0;
+
+    switch (badgeId) {
+      case 'first_log':
+        return {
+          'current': totalLogs,
+          'target': 1,
+          'progress': (totalLogs / 1).clamp(0.0, 1.0),
+        };
+      case 'log_10':
+        return {
+          'current': totalLogs,
+          'target': 10,
+          'progress': (totalLogs / 10).clamp(0.0, 1.0),
+        };
+      case 'log_50':
+        return {
+          'current': totalLogs,
+          'target': 50,
+          'progress': (totalLogs / 50).clamp(0.0, 1.0),
+        };
+      case 'log_100':
+        return {
+          'current': totalLogs,
+          'target': 100,
+          'progress': (totalLogs / 100).clamp(0.0, 1.0),
+        };
+      case 'complete_1':
+        return {
+          'current': totalTasks,
+          'target': 1,
+          'progress': (totalTasks / 1).clamp(0.0, 1.0),
+        };
+      case 'complete_5':
+        return {
+          'current': totalTasks,
+          'target': 5,
+          'progress': (totalTasks / 5).clamp(0.0, 1.0),
+        };
+      case 'complete_10':
+        return {
+          'current': totalTasks,
+          'target': 10,
+          'progress': (totalTasks / 10).clamp(0.0, 1.0),
+        };
+      case 'complete_25':
+        return {
+          'current': totalTasks,
+          'target': 25,
+          'progress': (totalTasks / 25).clamp(0.0, 1.0),
+        };
+      case 'streak_3':
+        return {
+          'current': streakDays,
+          'target': 3,
+          'progress': (streakDays / 3).clamp(0.0, 1.0),
+        };
+      case 'streak_7':
+        return {
+          'current': streakDays,
+          'target': 7,
+          'progress': (streakDays / 7).clamp(0.0, 1.0),
+        };
+      case 'streak_30':
+        return {
+          'current': streakDays,
+          'target': 30,
+          'progress': (streakDays / 30).clamp(0.0, 1.0),
+        };
+      case 'streak_100':
+        return {
+          'current': streakDays,
+          'target': 100,
+          'progress': (streakDays / 100).clamp(0.0, 1.0),
+        };
+      default:
+        return {'current': 0, 'target': 1, 'progress': 0.0};
+    }
+  }
+
+  // Badge definitions
+  static const Map<String, Map<String, dynamic>> badgeDefinitions = {
+    'first_log': {
+      'name': 'First Steps',
+      'imagePath': 'assets/images/badges/badge_first_log.png',
+      'description': 'Logged your first activity',
+    },
+    'log_10': {
+      'name': 'Dedicated Logger',
+      'imagePath': 'assets/images/badges/badge_first_10.png', // Using existing file
+      'description': 'Logged 10 activities',
+    },
+    'log_50': {
+      'name': 'On Fire',
+      'imagePath': 'assets/images/badges/badge_first_50.png', // Using existing file
+      'description': 'Logged 50 activities',
+    },
+    'log_100': {
+      'name': 'Data Master',
+      'imagePath': 'assets/images/badges/badge_log_100.png',
+      'description': 'Logged 100 activities',
+    },
+    'complete_1': {
+      'name': 'Helper',
+      'imagePath': 'assets/images/badges/badge_complete_1.png',
+      'description': 'Completed 1 task',
+    },
+    'complete_5': {
+      'name': 'Team Player',
+      'imagePath': 'assets/images/badges/badge_complete_5.png',
+      'description': 'Completed 5 tasks',
+    },
+    'complete_10': {
+      'name': 'Task Master',
+      'imagePath': 'assets/images/badges/badge_complete_10.png',
+      'description': 'Completed 10 tasks',
+    },
+    'complete_25': {
+      'name': 'Community Hero',
+      'imagePath': 'assets/images/badges/badge_complete_25.png',
+      'description': 'Completed 25 tasks',
+    },
+    'streak_3': {
+      'name': '3-Day Streak',
+      'imagePath': 'assets/images/badges/badge_streak_3.png',
+      'description': 'Logged 3 days in a row',
+    },
+    'streak_7': {
+      'name': 'Week Warrior',
+      'imagePath': 'assets/images/badges/badge_streak_7.png',
+      'description': '7-day streak',
+    },
+    'streak_30': {
+      'name': 'Month Master',
+      'imagePath': 'assets/images/badges/badge_streak_30.png',
+      'description': '30-day streak',
+    },
+    'streak_100': {
+      'name': 'Consistency King',
+      'imagePath': 'assets/images/badges/badge_streak_100.png',
+      'description': '100-day streak',
+    },
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final earnedBadgeIds = widget.badges.map((b) => b['badge_id'] as String).toSet();
+    
+    // Get earned badges with their info
+    final earnedBadges = badgeDefinitions.entries
+        .where((entry) => earnedBadgeIds.contains(entry.key))
+        .map((entry) => {
+              'id': entry.key,
+              'name': entry.value['name'],
+              'imagePath': entry.value['imagePath'],
+              'description': entry.value['description'],
+            })
+        .toList();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Badges',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (earnedBadges.isNotEmpty)
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _showAll = !_showAll;
+                      });
+                    },
+                    child: Text(
+                      _showAll ? 'Show Earned' : 'View All',
+                      style: TextStyle(
+                        color: AppTheme.primaryGreen,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (!_showAll)
+              // Show only earned badges
+              earnedBadges.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: Center(
+                        child: Text(
+                          'No badges earned yet. Keep logging activities and completing tasks!',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppTheme.textGray,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    )
+                  : Column(
+                      children: earnedBadges.map((badge) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Row(
+                            children: [
+                              // Badge image
+                              Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryGreen.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: AppTheme.primaryGreen,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Image.asset(
+                                    badge['imagePath'] as String,
+                                    width: 40,
+                                    height: 40,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Text(
+                                        _getFallbackEmoji(badge['id'] as String),
+                                        style: const TextStyle(fontSize: 24),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              // Badge name
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      badge['name'] as String,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      badge['description'] as String,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppTheme.textGray,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    )
+            else
+              // Show all badges
+              Column(
+                children: badgeDefinitions.entries.map((entry) {
+                  final badgeId = entry.key;
+                  final badgeInfo = entry.value;
+                  final isEarned = earnedBadgeIds.contains(badgeId);
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      children: [
+                        // Badge image
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: isEarned
+                                ? AppTheme.primaryGreen.withOpacity(0.1)
+                                : Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isEarned
+                                  ? AppTheme.primaryGreen
+                                  : Colors.grey.shade300,
+                              width: isEarned ? 2 : 1,
+                            ),
+                          ),
+                          child: Center(
+                            child: Opacity(
+                              opacity: isEarned ? 1.0 : 0.3,
+                              child: Image.asset(
+                                badgeInfo['imagePath'] as String,
+                                width: 40,
+                                height: 40,
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Text(
+                                    _getFallbackEmoji(badgeId),
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      color: isEarned
+                                          ? null
+                                          : Colors.grey.withOpacity(0.5),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Badge name and description
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    badgeInfo['name'] as String,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: isEarned ? null : AppTheme.textGray,
+                                    ),
+                                  ),
+                                  if (!isEarned) ...[
+                                    const SizedBox(width: 8),
+                                    Icon(
+                                      Icons.lock,
+                                      size: 16,
+                                      color: Colors.grey.shade400,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                badgeInfo['description'] as String,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.textGray,
+                                ),
+                              ),
+                              if (!isEarned && widget.progressStats != null) ...[
+                                const SizedBox(height: 8),
+                                _buildProgressBar(badgeId),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            const SizedBox(height: 8),
+            Text(
+              '${earnedBadgeIds.length} / ${badgeDefinitions.length} badges earned',
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppTheme.textGray,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressBar(String badgeId) {
+    final progress = _getBadgeProgress(badgeId);
+    final current = progress['current'] as int;
+    final target = progress['target'] as int;
+    final progressValue = progress['progress'] as double;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              '$current / $target',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.primaryGreen,
+              ),
+            ),
+            Text(
+              '${(progressValue * 100).toInt()}%',
+              style: TextStyle(
+                fontSize: 11,
+                color: AppTheme.textGray,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: progressValue,
+            minHeight: 6,
+            backgroundColor: Colors.grey.shade200,
+            valueColor: AlwaysStoppedAnimation<Color>(
+              AppTheme.primaryGreen.withOpacity(0.6),
+            ),
+          ),
         ),
       ],
     );

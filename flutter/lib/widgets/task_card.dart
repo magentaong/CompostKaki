@@ -84,9 +84,9 @@ class TaskCard extends StatelessWidget {
                         const Text(
                           'Bin: ',
                           style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textGray,
-                          ),
+                        fontSize: 12,
+                        color: AppTheme.textGray,
+                      ),
                         ),
                         Text(
                           bin['name'] as String? ?? 'Unknown',

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_service.dart';
+import 'xp_service.dart';
 
 class BinNotFoundException implements Exception {
   final String message;
@@ -471,7 +472,7 @@ class BinService {
   }
 
   // Create bin log
-  Future<void> createBinLog({
+  Future<Map<String, dynamic>?> createBinLog({
     required String binId,
     required String type,
     required String content,
@@ -523,6 +524,24 @@ class BinService {
           .update(updates)
           .eq('id', binId);
     }
+
+    // Award XP for logging activity
+    Map<String, dynamic>? xpResult;
+    try {
+      final xpService = XPService();
+      xpResult = await xpService.awardXPForLog(binId: binId, logType: type);
+      // Check for badges after awarding XP
+      final newBadges = await xpService.checkAndAwardBadges();
+      if (xpResult != null && newBadges.isNotEmpty) {
+        xpResult['badgesEarned'] = newBadges;
+      }
+    } catch (e) {
+      // Don't fail log creation if XP awarding fails
+      print('Error awarding XP: $e');
+    }
+    
+    // Return XP result for celebration
+    return xpResult;
   }
 
   Future<String> _uploadFileToBucket({
