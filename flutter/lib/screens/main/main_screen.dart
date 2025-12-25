@@ -171,6 +171,24 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  // Fast refresh - only reload bins, skip log counts, tasks, and XP stats
+  Future<void> _refreshBinsOnly() async {
+    try {
+      // Just reload bins - this is fast since it doesn't fetch logs
+      final bins = await _binService.getUserBins();
+      
+      if (mounted) {
+        setState(() {
+          _bins = bins;
+          // Don't update log count or tasks - keep existing values
+        });
+      }
+    } catch (e) {
+      // Silently fail - if refresh fails, keep existing data
+      debugPrint('Failed to refresh bins: $e');
+    }
+  }
+
   Future<void> _openAddBin() async {
     final result = await context.push('/add-bin');
     if (result is String) {
@@ -206,14 +224,15 @@ class _MainScreenState extends State<MainScreen> {
     }
 
     final result = await context.push('/bin/$binId');
-    if (result == true) {
-      await _loadData();
-    }
-    // Ensure we're on Home tab when returning from bin
-    if (mounted && _selectedIndex != 0) {
-      setState(() {
-        _selectedIndex = 0;
-      });
+    // Fast refresh - only reload bins data, skip tasks and log counts
+    if (mounted) {
+      await _refreshBinsOnly();
+      // Ensure we're on Home tab when returning from bin
+      if (_selectedIndex != 0) {
+        setState(() {
+          _selectedIndex = 0;
+        });
+      }
     }
   }
 
@@ -893,7 +912,7 @@ class _MainScreenState extends State<MainScreen> {
                     Navigator.pop(sheetContext);
                     final result = await context.push('/bin/${bin['id']}/log');
                     if (result == true && mounted) {
-                      _loadData();
+                      _refreshBinsOnly();
                     }
                   },
                 )),

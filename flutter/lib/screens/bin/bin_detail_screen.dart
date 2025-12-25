@@ -140,9 +140,14 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
   }
 
   void _popWithResult() {
-    // Always navigate to Home tab explicitly
-    // This ensures we don't go to Tasks tab
-    context.go('/main?tab=home');
+    // Pop back with result so main screen can refresh
+    // Always return true to indicate data should be refreshed
+    if (Navigator.of(context).canPop()) {
+      context.pop(true); // Always return true to trigger refresh
+    } else {
+      // Can't pop, navigate to home
+      context.go('/main?tab=home');
+    }
   }
 
   Future<void> _confirmDelete() async {
