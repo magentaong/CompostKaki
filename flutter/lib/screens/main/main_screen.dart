@@ -522,20 +522,16 @@ class _MainScreenState extends State<MainScreen> {
               }
             }
 
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('No QR code detected in that image.')),
-              );
-            }
+            // Throw exception instead of showing SnackBar - dialog will catch and display
+            throw Exception('No QR code detected in that image.');
           } catch (e) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Failed to read QR code: $e')),
-              );
+            // If it's already our custom exception, re-throw it
+            if (e.toString().contains('No QR code detected')) {
+              rethrow;
             }
+            // Otherwise, wrap other errors
+            throw Exception('Failed to read QR code: ${e.toString().replaceFirst('Exception: ', '')}');
           }
-          return null;
         },
       ),
     );
@@ -938,11 +934,17 @@ class _JoinBinDialogState extends State<_JoinBinDialog> {
                     onPressed: _isLoading
                         ? null
                         : () async {
-                            final uploaded = await widget.onUploadQR!.call();
-                            if (uploaded != null) {
+                            try {
+                              final uploaded = await widget.onUploadQR!.call();
+                              if (uploaded != null) {
+                                setState(() {
+                                  _controller.text = uploaded;
+                                  _error = null;
+                                });
+                              }
+                            } catch (e) {
                               setState(() {
-                                _controller.text = uploaded;
-                                _error = null;
+                                _error = e.toString().replaceFirst('Exception: ', '');
                               });
                             }
                           },
