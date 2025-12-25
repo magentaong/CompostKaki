@@ -19,8 +19,8 @@ class AppTheme {
   // Urgency Colors
   static const Color urgencyHigh = Color(0xFFE8B5B5);
   static const Color urgencyHighText = Color(0xFF6D2222);
-  static const Color urgencyNormal = Color(0xFFF0E1A6);
-  static const Color urgencyNormalText = Color(0xFF694F00);
+  static const Color urgencyNormal = Color(0xFFCBE7B5); // Green color for normal
+  static const Color urgencyNormalText = Color(0xFF2E7D32); // Dark green text
   static const Color urgencyLow = Color(0xFFDCE8E1);
 
   static ThemeData get lightTheme {

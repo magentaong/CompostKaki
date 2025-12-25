@@ -15,11 +15,11 @@ class TaskCard extends StatelessWidget {
 
   Color _getUrgencyColor(String? urgency) {
     switch (urgency?.toLowerCase()) {
-      case 'high priority':
+      case 'high':
         return AppTheme.urgencyHigh;
       case 'normal':
         return AppTheme.urgencyNormal;
-      case 'low priority':
+      case 'low':
       default:
         return AppTheme.urgencyLow;
     }
@@ -27,11 +27,11 @@ class TaskCard extends StatelessWidget {
 
   Color _getUrgencyTextColor(String? urgency) {
     switch (urgency?.toLowerCase()) {
-      case 'high priority':
+      case 'high':
         return AppTheme.urgencyHighText;
       case 'normal':
         return AppTheme.urgencyNormalText;
-      case 'low priority':
+      case 'low':
       default:
         return Colors.black87;
     }
@@ -48,6 +48,13 @@ class TaskCard extends StatelessWidget {
     final description = task['description'] as String? ?? '';
     final profile = task['profiles'] as Map<String, dynamic>?;
     final firstName = profile?['first_name'] as String? ?? 'Unknown';
+    final status = task['status'] as String? ?? 'open';
+    final acceptedByProfile = task['accepted_by_profile'] as Map<String, dynamic>?;
+    final acceptedByFirstName = acceptedByProfile?['first_name'] as String?;
+    final acceptedByLastName = acceptedByProfile?['last_name'] as String?;
+    final acceptedByName = acceptedByFirstName != null && acceptedByLastName != null
+        ? '$acceptedByFirstName $acceptedByLastName'.trim()
+        : acceptedByFirstName ?? 'Unknown';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -72,12 +79,24 @@ class TaskCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      'Bin: ${bin['name']}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textGray,
-                      ),
+                    Row(
+                      children: [
+                        const Text(
+                          'Bin: ',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textGray,
+                          ),
+                        ),
+                        Text(
+                          bin['name'] as String? ?? 'Unknown',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.primaryGreen,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -87,6 +106,28 @@ class TaskCard extends StatelessWidget {
                         color: AppTheme.textGray,
                       ),
                     ),
+                    if (status == 'accepted' && acceptedByName != 'Unknown') ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Text(
+                            'Taken by: ',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textGray,
+                            ),
+                          ),
+                          Text(
+                            acceptedByName,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.primaryGreen,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),

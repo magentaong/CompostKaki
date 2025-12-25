@@ -641,6 +641,14 @@ class _MainScreenState extends State<MainScreen> {
           _updateLocalTask(task['id'], {'status': 'completed'});
           if (mounted) _loadTasks();
         },
+        onUnassign: () async {
+          await _taskService.unassignTask(task['id']);
+          _updateLocalTask(task['id'], {
+            'status': 'open',
+            'accepted_by': null,
+          });
+          if (mounted) _loadTasks();
+        },
       ),
     );
   }
@@ -1061,13 +1069,64 @@ class _TaskDetailDialog extends StatelessWidget {
   final List<Map<String, dynamic>> bins;
   final VoidCallback onAccept;
   final VoidCallback onComplete;
+  final VoidCallback onUnassign;
 
   const _TaskDetailDialog({
     required this.task,
     required this.bins,
     required this.onAccept,
     required this.onComplete,
+    required this.onUnassign,
   });
+
+  Color _getUrgencyColor(String? urgency) {
+    switch (urgency?.toLowerCase()) {
+      case 'high':
+        return AppTheme.urgencyHigh;
+      case 'normal':
+        return AppTheme.urgencyNormal;
+      case 'low':
+      default:
+        return AppTheme.urgencyLow;
+    }
+  }
+
+  Color _getUrgencyTextColor(String? urgency) {
+    switch (urgency?.toLowerCase()) {
+      case 'high':
+        return AppTheme.urgencyHighText;
+      case 'normal':
+        return AppTheme.urgencyNormalText;
+      case 'low':
+      default:
+        return Colors.black87;
+    }
+  }
+
+  Color _getEffortColor(String? effort) {
+    switch (effort?.toLowerCase()) {
+      case 'high':
+        return Colors.orange.shade100;
+      case 'medium':
+        return Colors.blue.shade100;
+      case 'low':
+      default:
+        return Colors.grey.shade200;
+    }
+  }
+
+  Color _getStatusColor(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'open':
+        return Colors.blue.shade100;
+      case 'accepted':
+        return Colors.orange.shade100;
+      case 'completed':
+        return AppTheme.primaryGreenLight;
+      default:
+        return Colors.grey.shade200;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1084,47 +1143,266 @@ class _TaskDetailDialog extends StatelessWidget {
     final firstName = profile?['first_name'] as String? ?? 'Unknown';
     final currentUserId = task['user_id'] as String?;
     final acceptedBy = task['accepted_by'];
+    final acceptedByProfile = task['accepted_by_profile'] as Map<String, dynamic>?;
+    final acceptedByFirstName = acceptedByProfile?['first_name'] as String?;
+    final acceptedByLastName = acceptedByProfile?['last_name'] as String?;
+    final acceptedByName = acceptedByFirstName != null && acceptedByLastName != null
+        ? '$acceptedByFirstName $acceptedByLastName'.trim()
+        : acceptedByFirstName ?? 'Unknown';
 
     return AlertDialog(
-      title: Text(description),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      title: Text(
+        description,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: AppTheme.primaryGreen,
+        ),
+      ),
       content: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Bin: ${bin['name']}'),
-            const SizedBox(height: 8),
-            Text('Urgency: $urgency'),
-            const SizedBox(height: 8),
-            Text('Effort: $effort'),
-            const SizedBox(height: 8),
-            Text('Status: $status'),
-            const SizedBox(height: 8),
-            Text('Posted by: $firstName'),
+            // Bin name with color differentiation
+            Row(
+              children: [
+                const Text(
+                  'Bin: ',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppTheme.textGray,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  bin['name'] as String? ?? 'Unknown',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryGreen,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            
+            // Urgency with colored badge
+            Row(
+              children: [
+                const Text(
+                  'Urgency: ',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppTheme.textGray,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getUrgencyColor(urgency),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    urgency,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: _getUrgencyTextColor(urgency),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            
+            // Effort with colored badge
+            Row(
+              children: [
+                const Text(
+                  'Effort: ',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppTheme.textGray,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getEffortColor(effort),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    effort,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            
+            // Status with colored badge
+            Row(
+              children: [
+                const Text(
+                  'Status: ',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppTheme.textGray,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(status),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    status.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: status.toLowerCase() == 'completed'
+                          ? AppTheme.primaryGreen
+                          : Colors.black87,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            
+            // Posted by
+            Row(
+              children: [
+                const Text(
+                  'Posted by: ',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppTheme.textGray,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  firstName,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+            
+            // Taken by (only show if task is accepted)
+            if (status == 'accepted' && acceptedBy != null) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Text(
+                    'Taken by: ',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.textGray,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    acceptedByName,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryGreen,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
+      actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Close'),
+        SizedBox(
+          width: double.infinity,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (status == 'accepted' && acceptedBy == currentUserId) ...[
+                // Mark as Completed (top)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      onComplete();
+                      Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryGreen,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Mark as Completed'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Unassign (middle)
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      onUnassign();
+                      Navigator.pop(context);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.orange,
+                      side: const BorderSide(color: Colors.orange, width: 1.5),
+                    ),
+                    child: const Text('Unassign Task'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              if (status == 'open' && acceptedBy != currentUserId) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      onAccept();
+                      Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryGreen,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Accept'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              // Close (bottom)
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.red,
+                  ),
+                  child: const Text('Close'),
+                ),
+              ),
+            ],
+          ),
         ),
-        if (status == 'open' && acceptedBy != currentUserId)
-          ElevatedButton(
-            onPressed: () {
-              onAccept();
-              Navigator.pop(context);
-            },
-            child: const Text('Accept'),
-          ),
-        if (status == 'accepted' && acceptedBy == currentUserId)
-          ElevatedButton(
-            onPressed: () {
-              onComplete();
-              Navigator.pop(context);
-            },
-            child: const Text('Mark as Completed'),
-          ),
       ],
     );
   }

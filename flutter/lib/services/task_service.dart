@@ -94,6 +94,18 @@ class TaskService {
     }).eq('id', taskId);
   }
 
+  // Unassign task (release task back to open status)
+  Future<void> unassignTask(String taskId) async {
+    final user = _supabaseService.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    await _supabaseService.client.from('tasks').update({
+      'status': 'open',
+      'accepted_by': null,
+      'accepted_at': null,
+    }).eq('id', taskId);
+  }
+
   // Create task
   Future<void> createTask({
     required String binId,
