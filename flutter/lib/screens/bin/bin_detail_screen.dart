@@ -804,6 +804,9 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
     DateTime? dueDate;
     bool isSubmitting = false;
     String? errorText;
+    
+    // Capture parent context for use after sheet is closed
+    final parentContext = context;
 
     await showModalBottomSheet(
       context: context,
@@ -842,18 +845,74 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                         ? dueDate!.toIso8601String()
                         : null,
                   );
-                  if (mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Help request posted')),
+                  
+                  // Close the bottom sheet first
+                  Navigator.pop(sheetContext);
+                  
+                  // Wait for next frame to ensure sheet animation starts before showing dialog
+                  // This prevents keyboard animation conflicts
+                  await Future.delayed(const Duration(milliseconds: 200));
+                  
+                  // Show dialog with option to go to Tasks
+                  final goToTasks = await showDialog<bool>(
+                    context: parentContext,
+                    barrierDismissible: true,
+                    builder: (dialogContext) => AlertDialog(
+                      title: const Text('Help Request Posted!'),
+                      content: const Text(
+                        'Your help request has been posted successfully. Would you like to view it in the Tasks page?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogContext, false),
+                          child: const Text('Stay Here'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(dialogContext, true),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryGreen,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text('Go to Tasks'),
+                        ),
+                      ],
+                    ),
+                  );
+                  
+                  // If user wants to go to Tasks, navigate back to main and switch to Tasks tab
+                  if (goToTasks == true) {
+                    // Pop back to main screen first
+                    if (Navigator.canPop(parentContext)) {
+                      Navigator.pop(parentContext);
+                    }
+                    // Navigate to main with query parameter to switch to Tasks tab
+                    // Use go() instead of pushReplacement for better performance
+                    parentContext.go('/main?tab=tasks');
+                  } else {
+                    // Show success message if staying
+                    ScaffoldMessenger.of(parentContext).showSnackBar(
+                      const SnackBar(
+                        content: Text('Help request posted'),
+                        backgroundColor: AppTheme.primaryGreen,
+                      ),
                     );
                   }
                 } catch (e) {
-                  setSheetState(() {
-                    errorText = e.toString();
-                  });
-                } finally {
-                  setSheetState(() => isSubmitting = false);
+                  // Only update state if sheet is still open
+                  if (Navigator.canPop(sheetContext)) {
+                    setSheetState(() {
+                      errorText = e.toString();
+                      isSubmitting = false;
+                    });
+                  } else {
+                    // Sheet was closed, show error in snackbar instead
+                    ScaffoldMessenger.of(parentContext).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to post request: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 }
               }
 

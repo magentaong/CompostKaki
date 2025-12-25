@@ -15,7 +15,9 @@ import '../bin/join_bin_scanner_screen.dart';
 import '../profile/profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  final int? initialTab;
+  
+  const MainScreen({super.key, this.initialTab});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -28,6 +30,7 @@ class _MainScreenState extends State<MainScreen> {
   List<Map<String, dynamic>> _bins = [];
   List<Map<String, dynamic>> _tasks = [];
   bool _isLoading = true;
+  bool _isLoadingBins = false; // Separate flag for loading bins in background
   String? _error;
   int _userLogCount = 0;
   int _selectedIndex = 0;
@@ -35,7 +38,43 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    // Set initial tab if provided
+    if (widget.initialTab != null) {
+      _selectedIndex = widget.initialTab!;
+      if (_selectedIndex == 1) {
+        // If Tasks tab is selected, load tasks immediately and skip loading bins
+        // This makes navigation to Tasks tab much faster
+        _isLoading = false; // Don't show loading for bins
+        // Load tasks immediately without waiting
+        _loadTasks();
+        // Load bins in background (non-blocking) for when user switches to Home tab
+        _loadDataInBackground();
+        return;
+      }
+    }
     _loadData();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Check for tab query parameter in case widget is reused
+    final uri = GoRouterState.of(context).uri;
+    final tabParam = uri.queryParameters['tab'];
+    final targetTab = tabParam == 'tasks' ? 1 : (tabParam == 'home' ? 0 : null);
+    
+    if (targetTab != null && _selectedIndex != targetTab) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _selectedIndex = targetTab;
+          });
+          if (targetTab == 1) {
+            _loadTasks();
+          }
+        }
+      });
+    }
   }
 
   Future<void> _loadData() async {
@@ -70,6 +109,39 @@ class _MainScreenState extends State<MainScreen> {
         setState(() {
           _error = e.toString();
           _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // Load data in background without showing loading indicator
+  Future<void> _loadDataInBackground() async {
+    setState(() {
+      _isLoadingBins = true;
+    });
+
+    try {
+      final bins = await _binService.getUserBins();
+
+      // Get log count
+      int logCount = 0;
+      for (var bin in bins) {
+        final logs = await _binService.getBinLogs(bin['id'] as String);
+        logCount += logs.length;
+      }
+
+      if (mounted) {
+        setState(() {
+          _bins = bins;
+          _userLogCount = logCount;
+          _isLoadingBins = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingBins = false;
+          // Don't set error for background loading
         });
       }
     }
@@ -176,7 +248,8 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) {
+    // Only show loading if we're on Home tab (index 0) and loading bins
+    if (_isLoading && _selectedIndex == 0) {
       return const Center(
         child: CompostLoadingAnimation(
           message: 'Loading your compost bins...',
