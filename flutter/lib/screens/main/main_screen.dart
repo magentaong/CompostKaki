@@ -6,16 +6,21 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../services/bin_service.dart';
 import '../../services/task_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/xp_service.dart';
+import '../../widgets/xp_floating_animation.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/bin_card.dart';
 import '../../widgets/task_card.dart';
 import '../../widgets/compost_loading_animation.dart';
+import '../../widgets/kaki_mascot_widget.dart';
 import '../bin/add_bin_screen.dart';
 import '../bin/join_bin_scanner_screen.dart';
 import '../profile/profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  final int? initialTab;
+  
+  const MainScreen({super.key, this.initialTab});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -24,10 +29,13 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   final BinService _binService = BinService();
   final TaskService _taskService = TaskService();
+  final XPService _xpService = XPService();
 
   List<Map<String, dynamic>> _bins = [];
   List<Map<String, dynamic>> _tasks = [];
+  Map<String, dynamic>? _xpStats;
   bool _isLoading = true;
+  bool _isLoadingBins = false; // Separate flag for loading bins in background
   String? _error;
   int _userLogCount = 0;
   int _selectedIndex = 0;
@@ -35,7 +43,53 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    // Set initial tab if provided
+    if (widget.initialTab != null) {
+      _selectedIndex = widget.initialTab!;
+      if (_selectedIndex == 1) {
+        // If Tasks tab is selected, load tasks immediately and skip loading bins
+        // This makes navigation to Tasks tab much faster
+        _isLoading = false; // Don't show loading for bins
+        // Load tasks immediately without waiting
+        _loadTasks();
+        // Load bins in background (non-blocking) for when user switches to Home tab
+        _loadDataInBackground();
+        return;
+      }
+    }
+    // Only load data if we don't already have bins (to avoid reload on navigation back)
+    if (_bins.isEmpty) {
+      _loadData();
+    } else {
+      // We already have data, just mark as not loading
+      _isLoading = false;
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Check for tab query parameter in case widget is reused
+    final uri = GoRouterState.of(context).uri;
+    final tabParam = uri.queryParameters['tab'];
+    final targetTab = tabParam == 'tasks' ? 1 : (tabParam == 'home' ? 0 : null);
+    
+    if (targetTab != null && _selectedIndex != targetTab) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _selectedIndex = targetTab;
+          });
+          if (targetTab == 1) {
+            _loadTasks();
+          }
+          // If switching to home tab and we have no bins loaded, reload
+          if (targetTab == 0 && _bins.isEmpty && !_isLoading && !_isLoadingBins) {
+            _loadData();
+          }
+        }
+      });
+    }
   }
 
   Future<void> _loadData() async {
@@ -57,11 +111,20 @@ class _MainScreenState extends State<MainScreen> {
       // Always fetch tasks so community tab is ready
       final tasks = await _taskService.getCommunityTasks();
 
+      // Load XP stats for Kaki mascot
+      Map<String, dynamic>? xpStats;
+      try {
+        xpStats = await _xpService.getUserStats();
+      } catch (e) {
+        // Silently fail - XP stats are optional
+      }
+
       if (mounted) {
         setState(() {
           _bins = bins;
           _userLogCount = logCount;
           _tasks = tasks;
+          _xpStats = xpStats;
           _isLoading = false;
         });
       }
@@ -72,6 +135,57 @@ class _MainScreenState extends State<MainScreen> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  // Load data in background without showing loading indicator
+  Future<void> _loadDataInBackground() async {
+    setState(() {
+      _isLoadingBins = true;
+    });
+
+    try {
+      final bins = await _binService.getUserBins();
+
+      // Get log count
+      int logCount = 0;
+      for (var bin in bins) {
+        final logs = await _binService.getBinLogs(bin['id'] as String);
+        logCount += logs.length;
+      }
+
+      if (mounted) {
+        setState(() {
+          _bins = bins;
+          _userLogCount = logCount;
+          _isLoadingBins = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingBins = false;
+          // Don't set error for background loading
+        });
+      }
+    }
+  }
+
+  // Fast refresh - only reload bins, skip log counts, tasks, and XP stats
+  Future<void> _refreshBinsOnly() async {
+    try {
+      // Just reload bins - this is fast since it doesn't fetch logs
+      final bins = await _binService.getUserBins();
+      
+      if (mounted) {
+        setState(() {
+          _bins = bins;
+          // Don't update log count or tasks - keep existing values
+        });
+      }
+    } catch (e) {
+      // Silently fail - if refresh fails, keep existing data
+      debugPrint('Failed to refresh bins: $e');
     }
   }
 
@@ -110,8 +224,15 @@ class _MainScreenState extends State<MainScreen> {
     }
 
     final result = await context.push('/bin/$binId');
-    if (result == true) {
-      await _loadData();
+    // Fast refresh - only reload bins data, skip tasks and log counts
+    if (mounted) {
+      await _refreshBinsOnly();
+      // Ensure we're on Home tab when returning from bin
+      if (_selectedIndex != 0) {
+        setState(() {
+          _selectedIndex = 0;
+        });
+      }
     }
   }
 
@@ -176,7 +297,8 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) {
+    // Only show loading if we're on Home tab (index 0) and loading bins
+    if (_isLoading && _selectedIndex == 0) {
       return const Center(
         child: CompostLoadingAnimation(
           message: 'Loading your compost bins...',
@@ -233,6 +355,17 @@ class _MainScreenState extends State<MainScreen> {
       onRefresh: _loadData,
       child: CustomScrollView(
         slivers: [
+          // Kaki Mascot
+          SliverToBoxAdapter(
+            child: KakiMascotWidget(
+              bins: _bins,
+              xpStats: _xpStats,
+              onTap: () {
+                // Optional: Add any action when Kaki is tapped
+                // Could show a dialog, navigate, etc.
+              },
+            ),
+          ),
           // Stats
           SliverToBoxAdapter(
             child: Padding(
@@ -530,20 +663,16 @@ class _MainScreenState extends State<MainScreen> {
               }
             }
 
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('No QR code detected in that image.')),
-              );
-            }
+            // Throw exception instead of showing SnackBar - dialog will catch and display
+            throw Exception('No QR code detected in that image.');
           } catch (e) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Failed to read QR code: $e')),
-              );
+            // If it's already our custom exception, re-throw it
+            if (e.toString().contains('No QR code detected')) {
+              rethrow;
             }
+            // Otherwise, wrap other errors
+            throw Exception('Failed to read QR code: ${e.toString().replaceFirst('Exception: ', '')}');
           }
-          return null;
         },
       ),
     );
@@ -562,23 +691,77 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _showTaskDetail(Map<String, dynamic> task) {
+    // Capture parent context before showing dialog
+    final parentContext = context;
+    
     showDialog(
       context: context,
-      builder: (context) => _TaskDetailDialog(
+      builder: (dialogContext) => _TaskDetailDialog(
         task: task,
         bins: _bins,
         onAccept: () async {
-          await _taskService.acceptTask(task['id']);
+          // Show animation immediately (before closing dialog)
+          showXPFloatingAnimation(
+            dialogContext,
+            xpAmount: 5, // Show immediately with expected value
+            isLevelUp: false,
+          );
+          
+          final xpResult = await _taskService.acceptTask(task['id']);
           _updateLocalTask(task['id'], {
             'status': 'accepted',
             'accepted_by': _taskService.currentUserId,
           });
-          if (mounted) _loadTasks();
+          if (mounted) {
+            _loadTasks();
+            // Close dialog after a short delay to let animation start
+            await Future.delayed(const Duration(milliseconds: 300));
+            Navigator.pop(dialogContext);
+          }
         },
         onComplete: () async {
-          await _taskService.completeTask(task['id']);
+          final xpResult = await _taskService.completeTask(task['id']);
           _updateLocalTask(task['id'], {'status': 'completed'});
-          if (mounted) _loadTasks();
+          if (mounted) {
+            _loadTasks();
+            // Close dialog first
+            Navigator.pop(dialogContext);
+            // Wait a bit for dialog to close
+            await Future.delayed(const Duration(milliseconds: 200));
+            // Show celebration using parent context
+            if (xpResult != null && parentContext.mounted) {
+              final xpGained = (xpResult['xpGained'] as int?) ?? 25; // Default to 25 for task completion
+              final isLevelUp = (xpResult['levelUp'] as bool?) ?? false;
+              
+              if (xpGained > 0) {
+                showXPFloatingAnimation(
+                  parentContext,
+                  xpAmount: xpGained,
+                  isLevelUp: isLevelUp,
+                );
+              }
+            }
+          }
+        },
+        onUnassign: () async {
+          // Show penalty animation immediately
+          showXPFloatingAnimation(
+            dialogContext,
+            xpAmount: -5, // Show penalty immediately
+            isLevelUp: false,
+          );
+          
+          final xpResult = await _taskService.unassignTask(task['id']);
+          _updateLocalTask(task['id'], {
+            'status': 'open',
+            'accepted_by': null,
+          });
+          if (mounted) {
+            _loadTasks();
+            // Close dialog after a short delay to let animation start
+            await Future.delayed(const Duration(milliseconds: 300));
+            Navigator.pop(dialogContext);
+          }
         },
       ),
     );
@@ -737,7 +920,7 @@ class _MainScreenState extends State<MainScreen> {
                     Navigator.pop(sheetContext);
                     final result = await context.push('/bin/${bin['id']}/log');
                     if (result == true && mounted) {
-                      _loadData();
+                      _refreshBinsOnly();
                     }
                   },
                 )),
@@ -946,11 +1129,17 @@ class _JoinBinDialogState extends State<_JoinBinDialog> {
                     onPressed: _isLoading
                         ? null
                         : () async {
-                            final uploaded = await widget.onUploadQR!.call();
-                            if (uploaded != null) {
+                            try {
+                              final uploaded = await widget.onUploadQR!.call();
+                              if (uploaded != null) {
+                                setState(() {
+                                  _controller.text = uploaded;
+                                  _error = null;
+                                });
+                              }
+                            } catch (e) {
                               setState(() {
-                                _controller.text = uploaded;
-                                _error = null;
+                                _error = e.toString().replaceFirst('Exception: ', '');
                               });
                             }
                           },
@@ -994,13 +1183,64 @@ class _TaskDetailDialog extends StatelessWidget {
   final List<Map<String, dynamic>> bins;
   final VoidCallback onAccept;
   final VoidCallback onComplete;
+  final VoidCallback onUnassign;
 
   const _TaskDetailDialog({
     required this.task,
     required this.bins,
     required this.onAccept,
     required this.onComplete,
+    required this.onUnassign,
   });
+
+  Color _getUrgencyColor(String? urgency) {
+    switch (urgency?.toLowerCase()) {
+      case 'high':
+        return AppTheme.urgencyHigh;
+      case 'normal':
+        return AppTheme.urgencyNormal;
+      case 'low':
+      default:
+        return AppTheme.urgencyLow;
+    }
+  }
+
+  Color _getUrgencyTextColor(String? urgency) {
+    switch (urgency?.toLowerCase()) {
+      case 'high':
+        return AppTheme.urgencyHighText;
+      case 'normal':
+        return AppTheme.urgencyNormalText;
+      case 'low':
+      default:
+        return Colors.black87;
+    }
+  }
+
+  Color _getEffortColor(String? effort) {
+    switch (effort?.toLowerCase()) {
+      case 'high':
+        return Colors.orange.shade100;
+      case 'medium':
+        return Colors.blue.shade100;
+      case 'low':
+      default:
+        return Colors.grey.shade200;
+    }
+  }
+
+  Color _getStatusColor(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'open':
+        return Colors.blue.shade100;
+      case 'accepted':
+        return Colors.orange.shade100;
+      case 'completed':
+        return AppTheme.primaryGreenLight;
+      default:
+        return Colors.grey.shade200;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1017,47 +1257,264 @@ class _TaskDetailDialog extends StatelessWidget {
     final firstName = profile?['first_name'] as String? ?? 'Unknown';
     final currentUserId = task['user_id'] as String?;
     final acceptedBy = task['accepted_by'];
+    final acceptedByProfile = task['accepted_by_profile'] as Map<String, dynamic>?;
+    final acceptedByFirstName = acceptedByProfile?['first_name'] as String?;
+    final acceptedByLastName = acceptedByProfile?['last_name'] as String?;
+    final acceptedByName = acceptedByFirstName != null && acceptedByLastName != null
+        ? '$acceptedByFirstName $acceptedByLastName'.trim()
+        : acceptedByFirstName ?? 'Unknown';
 
     return AlertDialog(
-      title: Text(description),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      title: Text(
+        description,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: AppTheme.primaryGreen,
+        ),
+      ),
       content: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Bin: ${bin['name']}'),
-            const SizedBox(height: 8),
-            Text('Urgency: $urgency'),
-            const SizedBox(height: 8),
-            Text('Effort: $effort'),
-            const SizedBox(height: 8),
-            Text('Status: $status'),
-            const SizedBox(height: 8),
-            Text('Posted by: $firstName'),
+            // Bin name with color differentiation
+            Row(
+              children: [
+                const Text(
+                  'Bin: ',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppTheme.textGray,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  bin['name'] as String? ?? 'Unknown',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryGreen,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            
+            // Urgency with colored badge
+            Row(
+              children: [
+                const Text(
+                  'Urgency: ',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppTheme.textGray,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getUrgencyColor(urgency),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    urgency,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: _getUrgencyTextColor(urgency),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            
+            // Effort with colored badge
+            Row(
+              children: [
+                const Text(
+                  'Effort: ',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppTheme.textGray,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getEffortColor(effort),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    effort,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            
+            // Status with colored badge
+            Row(
+              children: [
+                const Text(
+                  'Status: ',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppTheme.textGray,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(status),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    status.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: status.toLowerCase() == 'completed'
+                          ? AppTheme.primaryGreen
+                          : Colors.black87,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            
+            // Posted by
+            Row(
+              children: [
+                const Text(
+                  'Posted by: ',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppTheme.textGray,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  firstName,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+            
+            // Taken by (only show if task is accepted)
+            if (status == 'accepted' && acceptedBy != null) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Text(
+                    'Taken by: ',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.textGray,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    acceptedByName,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryGreen,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
+      actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Close'),
+        SizedBox(
+          width: double.infinity,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (status == 'accepted' && acceptedBy == currentUserId) ...[
+                // Mark as Completed (top)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      onComplete();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryGreen,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Mark as Completed'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Unassign (middle)
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      onUnassign();
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.orange,
+                      side: const BorderSide(color: Colors.orange, width: 1.5),
+                    ),
+                    child: const Text('Unassign Task'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              if (status == 'open' && acceptedBy != currentUserId) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      onAccept();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryGreen,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Accept'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              // Close (bottom)
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.red,
+                  ),
+                  child: const Text('Close'),
+                ),
+              ),
+            ],
+          ),
         ),
-        if (status == 'open' && acceptedBy != currentUserId)
-          ElevatedButton(
-            onPressed: () {
-              onAccept();
-              Navigator.pop(context);
-            },
-            child: const Text('Accept'),
-          ),
-        if (status == 'accepted' && acceptedBy == currentUserId)
-          ElevatedButton(
-            onPressed: () {
-              onComplete();
-              Navigator.pop(context);
-            },
-            child: const Text('Mark as Completed'),
-          ),
       ],
     );
   }

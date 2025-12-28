@@ -16,25 +16,14 @@ subprojects {
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
 subprojects {
-    project.evaluationDependsOn(":app")
-    
     // Fix for plugins that don't specify compileSdk (e.g., app_links)
     // This ensures all Android library projects have compileSdk set
-    afterEvaluate {
-        if (project.plugins.hasPlugin("com.android.library")) {
-            extensions.findByType<com.android.build.gradle.LibraryExtension>()?.apply {
-                if (compileSdk == null) {
-                    // Get compileSdk from app module or use default
-                    val appProject = rootProject.findProject(":app")
-                    val defaultSdk = appProject?.let {
-                        try {
-                            it.extensions.findByType<com.android.build.gradle.AppExtension>()?.compileSdkVersion
-                        } catch (e: Exception) {
-                            null
-                        }
-                    } ?: 34
-                    compileSdk = defaultSdk
-                }
+    plugins.withId("com.android.library") {
+        extensions.configure<com.android.build.gradle.LibraryExtension> {
+            if (compileSdk == null) {
+                // Use default compileSdk version (34) for library modules
+                // This matches the app module's compileSdk setting
+                compileSdk = 34
             }
         }
     }

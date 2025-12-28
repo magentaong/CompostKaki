@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../services/bin_service.dart';
+import '../../widgets/xp_floating_animation.dart';
 import '../../theme/app_theme.dart';
 import 'dart:io';
 
@@ -111,7 +112,7 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
         imageUrl = await _binService.uploadLogImage(_imageFile!, widget.binId);
       }
 
-      await _binService.createBinLog(
+      final xpResult = await _binService.createBinLog(
         binId: widget.binId,
         type: _selectedType!,
         content: _contentController.text,
@@ -126,6 +127,30 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
       );
 
       if (mounted) {
+        // Show celebration if XP was earned
+        if (xpResult != null) {
+          // The result contains 'xpGained' which is the total XP (base + bonus)
+          // We need to calculate it from base + bonus since xpGained in result is just the amount passed to awardXP
+          final baseXP = _selectedType?.toLowerCase().contains('turn') == true ? 15 : 10;
+          final bonusXP = (xpResult['bonusXP'] as int?) ?? 0;
+          final xpGained = baseXP + bonusXP;
+          final isLevelUp = (xpResult['levelUp'] as bool?) ?? false;
+          
+          print('XP Result: $xpResult');
+          print('XP Gained: $xpGained (base: $baseXP, bonus: $bonusXP)');
+          print('Level Up: $isLevelUp');
+
+          if (xpGained > 0) {
+            // Show animation immediately - don't wait for post frame
+            showXPFloatingAnimation(
+              context,
+              xpAmount: xpGained,
+              isLevelUp: isLevelUp,
+            );
+            // Wait for animation before closing
+            await Future.delayed(const Duration(milliseconds: 1500));
+          }
+        }
         Navigator.pop(context, true);
       }
     } catch (e) {
