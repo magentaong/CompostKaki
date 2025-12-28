@@ -1,8 +1,10 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_service.dart';
+import 'media_service.dart';
 
 class ChatService {
   final SupabaseService _supabaseService = SupabaseService();
+  final MediaService _mediaService = MediaService();
 
   String? get currentUserId => _supabaseService.currentUser?.id;
 
@@ -20,28 +22,91 @@ class ChatService {
     }
   }
 
-  // Get chat messages for a specific bin
+  // Public method to fetch user profile (for use in UI)
+  Future<Map<String, dynamic>?> getUserProfile(String userId) async {
+    return _getUserProfile(userId);
+  }
+
+  // Get all group chat messages for a specific bin
   Future<List<Map<String, dynamic>>> getBinMessages(String binId) async {
     final user = _supabaseService.currentUser;
     if (user == null) throw Exception('Not authenticated');
 
-    // Get messages for this bin where user is sender or receiver
+    // Get all messages for this bin (group chat - no receiver_id filter)
     final response = await _supabaseService.client
         .from('bin_messages')
         .select('*')
         .eq('bin_id', binId)
-        .or('sender_id.eq.${user.id},receiver_id.eq.${user.id}')
+        .eq('is_deleted', false)
         .order('created_at', ascending: true);
 
     final messages = List<Map<String, dynamic>>.from(response);
 
-    // Fetch profiles for all unique sender and receiver IDs
+    return _enrichMessages(messages);
+  }
+
+  // Get recent messages for a bin (for initial load - loads last N messages)
+  Future<List<Map<String, dynamic>>> getRecentBinMessages(
+    String binId, {
+    int limit = 50,
+  }) async {
+    final user = _supabaseService.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    // Get recent messages (last N messages, ordered by created_at descending)
+    final response = await _supabaseService.client
+        .from('bin_messages')
+        .select('*')
+        .eq('bin_id', binId)
+        .eq('is_deleted', false)
+        .order('created_at', ascending: false)
+        .limit(limit);
+
+    final messages = List<Map<String, dynamic>>.from(response);
+    
+    // Reverse to get ascending order (oldest first)
+    final reversedMessages = messages.reversed.toList();
+
+    return _enrichMessages(reversedMessages);
+  }
+
+  // Get older messages before a certain timestamp (for pagination)
+  Future<List<Map<String, dynamic>>> getOlderBinMessages(
+    String binId,
+    DateTime beforeTimestamp, {
+    int limit = 50,
+  }) async {
+    final user = _supabaseService.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    // Get messages before the given timestamp
+    final response = await _supabaseService.client
+        .from('bin_messages')
+        .select('*')
+        .eq('bin_id', binId)
+        .eq('is_deleted', false)
+        .lt('created_at', beforeTimestamp.toIso8601String())
+        .order('created_at', ascending: false)
+        .limit(limit);
+
+    final messages = List<Map<String, dynamic>>.from(response);
+    
+    // Reverse to get ascending order (oldest first)
+    final reversedMessages = messages.reversed.toList();
+
+    return _enrichMessages(reversedMessages);
+  }
+
+  // Helper method to enrich messages with profiles and replied-to messages
+  Future<List<Map<String, dynamic>>> _enrichMessages(
+    List<Map<String, dynamic>> messages,
+  ) async {
+
+    // Fetch profiles for all unique sender IDs
     final userIds = <String>{};
     for (var message in messages) {
       final senderId = message['sender_id'] as String?;
-      final receiverId = message['receiver_id'] as String?;
       if (senderId != null) userIds.add(senderId);
-      if (receiverId != null) userIds.add(receiverId);
     }
 
     final profilesMap = <String, Map<String, dynamic>?>{};
@@ -49,180 +114,177 @@ class ChatService {
       profilesMap[userId] = await _getUserProfile(userId);
     }
 
-    // Attach profiles to messages
+    // Attach profiles to messages and fetch replied-to messages
     for (var message in messages) {
       final senderId = message['sender_id'] as String?;
-      final receiverId = message['receiver_id'] as String?;
       if (senderId != null) {
         message['sender_profile'] = profilesMap[senderId];
       }
-      if (receiverId != null) {
-        message['receiver_profile'] = profilesMap[receiverId];
+
+      // Fetch replied-to message if present
+      final replyToId = message['reply_to_message_id'] as String?;
+      if (replyToId != null) {
+        final repliedToMessage = await getRepliedToMessage(replyToId);
+        if (repliedToMessage != null) {
+          message['replied_to_message'] = repliedToMessage;
+        }
       }
     }
 
     return messages;
   }
 
-  // Send a message in a bin chat
-  // For bin chat, receiver_id should be the bin owner/admin
-  Future<void> sendBinMessage(String binId, String message,
-      {String? receiverId}) async {
+  // Send a message in a bin group chat
+  Future<void> sendBinMessage(
+    String binId,
+    String message, {
+    MediaAttachment? media,
+    String? replyToMessageId,
+  }) async {
     final user = _supabaseService.currentUser;
     if (user == null) throw Exception('Not authenticated');
 
-    // If receiverId is not provided, we need to get the bin owner
-    String? actualReceiverId = receiverId;
-    if (actualReceiverId == null) {
-      final bin = await _supabaseService.client
-          .from('bins')
-          .select('user_id')
-          .eq('id', binId)
-          .single();
-      actualReceiverId = bin['user_id'] as String?;
+    // Upload media FIRST if provided (fail early if upload fails)
+    Map<String, dynamic>? mediaData;
+    if (media != null) {
+      try {
+        mediaData = await _mediaService.uploadChatMedia(
+          binId: binId,
+          media: media,
+        );
+      } catch (e) {
+        // Re-throw with context
+        throw Exception('Failed to upload media: $e');
+      }
     }
 
-    await _supabaseService.client.from('bin_messages').insert({
+    // Prepare message data
+    final messageData = <String, dynamic>{
       'bin_id': binId,
       'sender_id': user.id,
-      'receiver_id': actualReceiverId,
       'message': message,
-      'is_read': false,
+      'is_deleted': false,
       'created_at': DateTime.now().toIso8601String(),
       'updated_at': DateTime.now().toIso8601String(),
-    });
+    };
+
+    // Add media data if present
+    if (mediaData != null) {
+      messageData.addAll(mediaData);
+    }
+
+    // Add reply-to if present
+    if (replyToMessageId != null && replyToMessageId.isNotEmpty) {
+      messageData['reply_to_message_id'] = replyToMessageId;
+    }
+
+    // Insert message (only after successful media upload)
+    try {
+      await _supabaseService.client.from('bin_messages').insert(messageData);
+    } catch (e) {
+      throw Exception('Failed to send message: $e');
+    }
   }
 
-  // Mark messages as read
-  Future<void> markMessagesAsRead(String binId) async {
+  // Get replied-to message details (for showing reply preview)
+  Future<Map<String, dynamic>?> getRepliedToMessage(String messageId) async {
+    try {
+      final response = await _supabaseService.client
+          .from('bin_messages')
+          .select('id, message, sender_id, media_type, media_url, created_at, is_deleted')
+          .eq('id', messageId)
+          .maybeSingle();
+
+      if (response == null) return null;
+
+      // Get sender profile
+      final senderId = response['sender_id'] as String?;
+      if (senderId != null) {
+        response['sender_profile'] = await _getUserProfile(senderId);
+      }
+
+      return Map<String, dynamic>.from(response);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Edit a message (only by sender, within time limit)
+  // Time limit: 15 minutes (900 seconds)
+  Future<void> editMessage(String messageId, String newMessage) async {
     final user = _supabaseService.currentUser;
     if (user == null) throw Exception('Not authenticated');
 
+    // First, verify the message exists and belongs to the user
+    final messageResponse = await _supabaseService.client
+        .from('bin_messages')
+        .select('sender_id, created_at')
+        .eq('id', messageId)
+        .single();
+
+    if (messageResponse['sender_id'] != user.id) {
+      throw Exception('You can only edit your own messages');
+    }
+
+    // Check time limit (15 minutes)
+    final createdAt = DateTime.parse(messageResponse['created_at']);
+    final now = DateTime.now();
+    final difference = now.difference(createdAt);
+
+    if (difference.inMinutes > 15) {
+      throw Exception('Messages can only be edited within 15 minutes');
+    }
+
+    // Update the message
     await _supabaseService.client
         .from('bin_messages')
         .update({
-          'is_read': true,
-          'updated_at': DateTime.now().toIso8601String(),
+          'message': newMessage,
+          'edited_at': now.toIso8601String(),
+          'updated_at': now.toIso8601String(),
         })
-        .eq('bin_id', binId)
-        .eq('receiver_id', user.id)
-        .eq('is_read', false);
+        .eq('id', messageId)
+        .eq('sender_id', user.id);
   }
 
-  // Admin: Get all conversations in a bin (list of users who have messaged)
-  Future<List<Map<String, dynamic>>> getBinConversations(String binId) async {
+  // Delete a message (soft delete, only by sender, within time limit)
+  // Time limit: 15 minutes (900 seconds)
+  Future<void> deleteMessage(String messageId) async {
     final user = _supabaseService.currentUser;
     if (user == null) throw Exception('Not authenticated');
 
-    // Get bin to verify user is owner
-    final bin = await _supabaseService.client
-        .from('bins')
-        .select('user_id')
-        .eq('id', binId)
+    // First, verify the message exists and belongs to the user
+    final messageResponse = await _supabaseService.client
+        .from('bin_messages')
+        .select('sender_id, created_at')
+        .eq('id', messageId)
         .single();
 
-    if (bin['user_id'] != user.id) {
-      throw Exception('Only bin owner can view all conversations');
+    if (messageResponse['sender_id'] != user.id) {
+      throw Exception('You can only delete your own messages');
     }
 
-    // Get distinct users who have sent messages to admin in this bin
-    final messages = await _supabaseService.client
+    // Check time limit (15 minutes)
+    final createdAt = DateTime.parse(messageResponse['created_at']);
+    final now = DateTime.now();
+    final difference = now.difference(createdAt);
+
+    if (difference.inMinutes > 15) {
+      throw Exception('Messages can only be deleted within 15 minutes');
+    }
+
+    // Soft delete the message
+    await _supabaseService.client
         .from('bin_messages')
-        .select('*')
-        .eq('bin_id', binId)
-        .eq('receiver_id', user.id) // Messages sent to admin
-        .order('created_at', ascending: false);
-
-    // Group by sender_id and get latest message + unread count
-    final Map<String, Map<String, dynamic>> conversationsMap = {};
-
-    for (var message in messages) {
-      final senderId = message['sender_id'] as String;
-      if (!conversationsMap.containsKey(senderId)) {
-        // Fetch profile for this sender
-        final profile = await _getUserProfile(senderId);
-
-        // Count unread messages
-        final unreadResponse = await _supabaseService.client
-            .from('bin_messages')
-            .select('id')
-            .eq('bin_id', binId)
-            .eq('sender_id', senderId)
-            .eq('receiver_id', user.id)
-            .eq('is_read', false);
-
-        conversationsMap[senderId] = {
-          'user_id': senderId,
-          'profile': profile,
-          'last_message': message['message'],
-          'last_message_time': message['created_at'],
-          'unread_count': (unreadResponse as List).length,
-        };
-      }
-    }
-
-    return conversationsMap.values.toList()
-      ..sort((a, b) {
-        final timeA = a['last_message_time'] as String? ?? '';
-        final timeB = b['last_message_time'] as String? ?? '';
-        return timeB.compareTo(timeA); // Most recent first
-      });
+        .update({
+          'is_deleted': true,
+          'updated_at': now.toIso8601String(),
+        })
+        .eq('id', messageId)
+        .eq('sender_id', user.id);
   }
 
-  // Get conversation between admin and a specific user in a bin
-  Future<List<Map<String, dynamic>>> getConversationWithUser(
-      String binId, String userId) async {
-    final user = _supabaseService.currentUser;
-    if (user == null) throw Exception('Not authenticated');
-
-    // Get messages between current user and specified user in this bin
-    // PostgREST doesn't support complex nested AND/OR, so we fetch messages where
-    // either user is involved and filter in code
-    final response = await _supabaseService.client
-        .from('bin_messages')
-        .select('*')
-        .eq('bin_id', binId)
-        .or('sender_id.eq.$userId,sender_id.eq.${user.id},receiver_id.eq.$userId,receiver_id.eq.${user.id}')
-        .order('created_at', ascending: true);
-
-    final allMessages = List<Map<String, dynamic>>.from(response);
-
-    // Filter to only messages between these two users
-    final messages = allMessages.where((message) {
-      final senderId = message['sender_id'] as String?;
-      final receiverId = message['receiver_id'] as String?;
-      // Message is between user1 and user2 if:
-      // (sender is user1 AND receiver is user2) OR (sender is user2 AND receiver is user1)
-      return (senderId == userId && receiverId == user.id) ||
-          (senderId == user.id && receiverId == userId);
-    }).toList();
-
-    // Fetch profiles for both users
-    final currentUserProfile = await _getUserProfile(user.id);
-    final otherUserProfile = await _getUserProfile(userId);
-
-    // Attach profiles to messages
-    for (var message in messages) {
-      final senderId = message['sender_id'] as String?;
-      final receiverId = message['receiver_id'] as String?;
-
-      if (senderId == user.id) {
-        message['sender_profile'] = currentUserProfile;
-      } else if (senderId == userId) {
-        message['sender_profile'] = otherUserProfile;
-      }
-
-      if (receiverId == user.id) {
-        message['receiver_profile'] = currentUserProfile;
-      } else if (receiverId == userId) {
-        message['receiver_profile'] = otherUserProfile;
-      }
-    }
-
-    return messages;
-  }
-
-  // Subscribe to new messages for a bin
+  // Subscribe to new messages for a bin (group chat)
   RealtimeChannel subscribeToBinMessages(
       String binId, Function(Map<String, dynamic>) onNewMessage) {
     final user = _supabaseService.currentUser;
@@ -240,28 +302,30 @@ class ChatService {
             value: binId,
           ),
           callback: (payload) {
-            onNewMessage(payload.newRecord);
+            final newMessage = payload.newRecord;
+            // Only show non-deleted messages
+            if (newMessage['is_deleted'] != true) {
+              onNewMessage(newMessage);
+            }
+          },
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'bin_messages',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'bin_id',
+            value: binId,
+          ),
+          callback: (payload) {
+            // Handle message updates (edits/deletes)
+            final updatedMessage = payload.newRecord;
+            onNewMessage(updatedMessage);
           },
         )
         .subscribe();
 
     return channel;
-  }
-
-  // Methods for AdminChatScreen (general admin chat)
-  // Note: These require context - AdminChatScreen should be updated to accept binId/userId
-  Future<List<Map<String, dynamic>>> getMessages() async {
-    // Return empty list - AdminChatScreen needs binId/userId to work properly
-    return [];
-  }
-
-  RealtimeChannel subscribeToMessages(Function(Map<String, dynamic>) onNewMessage) {
-    // Return a dummy channel - AdminChatScreen needs binId to work properly
-    return _supabaseService.client.channel('admin_chat_dummy');
-  }
-
-  Future<void> sendMessage(String message) async {
-    // Throw error - AdminChatScreen needs binId to work properly
-    throw Exception('AdminChatScreen requires binId. Use BinChatConversationScreen instead.');
   }
 }

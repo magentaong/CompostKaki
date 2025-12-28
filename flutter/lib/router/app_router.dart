@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
@@ -13,8 +12,6 @@ import '../screens/profile/edit_profile_screen.dart';
 import '../screens/educational/guides_list_screen.dart';
 import '../screens/educational/guide_detail_screen.dart';
 import '../screens/educational/tips_screen.dart';
-import '../screens/bin/bin_chat_screen.dart';
-import '../screens/bin/bin_chat_list_screen.dart';
 import '../screens/bin/bin_chat_conversation_screen.dart';
 import '../screens/bin/bin_food_waste_guide_screen.dart';
 
@@ -99,26 +96,10 @@ class AppRouter {
         builder: (context, state) => const TipsScreen(),
       ),
       GoRoute(
-        path: '/bin/:id/chat-list',
-        builder: (context, state) {
-          final binId = state.pathParameters['id']!;
-          // We'll need to check if user is owner - for now pass false
-          return BinChatListScreen(binId: binId, isOwner: false);
-        },
-      ),
-      GoRoute(
         path: '/bin/:id/chat',
         builder: (context, state) {
           final binId = state.pathParameters['id']!;
           return BinChatConversationScreen(binId: binId);
-        },
-      ),
-      GoRoute(
-        path: '/bin/:id/chat/:userId',
-        builder: (context, state) {
-          final binId = state.pathParameters['id']!;
-          final userId = state.pathParameters['userId']!;
-          return BinChatConversationScreen(binId: binId, userId: userId);
         },
       ),
       GoRoute(

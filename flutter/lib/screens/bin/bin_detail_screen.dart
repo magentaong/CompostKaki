@@ -1162,7 +1162,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                       onPressed: () {
                         // Admin goes to chat list, normal users go directly to chat
                         if (_isOwner) {
-                          context.push('/bin/${widget.binId}/chat-list');
+                          context.push('/bin/${widget.binId}/chat');
                         } else {
                           context.push('/bin/${widget.binId}/chat');
                         }

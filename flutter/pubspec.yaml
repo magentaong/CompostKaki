@@ -28,8 +28,17 @@ dependencies:
   # qr_code_scanner: ^1.0.1
   qr_flutter: ^4.1.0
   
-  # Image Picker
+  # Image Picker (supports images and videos)
   image_picker: ^1.0.7
+  
+  # Video Player
+  video_player: ^2.8.2
+  
+  # Audio Player
+  audioplayers: ^6.0.0
+  
+  # Audio Recording (commented out - will add when implementing audio recording)
+  # record: ^5.1.2
   
   # HTTP
   http: ^1.2.0
