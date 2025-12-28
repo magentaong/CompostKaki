@@ -90,23 +90,60 @@ export default function ScannerPage() {
     setResult(null);
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const html5QrCode = new Html5Qrcode(qrRegionId + "-img");
-        const result = await html5QrCode.scanFile(file, true);
-        setResult(result);
-        if (result.includes("/bin/")) {
-          const match = result.match(/\/bin\/([a-zA-Z0-9\-]+)/);
-          if (match && match[1]) {
-            router.push(`/bin/${match[1]}`);
-          }
-        }
-      } catch (err: any) {
-        setError("Could not scan image: " + (err?.message || err));
+    
+    try {
+      // Ensure the container element exists
+      let containerElement = document.getElementById(qrRegionId + "-img");
+      if (!containerElement) {
+        containerElement = document.createElement("div");
+        containerElement.id = qrRegionId + "-img";
+        containerElement.style.display = "none";
+        document.body.appendChild(containerElement);
       }
-    };
-    reader.readAsDataURL(file);
+      
+      // Create Html5Qrcode instance and scan the file
+      const html5QrCode = new Html5Qrcode(qrRegionId + "-img");
+      const result = await html5QrCode.scanFile(file, true);
+      
+      // Clean up
+      await html5QrCode.clear();
+      
+      setResult(result);
+      if (result.includes("/bin/")) {
+        const match = result.match(/\/bin\/([a-zA-Z0-9\-]+)/);
+        if (match && match[1]) {
+          // Call join API before navigating
+          const joinBin = async () => {
+            try {
+              const { data: { session } } = await supabase.auth.getSession();
+              const token = session?.access_token;
+              await fetch('/api/bins/join', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify({ binId: match[1] })
+              });
+            } catch (e) { /* ignore */ }
+            router.push(`/bin/${match[1]}`);
+          };
+          joinBin();
+        } else {
+          setError("Invalid QR code format. Expected a bin link.");
+        }
+      } else {
+        setError("QR code does not contain a valid bin link.");
+      }
+    } catch (err: any) {
+      console.error("QR scan error:", err);
+      setError("Could not scan image: " + (err?.message || err || "Unknown error"));
+    }
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   return (

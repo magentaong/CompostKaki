@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowLeft, Share2, Thermometer, Droplets, RefreshCw, QrCode, Copy, Download, Plus } from "lucide-react";
 import { apiFetch } from "@/lib/apiFetch";
+import QRCode from "qrcode";
 
 function getHealthColor(status: string): React.CSSProperties {
   switch (status) {
@@ -70,6 +71,7 @@ export default function BinDetailPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [copiedQR, setCopiedQR] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copiedShare, setCopiedShare] = useState(false);
 
   // Add state for delete loading and error
@@ -209,6 +211,24 @@ export default function BinDetailPage() {
   const shareText = bin ? `Check out our compost bin '${bin.name || 'Bin'}' on CompostKaki!` : "Check out this compost bin!";
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`;
   const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`;
+
+  // Generate QR code when QR dialog opens
+  useEffect(() => {
+    if (showQR && shareUrl) {
+      // Only generate if we don't already have one
+      if (!qrDataUrl) {
+        QRCode.toDataURL(shareUrl, { width: 300, margin: 2 })
+          .then((url) => setQrDataUrl(url))
+          .catch((err) => {
+            console.error("Failed to generate QR code:", err);
+            setQrDataUrl(null);
+          });
+      }
+    } else {
+      // Reset QR data URL when dialog closes
+      setQrDataUrl(null);
+    }
+  }, [showQR, shareUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Stat tile helpers
   const temp = bin?.latest_temperature ?? '-';
@@ -679,37 +699,80 @@ export default function BinDetailPage() {
               ×
             </button>
             <h2 className="text-xl font-bold mb-4 text-[#00796B]">Share Bin QR Code</h2>
-            <img
-              id="qr-img"
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shareUrl)}`}
-              alt="QR Code"
-              className="mb-4"
-            />
+            {qrDataUrl ? (
+              <img
+                id="qr-img"
+                src={qrDataUrl}
+                alt="QR Code"
+                className="mb-4"
+              />
+            ) : (
+              <div className="mb-4 w-[300px] h-[300px] flex items-center justify-center bg-gray-100 rounded">
+                <div className="text-gray-500">Generating QR code...</div>
+              </div>
+            )}
             <div className="text-xs text-gray-500 mb-2">On mobile, tap and hold the QR code to save it.</div>
             <button
-              className="mb-4 flex items-center gap-2 bg-[#00796B] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#005B4F]"
+              className="mb-4 flex items-center gap-2 bg-[#00796B] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#005B4F] disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={async () => {
-                const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shareUrl)}`;
-                const isMobile = /Mobi|Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
-                if (isMobile) {
-                  window.open(qrUrl, '_blank');
-                  return;
+                if (!qrDataUrl) {
+                  // Generate QR code if not already generated
+                  try {
+                    const url = await QRCode.toDataURL(shareUrl, { width: 300, margin: 2 });
+                    setQrDataUrl(url);
+                    // Continue with download after generation
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                  } catch (err) {
+                    console.error("Failed to generate QR code:", err);
+                    alert("Failed to generate QR code. Please try again.");
+                    return;
+                  }
                 }
+                
                 try {
-                  const response = await fetch(qrUrl);
+                  // Convert data URL to blob
+                  const response = await fetch(qrDataUrl!);
                   const blob = await response.blob();
                   const blobUrl = window.URL.createObjectURL(blob);
+                  
+                  // Create download link
                   const link = document.createElement('a');
                   link.href = blobUrl;
-                  link.download = 'compost-bin-qr.png';
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
+                  link.download = `compost-bin-qr-${binId}.png`;
+                  
+                  // For mobile devices, try to trigger download
+                  // If that doesn't work, open in new tab as fallback
+                  const isMobile = /Mobi|Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+                  
+                  if (isMobile) {
+                    // On mobile, try to download, but also provide option to open
+                    link.target = '_blank';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    // Also show the image in a new tab as fallback
+                    setTimeout(() => {
+                      window.open(qrDataUrl!, '_blank');
+                    }, 100);
+                  } else {
+                    // Desktop: standard download
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }
+                  
                   window.URL.revokeObjectURL(blobUrl);
                 } catch (e) {
-                  window.open(qrUrl, '_blank');
+                  console.error("Download failed:", e);
+                  // Fallback: open QR code in new tab
+                  if (qrDataUrl) {
+                    window.open(qrDataUrl, '_blank');
+                  } else {
+                    alert("Failed to download QR code. Please try again.");
+                  }
                 }
               }}
+              disabled={!qrDataUrl}
             >
               <Download className="w-4 h-4" /> Download QR Code
             </button>
