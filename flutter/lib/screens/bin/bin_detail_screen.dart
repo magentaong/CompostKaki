@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -311,13 +312,27 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
           ),
           TextButton.icon(
             onPressed: () async {
-              final tempDir = await Directory.systemTemp.createTemp();
-              final file = File('${tempDir.path}/bin_qr_${widget.binId}.png');
-              final picData = await qrPainter.toImageData(220);
-              if (picData != null) {
-                await file.writeAsBytes(picData.buffer.asUint8List());
-                await Share.shareXFiles([XFile(file.path)],
-                    text: 'Scan to join this bin!');
+              try {
+                final tempDir = await Directory.systemTemp.createTemp();
+                final file = File('${tempDir.path}/bin_qr_${widget.binId}.png');
+                final picData = await qrPainter.toImageData(220, format: ui.ImageByteFormat.png);
+                if (picData != null) {
+                  await file.writeAsBytes(picData.buffer.asUint8List());
+                  await Share.shareXFiles([XFile(file.path)],
+                      text: 'Scan to join this bin!');
+                } else {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Failed to generate QR code image')),
+                    );
+                  }
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to save QR code: $e')),
+                  );
+                }
               }
             },
             icon: const Icon(Icons.download),

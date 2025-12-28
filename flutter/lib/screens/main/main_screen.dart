@@ -515,10 +515,18 @@ class _MainScreenState extends State<MainScreen> {
             if (result?.barcodes.isNotEmpty ?? false) {
               final rawValue = result!.barcodes.first.rawValue;
               if (rawValue != null) {
-                final uuidRegex = RegExp(
-                    r'([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})');
-                final match = uuidRegex.firstMatch(rawValue);
-                if (match != null) return match.group(1);
+                // Try to extract bin ID from various formats:
+                // 1. Deep link: compostkaki://bin/{uuid}
+                // 2. Web URL: https://.../bin/{uuid} or /bin/{uuid}
+                // 3. Just UUID: {uuid}
+                final deepLinkMatch = RegExp(r'compostkaki://bin/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})').firstMatch(rawValue);
+                if (deepLinkMatch != null) return deepLinkMatch.group(1);
+                
+                final urlMatch = RegExp(r'/bin/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})').firstMatch(rawValue);
+                if (urlMatch != null) return urlMatch.group(1);
+                
+                final uuidMatch = RegExp(r'^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$').firstMatch(rawValue);
+                if (uuidMatch != null) return uuidMatch.group(1);
               }
             }
 
