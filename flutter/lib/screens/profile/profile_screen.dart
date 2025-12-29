@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
@@ -21,6 +20,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, int>? _badgeProgressStats;
   bool _isLoadingStats = true;
   final XPService _xpService = XPService();
+  String? _lastUserId; // Track user ID to detect changes
 
   @override
   void initState() {
@@ -30,6 +30,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadBadges();
     _loadBadgeProgress();
   }
+
 
   Future<void> _loadProfile() async {
     final authService = context.read<AuthService>();
@@ -171,13 +172,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final authService = context.watch<AuthService>();
     final user = authService.currentUser;
     final email = user?.email ?? '';
+    
+    // Reload profile if user ID changed or if profile is null but user exists
+    if (user != null && (user.id != _lastUserId || (_profile == null && user.id == _lastUserId))) {
+      _lastUserId = user.id;
+      // Reload profile asynchronously
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _loadProfile();
+        }
+      });
+    }
 
     // Get firstName and lastName from profiles table (source of truth), fallback to userMetadata
-    final firstName = _profile?['first_name'] as String? ??
-        user?.userMetadata?['first_name'] as String? ??
+    // Also check userMetadata first since it updates immediately after AuthService.updateProfile
+    final firstName = user?.userMetadata?['first_name'] as String? ??
+        _profile?['first_name'] as String? ??
         '';
-    final lastName = _profile?['last_name'] as String? ??
-        user?.userMetadata?['last_name'] as String? ??
+    final lastName = user?.userMetadata?['last_name'] as String? ??
+        _profile?['last_name'] as String? ??
         '';
 
     // Build avatar initials safely
@@ -271,8 +284,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   leading: const Icon(Icons.edit, color: AppTheme.primaryGreen),
                   title: const Text('Edit Profile'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    context.push('/profile/edit');
+                  onTap: () async {
+                    await context.push('/profile/edit');
+                    // Reload profile when returning from edit screen
+                    if (mounted) {
+                      _loadProfile();
+                    }
                   },
                 ),
                 const Divider(),
