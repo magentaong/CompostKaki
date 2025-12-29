@@ -105,6 +105,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     showDialog(
       context: context,
+      barrierDismissible: false, // Prevent dismissing during deletion
       builder: (dialogContext) => _DeleteAccountDialog(
         onDelete: () async {
           try {
@@ -125,6 +126,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               );
             }
+            // Re-throw to let the dialog handle the error state
+            rethrow;
           }
         },
       ),
@@ -464,12 +467,39 @@ class _ResetPasswordDialogState extends State<_ResetPasswordDialog> {
   }
 }
 
-class _DeleteAccountDialog extends StatelessWidget {
+class _DeleteAccountDialog extends StatefulWidget {
   final Future<void> Function() onDelete;
 
   const _DeleteAccountDialog({
     required this.onDelete,
   });
+
+  @override
+  State<_DeleteAccountDialog> createState() => _DeleteAccountDialogState();
+}
+
+class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
+  bool _isLoading = false;
+
+  Future<void> _handleDelete() async {
+    if (_isLoading) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await widget.onDelete();
+      // Dialog will be closed by the parent after successful deletion
+    } catch (e) {
+      // Error handling is done in the parent
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -481,28 +511,47 @@ class _DeleteAccountDialog extends StatelessWidget {
           Text('Delete Account'),
         ],
       ),
-      content: const Column(
+      content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          if (_isLoading) ...[
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: CircularProgressIndicator(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Center(
+              child: Text(
+                'Deleting your account...',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+          const Text(
             'Are you sure you want to delete your account?',
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
-          SizedBox(height: 12),
-          Text(
+          const SizedBox(height: 12),
+          const Text(
             'This action cannot be undone. All your data will be permanently deleted, including:',
             style: TextStyle(color: AppTheme.textGray),
           ),
-          SizedBox(height: 8),
-          Text('• Your profile', style: TextStyle(color: AppTheme.textGray)),
-          Text('• All bins you own',
+          const SizedBox(height: 8),
+          const Text('• Your profile', style: TextStyle(color: AppTheme.textGray)),
+          const Text('• All bins you own',
               style: TextStyle(color: AppTheme.textGray)),
-          Text('• Your messages (will be anonymized)',
+          const Text('• Your messages (will be anonymized)',
               style: TextStyle(color: AppTheme.textGray)),
-          Text('• All your tasks', style: TextStyle(color: AppTheme.textGray)),
-          SizedBox(height: 12),
-          Text(
+          const Text('• All your tasks', style: TextStyle(color: AppTheme.textGray)),
+          const SizedBox(height: 12),
+          const Text(
             'If you own bins, they will be deleted along with all their data.',
             style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
           ),
@@ -510,19 +559,25 @@ class _DeleteAccountDialog extends StatelessWidget {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: _isLoading ? null : () => Navigator.pop(context),
           child: const Text('Cancel'),
         ),
         ElevatedButton(
-          onPressed: () async {
-            Navigator.pop(context);
-            await onDelete();
-          },
+          onPressed: _isLoading ? null : _handleDelete,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.red,
             foregroundColor: Colors.white,
           ),
-          child: const Text('Delete Account'),
+          child: _isLoading
+              ? const SizedBox(
+                  height: 16,
+                  width: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Text('Delete Account'),
         ),
       ],
     );
