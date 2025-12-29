@@ -1453,7 +1453,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: BinLeaderboardWidget(
-                  key: ValueKey('leaderboard_${widget.binId}'),
+                  key: ValueKey('leaderboard_${_activities.length}_${DateTime.now().millisecondsSinceEpoch}'),
                   binId: widget.binId,
                 ),
               ),

@@ -32,36 +32,30 @@ class _BinLeaderboardWidgetState extends State<BinLeaderboardWidget> {
   @override
   void didUpdateWidget(BinLeaderboardWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Only reload if binId actually changed
-    if (oldWidget.binId != widget.binId) {
+    if (oldWidget.binId != widget.binId || oldWidget.key != widget.key) {
       _loadLeaderboard();
     }
   }
 
   Future<void> _loadLeaderboard() async {
-    // Prevent multiple simultaneous loads
-    if (_isLoading) return;
-    
     try {
-      setState(() {
-        _isLoading = true;
-      });
-      
+      debugPrint('Loading leaderboard for bin: ${widget.binId}');
       final leaderboard = await _xpService.getBinLeaderboard(widget.binId);
+      debugPrint('Leaderboard loaded: ${leaderboard.length} entries');
       if (mounted) {
         setState(() {
           _leaderboard = leaderboard;
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('Error loading leaderboard: $e');
+      debugPrint('Stack trace: $stackTrace');
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
       }
-      // Only log errors, not successful loads
-      debugPrint('Error loading leaderboard: $e');
     }
   }
 
