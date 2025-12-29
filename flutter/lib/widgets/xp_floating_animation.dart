@@ -19,7 +19,6 @@ class XPFloatingAnimation extends StatefulWidget {
 class _XPFloatingAnimationState extends State<XPFloatingAnimation>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _slideAnimation;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
 
@@ -29,13 +28,6 @@ class _XPFloatingAnimationState extends State<XPFloatingAnimation>
     _controller = AnimationController(
       duration: const Duration(milliseconds: 2000),
       vsync: this,
-    );
-
-    _slideAnimation = Tween<double>(begin: 0.0, end: -100.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOut,
-      ),
     );
 
     _fadeAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
@@ -67,74 +59,69 @@ class _XPFloatingAnimationState extends State<XPFloatingAnimation>
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {
-          return Positioned(
-            bottom: 100 + _slideAnimation.value,
-            left: 0,
-            right: 0,
-            child: Opacity(
-              opacity: _fadeAnimation.value,
-              child: Transform.scale(
-                scale: _scaleAnimation.value,
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 16,
-                    ),
-                    decoration: BoxDecoration(
-                      color: widget.isLevelUp
-                          ? AppTheme.primaryGreen
-                          : (widget.xpAmount < 0 
-                              ? Colors.red.shade700 
-                              : Colors.black87),
-                      borderRadius: BorderRadius.circular(30),
-                      boxShadow: [
-                        BoxShadow(
-                          color: widget.xpAmount < 0
-                              ? Colors.red.withOpacity(0.5)
-                              : AppTheme.primaryGreen.withOpacity(0.5),
-                          blurRadius: 20,
-                          spreadRadius: 5,
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (widget.isLevelUp) ...[
-                          const Icon(
-                            Icons.star,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'LEVEL UP! ',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                        Icon(
-                          widget.xpAmount < 0 ? Icons.remove_circle : Icons.workspace_premium,
-                          color: widget.xpAmount < 0 ? Colors.white : Colors.amber,
+          return Opacity(
+            opacity: _fadeAnimation.value,
+            child: Transform.scale(
+              scale: _scaleAnimation.value,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
+                  decoration: BoxDecoration(
+                    color: widget.isLevelUp
+                        ? AppTheme.primaryGreen
+                        : (widget.xpAmount < 0 
+                            ? Colors.red.shade700 
+                            : Colors.black87),
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [
+                      BoxShadow(
+                        color: widget.xpAmount < 0
+                            ? Colors.red.withOpacity(0.5)
+                            : AppTheme.primaryGreen.withOpacity(0.5),
+                        blurRadius: 20,
+                        spreadRadius: 5,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (widget.isLevelUp) ...[
+                        const Icon(
+                          Icons.star,
+                          color: Colors.white,
                           size: 24,
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          widget.xpAmount >= 0 
-                              ? '+${widget.xpAmount} XP'
-                              : '-${widget.xpAmount.abs()} XP',
+                        const Text(
+                          'LEVEL UP! ',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 24,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ],
-                    ),
+                      Icon(
+                        widget.xpAmount < 0 ? Icons.remove_circle : Icons.workspace_premium,
+                        color: widget.xpAmount < 0 ? Colors.white : Colors.amber,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        widget.xpAmount >= 0 
+                            ? '+${widget.xpAmount} XP'
+                            : '-${widget.xpAmount.abs()} XP',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -156,23 +143,86 @@ void showXPFloatingAnimation(
   late OverlayEntry overlayEntry;
 
   overlayEntry = OverlayEntry(
-    builder: (context) => Stack(
-      children: [
-        XPFloatingAnimation(
-          xpAmount: xpAmount,
-          isLevelUp: isLevelUp,
-        ),
-      ],
+    builder: (context) => _XPAnimationOverlay(
+      xpAmount: xpAmount,
+      isLevelUp: isLevelUp,
+      onComplete: () {
+        if (overlayEntry.mounted) {
+          overlayEntry.remove();
+        }
+      },
     ),
   );
 
   overlay.insert(overlayEntry);
-
-  // Auto-remove after animation
-  Future.delayed(const Duration(milliseconds: 2100), () {
-    if (overlayEntry.mounted) {
-      overlayEntry.remove();
-    }
-  });
 }
 
+// Internal widget to handle the animation with proper State management
+class _XPAnimationOverlay extends StatefulWidget {
+  final int xpAmount;
+  final bool isLevelUp;
+  final VoidCallback onComplete;
+
+  const _XPAnimationOverlay({
+    required this.xpAmount,
+    required this.isLevelUp,
+    required this.onComplete,
+  });
+
+  @override
+  State<_XPAnimationOverlay> createState() => _XPAnimationOverlayState();
+}
+
+class _XPAnimationOverlayState extends State<_XPAnimationOverlay>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _slideController;
+  late Animation<double> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    );
+
+    _slideAnimation = Tween<double>(begin: 0.0, end: -100.0).animate(
+      CurvedAnimation(
+        parent: _slideController,
+        curve: Curves.easeOut,
+      ),
+    );
+
+    _slideController.forward().then((_) {
+      widget.onComplete();
+    });
+  }
+
+  @override
+  void dispose() {
+    _slideController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        AnimatedBuilder(
+          animation: _slideAnimation,
+          builder: (context, child) {
+            return Positioned(
+              bottom: 100 + _slideAnimation.value,
+              left: 0,
+              right: 0,
+              child: XPFloatingAnimation(
+                xpAmount: widget.xpAmount,
+                isLevelUp: widget.isLevelUp,
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}

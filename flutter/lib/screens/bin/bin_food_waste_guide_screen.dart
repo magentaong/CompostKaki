@@ -123,22 +123,60 @@ class _BinFoodWasteGuideScreenState extends State<BinFoodWasteGuideScreen> {
   void _addCanAddItem() {
     final item = _newCanAddController.text.trim();
     if (item.isNotEmpty && !_canAddItems.contains(item)) {
+      // Check if item exists in "cannot add" list before adding
+      final wasInCannotAdd = _cannotAddItems.contains(item);
+      
       setState(() {
+        // Remove from "cannot add" list if it exists there
+        if (wasInCannotAdd) {
+          _cannotAddItems.remove(item);
+        }
+        // Add to "can add" list
         _canAddItems.add(item);
         _newCanAddController.clear();
       });
       _saveGuide();
+      
+      // Show message if item was moved from "cannot add" to "can add"
+      if (wasInCannotAdd && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('"$item" moved from "Cannot Add" to "Can Add"'),
+            backgroundColor: AppTheme.primaryGreen,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
   void _addCannotAddItem() {
     final item = _newCannotAddController.text.trim();
     if (item.isNotEmpty && !_cannotAddItems.contains(item)) {
+      // Check if item exists in "can add" list before adding
+      final wasInCanAdd = _canAddItems.contains(item);
+      
       setState(() {
+        // Remove from "can add" list if it exists there
+        if (wasInCanAdd) {
+          _canAddItems.remove(item);
+        }
+        // Add to "cannot add" list
         _cannotAddItems.add(item);
         _newCannotAddController.clear();
       });
       _saveGuide();
+      
+      // Show message if item was moved from "can add" to "cannot add"
+      if (wasInCanAdd && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('"$item" moved from "Can Add" to "Cannot Add"'),
+            backgroundColor: AppTheme.primaryGreen,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
