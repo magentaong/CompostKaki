@@ -333,6 +333,74 @@ class XPService {
     );
   }
 
+  // Subtract XP from a specific user (for task revert)
+  Future<Map<String, dynamic>> subtractXPForTaskRevert({
+    required String userId,
+    required String binId,
+    required int amount,
+  }) async {
+    // Get current user stats for the target user
+    final profileResponse = await _supabaseService.client
+        .from('profiles')
+        .select('total_xp, current_level')
+        .eq('id', userId)
+        .single();
+
+    final currentXP = (profileResponse['total_xp'] as int?) ?? 0;
+    final currentLevel = (profileResponse['current_level'] as int?) ?? 1;
+    final newXP = (currentXP - amount).clamp(0, double.infinity).toInt(); // Don't go below 0
+    final newLevel = calculateLevel(newXP);
+
+    // Update profile with new XP and level
+    await _supabaseService.client.from('profiles').update({
+      'total_xp': newXP,
+      'current_level': newLevel,
+    }).eq('id', userId);
+
+    // Update bin-level stats
+    final binStatsResponse = await _supabaseService.client
+        .from('user_bin_stats')
+        .select('total_xp')
+        .eq('user_id', userId)
+        .eq('bin_id', binId)
+        .maybeSingle();
+
+    final currentBinXP = (binStatsResponse?['total_xp'] as int?) ?? 0;
+    final newBinXP = (currentBinXP - amount).clamp(0, double.infinity).toInt();
+
+    if (binStatsResponse != null) {
+      await _supabaseService.client
+          .from('user_bin_stats')
+          .update({'total_xp': newBinXP})
+          .eq('user_id', userId)
+          .eq('bin_id', binId);
+    } else {
+      await _supabaseService.client.from('user_bin_stats').insert({
+        'user_id': userId,
+        'bin_id': binId,
+        'total_xp': newBinXP,
+      });
+    }
+
+    // Log XP transaction
+    await _supabaseService.client.from('xp_transactions').insert({
+      'user_id': userId,
+      'amount': -amount, // Negative amount
+      'source': 'task_revert',
+      'bin_id': binId,
+      'description': 'Task completion reverted by owner',
+    });
+
+    final levelUp = newLevel > currentLevel;
+
+    return {
+      'xpGained': -amount, // Negative to indicate loss
+      'totalXP': newXP,
+      'currentLevel': newLevel,
+      'levelUp': levelUp,
+    };
+  }
+
   // Get user's XP and level
   Future<Map<String, dynamic>> getUserStats() async {
     final user = _supabaseService.currentUser;

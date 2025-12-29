@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS user_notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  type TEXT NOT NULL CHECK (type IN ('message', 'join_request', 'activity', 'help_request', 'bin_health')),
+  type TEXT NOT NULL CHECK (type IN ('message', 'join_request', 'activity', 'help_request', 'bin_health', 'task_completed')),
   reference_id UUID, -- ID of the related record (message_id, request_id, task_id, bin_id, etc.)
   bin_id UUID REFERENCES bins(id) ON DELETE CASCADE,
   title TEXT,
@@ -66,18 +66,21 @@ ALTER TABLE notification_preferences ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for user_notifications
 -- Users can view their own notifications
+DROP POLICY IF EXISTS "Users can view their own notifications" ON user_notifications;
 CREATE POLICY "Users can view their own notifications"
   ON user_notifications
   FOR SELECT
   USING (auth.uid() = user_id);
 
 -- Users can update their own notifications (mark as read)
+DROP POLICY IF EXISTS "Users can update their own notifications" ON user_notifications;
 CREATE POLICY "Users can update their own notifications"
   ON user_notifications
   FOR UPDATE
   USING (auth.uid() = user_id);
 
 -- System can insert notifications (via triggers/functions)
+DROP POLICY IF EXISTS "System can insert notifications" ON user_notifications;
 CREATE POLICY "System can insert notifications"
   ON user_notifications
   FOR INSERT
@@ -85,6 +88,7 @@ CREATE POLICY "System can insert notifications"
 
 -- RLS Policies for user_fcm_tokens
 -- Users can manage their own FCM tokens
+DROP POLICY IF EXISTS "Users can manage their own FCM tokens" ON user_fcm_tokens;
 CREATE POLICY "Users can manage their own FCM tokens"
   ON user_fcm_tokens
   FOR ALL
@@ -93,6 +97,7 @@ CREATE POLICY "Users can manage their own FCM tokens"
 
 -- RLS Policies for notification_preferences
 -- Users can manage their own notification preferences
+DROP POLICY IF EXISTS "Users can manage their own notification preferences" ON notification_preferences;
 CREATE POLICY "Users can manage their own notification preferences"
   ON notification_preferences
   FOR ALL
@@ -109,6 +114,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to update updated_at on user_fcm_tokens
+DROP TRIGGER IF EXISTS update_user_fcm_tokens_updated_at ON user_fcm_tokens;
 CREATE TRIGGER update_user_fcm_tokens_updated_at
   BEFORE UPDATE ON user_fcm_tokens
   FOR EACH ROW
@@ -124,6 +130,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to update updated_at on notification_preferences
+DROP TRIGGER IF EXISTS update_notification_preferences_updated_at ON notification_preferences;
 CREATE TRIGGER update_notification_preferences_updated_at
   BEFORE UPDATE ON notification_preferences
   FOR EACH ROW

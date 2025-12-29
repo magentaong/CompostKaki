@@ -965,15 +965,13 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                     ),
                   );
                   
-                  // If user wants to go to Tasks, navigate back to main and switch to Tasks tab
+                  // If user wants to go to Tasks, navigate directly to main with Tasks tab
                   if (goToTasks == true) {
-                    // Pop back to main screen first
-                    if (Navigator.canPop(parentContext)) {
-                      Navigator.pop(parentContext);
+                    // Use go() to navigate directly to Tasks page, clearing navigation stack
+                    // This ensures no back button appears and goes straight to Tasks tab
+                    if (parentContext.mounted) {
+                      parentContext.go('/main?tab=tasks');
                     }
-                    // Navigate to main with query parameter to switch to Tasks tab
-                    // Use go() instead of pushReplacement for better performance
-                    parentContext.go('/main?tab=tasks');
                   } else {
                     // Show success message if staying
                     ScaffoldMessenger.of(parentContext).showSnackBar(

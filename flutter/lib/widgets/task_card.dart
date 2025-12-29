@@ -5,12 +5,16 @@ class TaskCard extends StatelessWidget {
   final Map<String, dynamic> task;
   final List<Map<String, dynamic>> bins;
   final VoidCallback onTap;
+  final bool isCompleted; // Highlight completed tasks
+  final bool isPendingCheck; // If true, white background; if false, darkened green
 
   const TaskCard({
     super.key,
     required this.task,
     required this.bins,
     required this.onTap,
+    this.isCompleted = false,
+    this.isPendingCheck = false,
   });
 
   Color _getUrgencyColor(String? urgency) {
@@ -56,8 +60,28 @@ class TaskCard extends StatelessWidget {
         ? '$acceptedByFirstName $acceptedByLastName'.trim()
         : acceptedByFirstName ?? 'Unknown';
 
+    // Determine card color based on completion status
+    Color? cardColor;
+    BorderSide? borderSide;
+    if (isCompleted) {
+      if (isPendingCheck) {
+        // Pending check: white background with green border
+        cardColor = Colors.white;
+        borderSide = const BorderSide(color: AppTheme.primaryGreen, width: 2);
+      } else {
+        // Checked/reverted: darkened green background
+        cardColor = AppTheme.primaryGreen.withOpacity(0.3); // Darker green
+        borderSide = const BorderSide(color: AppTheme.primaryGreen, width: 2);
+      }
+    }
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      color: cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: borderSide ?? BorderSide.none,
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),

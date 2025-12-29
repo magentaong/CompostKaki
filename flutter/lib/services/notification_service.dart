@@ -15,6 +15,7 @@ class NotificationService extends ChangeNotifier {
   int _unreadActivities = 0;
   int _unreadHelpRequests = 0;
   int _unreadBinHealth = 0;
+  int _unreadTaskCompleted = 0;
 
   // Per-bin badge counts cache
   final Map<String, int> _binMessageCounts = {};
@@ -34,12 +35,14 @@ class NotificationService extends ChangeNotifier {
   int get unreadActivities => _unreadActivities;
   int get unreadHelpRequests => _unreadHelpRequests;
   int get unreadBinHealth => _unreadBinHealth;
+  int get unreadTaskCompleted => _unreadTaskCompleted;
 
   int get totalUnread => _unreadMessages +
       _unreadJoinRequests +
       _unreadActivities +
       _unreadHelpRequests +
-      _unreadBinHealth;
+      _unreadBinHealth +
+      _unreadTaskCompleted;
 
   String? get currentUserId => _supabaseService.currentUser?.id;
 
@@ -241,6 +244,7 @@ class NotificationService extends ChangeNotifier {
       _unreadActivities = 0;
       _unreadHelpRequests = 0;
       _unreadBinHealth = 0;
+      _unreadTaskCompleted = 0;
       _binMessageCounts.clear();
       _binActivityCounts.clear();
       _binJoinRequestCounts.clear();
@@ -281,6 +285,9 @@ class NotificationService extends ChangeNotifier {
           case 'bin_health':
             _unreadBinHealth++;
             break;
+          case 'task_completed':
+            _unreadTaskCompleted++;
+            break;
         }
       }
 
@@ -289,6 +296,7 @@ class NotificationService extends ChangeNotifier {
       print('  Total messages: $_unreadMessages');
       print('  Total join requests: $_unreadJoinRequests');
       print('  Total activities: $_unreadActivities');
+      print('  Total task completed: $_unreadTaskCompleted');
       print('  Per-bin message counts: $_binMessageCounts');
       print('  Per-bin activity counts: $_binActivityCounts');
       print('  Per-bin join request counts: $_binJoinRequestCounts');
@@ -460,6 +468,9 @@ class NotificationService extends ChangeNotifier {
                   break;
                 case 'bin_health':
                   _unreadBinHealth++;
+                  break;
+                case 'task_completed':
+                  _unreadTaskCompleted++;
                   break;
               }
               

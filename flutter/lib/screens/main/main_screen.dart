@@ -63,8 +63,9 @@ class _MainScreenState extends State<MainScreen> {
         _isLoading = false; // Don't show loading for bins
         // Load tasks immediately without waiting
         _loadTasks();
-        // Clear help request badges when viewing tasks tab
+        // Clear help request and task completed badges when viewing tasks tab
         notificationService.markAsRead(type: 'help_request');
+        notificationService.markAsRead(type: 'task_completed');
         // Load bins in background (non-blocking) for when user switches to Home tab
         _loadDataInBackground();
         return;
@@ -95,6 +96,10 @@ class _MainScreenState extends State<MainScreen> {
           });
           if (targetTab == 1) {
             _loadTasks();
+            // Clear badges when switching to Tasks tab
+            final notificationService = context.read<NotificationService>();
+            notificationService.markAsRead(type: 'help_request');
+            notificationService.markAsRead(type: 'task_completed');
           }
           // If switching to home tab and we have no bins loaded, reload
           if (targetTab == 0 && _bins.isEmpty && !_isLoading && !_isLoadingBins) {
@@ -301,6 +306,7 @@ class _MainScreenState extends State<MainScreen> {
       case 1:
         return AppBar(
           title: const Text('Community Tasks'),
+          automaticallyImplyLeading: false, // No back button on Tasks tab
         );
       case 2:
         return AppBar(
@@ -476,11 +482,40 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildCommunityTab() {
+    final currentUserId = _taskService.currentUserId;
+    final now = DateTime.now();
+    final thirtyDaysAgo = now.subtract(const Duration(days: 30));
+    
     final newTasks = _tasks.where((t) => t['status'] == 'open').toList();
     final ongoingTasks = _tasks
         .where((t) =>
             t['status'] == 'accepted' &&
-            t['accepted_by'] == _taskService.currentUserId)
+            (t['accepted_by'] == currentUserId || t['user_id'] == currentUserId))
+        .toList();
+    
+    // Completed tasks from last 30 days - separate into pending and checked/reverted
+    final allCompletedTasks = _tasks
+        .where((t) {
+          if (t['status'] != 'completed') return false;
+          final completedAt = t['completed_at'] as String?;
+          if (completedAt == null) return false;
+          try {
+            final completedDate = DateTime.parse(completedAt);
+            return completedDate.isAfter(thirtyDaysAgo);
+          } catch (e) {
+            return false;
+          }
+        })
+        .toList();
+    
+    // Pending check tasks (white, shown first)
+    final pendingCheckTasks = allCompletedTasks
+        .where((t) => t['completion_status'] == 'pending_check')
+        .toList();
+    
+    // Checked/reverted tasks (darkened green, shown second)
+    final checkedRevertedTasks = allCompletedTasks
+        .where((t) => t['completion_status'] == 'checked' || t['completion_status'] == 'reverted')
         .toList();
 
     return RefreshIndicator(
@@ -543,6 +578,66 @@ class _MainScreenState extends State<MainScreen> {
                             bins: _bins,
                             onTap: () => _showTaskDetail(task),
                           )),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+
+                // Completed Tasks (Last 30 Days)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Completed Tasks',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryGreen,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => _showPastHistory(context),
+                          child: const Text(
+                            'View Past History',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppTheme.primaryGreen,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Pending check tasks (white, shown first)
+                    if (pendingCheckTasks.isNotEmpty) ...[
+                      ...pendingCheckTasks.map((task) => TaskCard(
+                            task: task,
+                            bins: _bins,
+                            onTap: () => _showTaskDetail(task),
+                            isCompleted: true,
+                            isPendingCheck: true, // White background
+                          )),
+                      const SizedBox(height: 12),
+                    ],
+                    
+                    // Checked/reverted tasks (darkened green, shown second)
+                    if (checkedRevertedTasks.isNotEmpty)
+                      ...checkedRevertedTasks.map((task) => TaskCard(
+                            task: task,
+                            bins: _bins,
+                            onTap: () => _showTaskDetail(task),
+                            isCompleted: true,
+                            isPendingCheck: false, // Darkened green
+                          )),
+                    
+                    if (pendingCheckTasks.isEmpty && checkedRevertedTasks.isEmpty)
+                      const Text(
+                        'No completed tasks in the last 30 days.',
+                        style: TextStyle(color: AppTheme.textGray),
+                      ),
                   ],
                 ),
               ]),
@@ -721,6 +816,49 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  void _showPastHistory(BuildContext context) {
+    // Get all completed tasks (not just last 30 days)
+    final allCompletedTasks = _tasks
+        .where((t) => t['status'] == 'completed')
+        .toList();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Past Completed Tasks'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: allCompletedTasks.isEmpty
+              ? const Text('No completed tasks found.')
+              : ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: allCompletedTasks.length,
+                  itemBuilder: (context, index) {
+                    final task = allCompletedTasks[index];
+                    final completionStatus = task['completion_status'] as String?;
+                    return TaskCard(
+                      task: task,
+                      bins: _bins,
+                      onTap: () {
+                        Navigator.pop(dialogContext);
+                        _showTaskDetail(task);
+                      },
+                      isCompleted: true,
+                      isPendingCheck: completionStatus == 'pending_check',
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showTaskDetail(Map<String, dynamic> task) {
     // Capture parent context before showing dialog
     final parentContext = context;
@@ -794,6 +932,71 @@ class _MainScreenState extends State<MainScreen> {
             Navigator.pop(dialogContext);
           }
         },
+        onCheck: task['status'] == 'completed' && 
+                 task['completion_status'] == 'pending_check' &&
+                 task['user_id'] == _taskService.currentUserId
+            ? () async {
+                try {
+                  await _taskService.checkTask(task['id']);
+                  _updateLocalTask(task['id'], {
+                    'completion_status': 'checked',
+                    'checked_at': DateTime.now().toUtc().toIso8601String(),
+                  });
+                  if (mounted) {
+                    _loadTasks();
+                    ScaffoldMessenger.of(parentContext).showSnackBar(
+                      const SnackBar(
+                        content: Text('Task marked as checked'),
+                        backgroundColor: AppTheme.primaryGreen,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(parentContext).showSnackBar(
+                      SnackBar(
+                        content: Text('Error: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              }
+            : null,
+        onRevert: task['status'] == 'completed' && 
+                  task['completion_status'] == 'pending_check' &&
+                  task['user_id'] == _taskService.currentUserId
+            ? () async {
+                try {
+                  final xpResult = await _taskService.revertTask(task['id']);
+                  _updateLocalTask(task['id'], {
+                    'status': 'open',
+                    'completion_status': 'reverted',
+                    'reverted_at': DateTime.now().toUtc().toIso8601String(),
+                    'accepted_by': null,
+                    'accepted_at': null,
+                  });
+                  if (mounted) {
+                    _loadTasks();
+                    ScaffoldMessenger.of(parentContext).showSnackBar(
+                      const SnackBar(
+                        content: Text('Task reverted. XP has been subtracted from completer.'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(parentContext).showSnackBar(
+                      SnackBar(
+                        content: Text('Error: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              }
+            : null,
       ),
     );
   }
@@ -910,8 +1113,9 @@ class _MainScreenState extends State<MainScreen> {
                 });
                 if (index == 1) {
                   _loadTasks();
-                  // Clear help request badges when viewing tasks tab
+                  // Clear help request and task completed badges when viewing tasks tab
                   notificationService.markAsRead(type: 'help_request');
+                  notificationService.markAsRead(type: 'task_completed');
                 } else if (index == 0) {
                   // Clear message badges when viewing home tab (messages are in bin detail)
                   // We'll handle this in bin detail screen instead
@@ -1242,6 +1446,8 @@ class _TaskDetailDialog extends StatelessWidget {
   final VoidCallback onAccept;
   final VoidCallback onComplete;
   final VoidCallback onUnassign;
+  final VoidCallback? onCheck;
+  final VoidCallback? onRevert;
 
   const _TaskDetailDialog({
     required this.task,
@@ -1249,6 +1455,8 @@ class _TaskDetailDialog extends StatelessWidget {
     required this.onAccept,
     required this.onComplete,
     required this.onUnassign,
+    this.onCheck,
+    this.onRevert,
   });
 
   Color _getUrgencyColor(String? urgency) {
@@ -1311,10 +1519,14 @@ class _TaskDetailDialog extends StatelessWidget {
     final urgency = task['urgency'] as String? ?? 'Normal';
     final effort = task['effort'] as String? ?? '';
     final status = task['status'] as String? ?? 'open';
+    final completionStatus = task['completion_status'] as String?;
     final profile = task['profiles'] as Map<String, dynamic>?;
     final firstName = profile?['first_name'] as String? ?? 'Unknown';
-    final currentUserId = task['user_id'] as String?;
+    final taskPosterId = task['user_id'] as String?;
     final acceptedBy = task['accepted_by'];
+    // Get current user ID from TaskService
+    final taskService = TaskService();
+    final currentUserId = taskService.currentUserId;
     final acceptedByProfile = task['accepted_by_profile'] as Map<String, dynamic>?;
     final acceptedByFirstName = acceptedByProfile?['first_name'] as String?;
     final acceptedByLastName = acceptedByProfile?['last_name'] as String?;
@@ -1510,7 +1722,9 @@ class _TaskDetailDialog extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (status == 'accepted' && acceptedBy == currentUserId) ...[
+              // Show buttons if: current user accepted the task OR current user posted the task
+              if (status == 'accepted' && 
+                  (acceptedBy == currentUserId || taskPosterId == currentUserId)) ...[
                 // Mark as Completed (top)
                 SizedBox(
                   width: double.infinity,
@@ -1539,6 +1753,45 @@ class _TaskDetailDialog extends StatelessWidget {
                       side: const BorderSide(color: Colors.orange, width: 1.5),
                     ),
                     child: const Text('Unassign Task'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              // Show Checked and Revert buttons for completed tasks (only for task owner)
+              if (status == 'completed' && 
+                  completionStatus == 'pending_check' &&
+                  taskPosterId == currentUserId &&
+                  onCheck != null &&
+                  onRevert != null) ...[
+                // Checked button (confirm completion)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      onCheck!();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryGreen,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Checked'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Revert button (reject completion)
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      onRevert!();
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red, width: 1.5),
+                    ),
+                    child: const Text('Not Done Properly'),
                   ),
                 ),
                 const SizedBox(height: 8),

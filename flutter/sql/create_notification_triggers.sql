@@ -108,6 +108,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS notify_new_message ON bin_messages;
 CREATE TRIGGER notify_new_message
   AFTER INSERT ON bin_messages
   FOR EACH ROW
@@ -144,6 +145,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS notify_join_request ON bin_requests;
 CREATE TRIGGER notify_join_request
   AFTER INSERT ON bin_requests
   FOR EACH ROW
@@ -181,6 +183,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS notify_new_activity ON bin_logs;
 CREATE TRIGGER notify_new_activity
   AFTER INSERT ON bin_logs
   FOR EACH ROW
@@ -217,10 +220,72 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS notify_help_request ON tasks;
 CREATE TRIGGER notify_help_request
   AFTER INSERT ON tasks
   FOR EACH ROW
   EXECUTE FUNCTION trigger_notify_help_request();
+
+-- Trigger: Task completion notification (notify task owner)
+CREATE OR REPLACE FUNCTION trigger_notify_task_completion()
+RETURNS TRIGGER AS $$
+DECLARE
+  bin_name TEXT;
+  completer_name TEXT;
+  task_owner_id UUID;
+BEGIN
+  -- Only notify when status changes to 'completed'
+  IF NEW.status = 'completed' AND (OLD.status IS NULL OR OLD.status != 'completed') THEN
+    -- Get task owner (user_id is the creator/owner of the task)
+    task_owner_id := NEW.user_id;
+    
+    -- Get bin name
+    SELECT name INTO bin_name FROM bins WHERE id = NEW.bin_id;
+    
+    -- Get completer name (the person who completed it - accepted_by)
+    IF NEW.accepted_by IS NOT NULL THEN
+      SELECT COALESCE(first_name || ' ' || last_name, 'Someone') INTO completer_name
+      FROM profiles WHERE id = NEW.accepted_by;
+    ELSE
+      completer_name := 'Someone';
+    END IF;
+    
+    -- Notify task owner only (not the completer)
+    IF task_owner_id IS NOT NULL AND task_owner_id != NEW.accepted_by THEN
+      -- Check if owner has notification preference enabled
+      IF EXISTS (
+        SELECT 1 FROM notification_preferences np
+        WHERE np.user_id = task_owner_id
+        AND (
+          (np.badge_help_requests = true) -- Use help_request preference for task-related notifications
+        )
+      ) OR NOT EXISTS (
+        SELECT 1 FROM notification_preferences WHERE user_id = task_owner_id
+      ) THEN
+        -- Default preferences: enabled
+        INSERT INTO user_notifications (user_id, type, reference_id, bin_id, title, body)
+        VALUES (
+          task_owner_id,
+          'task_completed',
+          NEW.id,
+          NEW.bin_id,
+          COALESCE(bin_name, 'Bin'),
+          COALESCE(completer_name, 'Someone') || ' completed your task'
+        );
+      END IF;
+    END IF;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS notify_task_completion ON tasks;
+CREATE TRIGGER notify_task_completion
+  AFTER UPDATE ON tasks
+  FOR EACH ROW
+  WHEN (OLD.status IS DISTINCT FROM NEW.status AND NEW.status = 'completed')
+  EXECUTE FUNCTION trigger_notify_task_completion();
 
 -- Trigger: Bin health deterioration notification
 CREATE OR REPLACE FUNCTION trigger_notify_bin_health()
@@ -255,6 +320,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS notify_bin_health ON bins;
 CREATE TRIGGER notify_bin_health
   AFTER UPDATE ON bins
   FOR EACH ROW

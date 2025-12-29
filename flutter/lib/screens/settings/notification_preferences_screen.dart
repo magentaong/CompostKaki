@@ -56,11 +56,13 @@ class _NotificationPreferencesScreenState
       'push_activities': true,
       'push_help_requests': true,
       'push_bin_health': true,
+      'push_task_completed': true,
       'badge_messages': true,
       'badge_join_requests': true,
       'badge_activities': true,
       'badge_help_requests': true,
       'badge_bin_health': true,
+      'badge_task_completed': true,
     };
   }
 
@@ -154,6 +156,12 @@ class _NotificationPreferencesScreenState
                         key: 'push_bin_health',
                         value: _preferences!['push_bin_health'] ?? true,
                       ),
+                      _buildPreferenceTile(
+                        title: 'Task Completed',
+                        subtitle: 'Receive push notifications when your task is completed',
+                        key: 'push_task_completed',
+                        value: _preferences!['push_task_completed'] ?? true,
+                      ),
                       
                       const SizedBox(height: 24),
                       
@@ -189,6 +197,12 @@ class _NotificationPreferencesScreenState
                         subtitle: 'Show badge count for bin health alerts',
                         key: 'badge_bin_health',
                         value: _preferences!['badge_bin_health'] ?? true,
+                      ),
+                      _buildPreferenceTile(
+                        title: 'Task Completed Badges',
+                        subtitle: 'Show badge count when your task is completed',
+                        key: 'badge_task_completed',
+                        value: _preferences!['badge_task_completed'] ?? true,
                       ),
                       
                       const SizedBox(height: 32),
