@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS user_notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  type TEXT NOT NULL CHECK (type IN ('message', 'join_request', 'activity', 'help_request', 'bin_health', 'task_completed')),
+  type TEXT NOT NULL CHECK (type IN ('message', 'join_request', 'activity', 'help_request', 'bin_health', 'task_completed', 'task_accepted', 'task_reverted')),
   reference_id UUID, -- ID of the related record (message_id, request_id, task_id, bin_id, etc.)
   bin_id UUID REFERENCES bins(id) ON DELETE CASCADE,
   title TEXT,

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'supabase_service.dart';
 
 /// Service for managing notifications (badges and push notifications)
@@ -46,8 +47,13 @@ class NotificationService extends ChangeNotifier {
 
   String? get currentUserId => _supabaseService.currentUser?.id;
 
+  // Track last visit to notification inbox
+  DateTime? _lastNotificationInboxVisit;
+  static const String _lastVisitKey = 'last_notification_inbox_visit';
+
   NotificationService() {
     _initialize();
+    _loadLastVisit();
   }
 
   Future<void> _initialize() async {
@@ -55,6 +61,50 @@ class NotificationService extends ChangeNotifier {
       await _loadBadgeCounts();
       await _subscribeToNotifications();
     }
+  }
+
+  /// Load last visit timestamp from local storage
+  Future<void> _loadLastVisit() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lastVisitString = prefs.getString(_lastVisitKey);
+      if (lastVisitString != null) {
+        _lastNotificationInboxVisit = DateTime.parse(lastVisitString);
+      }
+    } catch (e) {
+      print('Error loading last visit: $e');
+    }
+  }
+
+  /// Save last visit timestamp to local storage
+  Future<void> _saveLastVisit() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _lastNotificationInboxVisit = DateTime.now();
+      await prefs.setString(_lastVisitKey, _lastNotificationInboxVisit!.toIso8601String());
+      notifyListeners();
+    } catch (e) {
+      print('Error saving last visit: $e');
+    }
+  }
+
+  /// Mark that user has visited notification inbox
+  Future<void> markNotificationInboxVisited() async {
+    await _saveLastVisit();
+    // Mark all notifications as read
+    await markAllAsRead();
+  }
+
+  /// Get count of new notifications since last visit
+  int get newNotificationsSinceLastVisit {
+    if (_lastNotificationInboxVisit == null) {
+      // If never visited, return total unread
+      return totalUnread;
+    }
+    
+    // For now, return total unread - we can enhance this later to filter by created_at
+    // if needed for more precise tracking
+    return totalUnread;
   }
 
   /// Initialize FCM and request permissions
@@ -288,6 +338,12 @@ class NotificationService extends ChangeNotifier {
           case 'task_completed':
             _unreadTaskCompleted++;
             break;
+          case 'task_accepted':
+            _unreadTaskCompleted++; // Count task_accepted with task_completed
+            break;
+          case 'task_reverted':
+            _unreadTaskCompleted++; // Count task_reverted with task_completed
+            break;
         }
       }
 
@@ -471,6 +527,12 @@ class NotificationService extends ChangeNotifier {
                   break;
                 case 'task_completed':
                   _unreadTaskCompleted++;
+                  break;
+                case 'task_accepted':
+                  _unreadTaskCompleted++; // Count task_accepted with task_completed
+                  break;
+                case 'task_reverted':
+                  _unreadTaskCompleted++; // Count task_reverted with task_completed
                   break;
               }
               

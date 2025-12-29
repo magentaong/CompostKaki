@@ -74,6 +74,8 @@ BEGIN
     WHEN 'help_request' THEN COALESCE((SELECT push_help_requests FROM notification_preferences WHERE user_id = NEW.user_id), true)
     WHEN 'bin_health' THEN COALESCE((SELECT push_bin_health FROM notification_preferences WHERE user_id = NEW.user_id), true)
     WHEN 'task_completed' THEN COALESCE((SELECT push_task_completed FROM notification_preferences WHERE user_id = NEW.user_id), true)
+    WHEN 'task_accepted' THEN COALESCE((SELECT push_task_completed FROM notification_preferences WHERE user_id = NEW.user_id), true)
+    WHEN 'task_reverted' THEN COALESCE((SELECT push_task_completed FROM notification_preferences WHERE user_id = NEW.user_id), true)
     ELSE true
   END INTO push_pref;
   

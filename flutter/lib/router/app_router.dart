@@ -14,6 +14,7 @@ import '../screens/educational/guide_detail_screen.dart';
 import '../screens/educational/tips_screen.dart';
 import '../screens/bin/bin_chat_conversation_screen.dart';
 import '../screens/bin/bin_food_waste_guide_screen.dart';
+import '../screens/notifications/notifications_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -79,6 +80,10 @@ class AppRouter {
       GoRoute(
         path: '/profile/edit',
         builder: (context, state) => const EditProfileScreen(),
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationsScreen(),
       ),
       GoRoute(
         path: '/guides',

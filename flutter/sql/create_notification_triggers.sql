@@ -226,6 +226,67 @@ CREATE TRIGGER notify_help_request
   FOR EACH ROW
   EXECUTE FUNCTION trigger_notify_help_request();
 
+-- Trigger: Task accepted notification (notify task owner)
+CREATE OR REPLACE FUNCTION trigger_notify_task_accepted()
+RETURNS TRIGGER AS $$
+DECLARE
+  bin_name TEXT;
+  accepter_name TEXT;
+  task_owner_id UUID;
+BEGIN
+  -- Only notify when status changes to 'accepted'
+  IF NEW.status = 'accepted' AND (OLD.status IS NULL OR OLD.status != 'accepted') THEN
+    -- Get task owner (user_id is the creator/owner of the task)
+    task_owner_id := NEW.user_id;
+    
+    -- Get bin name
+    SELECT name INTO bin_name FROM bins WHERE id = NEW.bin_id;
+    
+    -- Get accepter name (the person who accepted it - accepted_by)
+    IF NEW.accepted_by IS NOT NULL THEN
+      SELECT COALESCE(first_name || ' ' || last_name, 'Someone') INTO accepter_name
+      FROM profiles WHERE id = NEW.accepted_by;
+    ELSE
+      accepter_name := 'Someone';
+    END IF;
+    
+    -- Notify task owner only (not the accepter)
+    IF task_owner_id IS NOT NULL AND task_owner_id != NEW.accepted_by THEN
+      -- Check if owner has notification preference enabled
+      IF EXISTS (
+        SELECT 1 FROM notification_preferences np
+        WHERE np.user_id = task_owner_id
+        AND (
+          (np.badge_task_completed = true) -- Use task_completed preference for task-related notifications
+        )
+      ) OR NOT EXISTS (
+        SELECT 1 FROM notification_preferences WHERE user_id = task_owner_id
+      ) THEN
+        -- Default preferences: enabled
+        INSERT INTO user_notifications (user_id, type, reference_id, bin_id, title, body)
+        VALUES (
+          task_owner_id,
+          'task_accepted',
+          NEW.id,
+          NEW.bin_id,
+          COALESCE(bin_name, 'Bin'),
+          COALESCE(accepter_name, 'Someone') || ' accepted your task'
+        );
+      END IF;
+    END IF;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS notify_task_accepted ON tasks;
+CREATE TRIGGER notify_task_accepted
+  AFTER UPDATE ON tasks
+  FOR EACH ROW
+  WHEN (OLD.status IS DISTINCT FROM NEW.status AND NEW.status = 'accepted')
+  EXECUTE FUNCTION trigger_notify_task_accepted();
+
 -- Trigger: Task completion notification (notify task owner)
 CREATE OR REPLACE FUNCTION trigger_notify_task_completion()
 RETURNS TRIGGER AS $$
@@ -257,7 +318,7 @@ BEGIN
         SELECT 1 FROM notification_preferences np
         WHERE np.user_id = task_owner_id
         AND (
-          (np.badge_help_requests = true) -- Use help_request preference for task-related notifications
+          (np.badge_task_completed = true) -- Use task_completed preference for task-related notifications
         )
       ) OR NOT EXISTS (
         SELECT 1 FROM notification_preferences WHERE user_id = task_owner_id
@@ -286,6 +347,67 @@ CREATE TRIGGER notify_task_completion
   FOR EACH ROW
   WHEN (OLD.status IS DISTINCT FROM NEW.status AND NEW.status = 'completed')
   EXECUTE FUNCTION trigger_notify_task_completion();
+
+-- Trigger: Task reverted notification (notify completer)
+CREATE OR REPLACE FUNCTION trigger_notify_task_reverted()
+RETURNS TRIGGER AS $$
+DECLARE
+  bin_name TEXT;
+  task_owner_name TEXT;
+  completer_id UUID;
+BEGIN
+  -- Only notify when completion_status changes to 'reverted'
+  IF NEW.completion_status = 'reverted' AND (OLD.completion_status IS NULL OR OLD.completion_status != 'reverted') THEN
+    -- Get completer (the person who completed it - accepted_by before revert)
+    completer_id := OLD.accepted_by;
+    
+    -- Get bin name
+    SELECT name INTO bin_name FROM bins WHERE id = NEW.bin_id;
+    
+    -- Get task owner name
+    IF NEW.user_id IS NOT NULL THEN
+      SELECT COALESCE(first_name || ' ' || last_name, 'Task owner') INTO task_owner_name
+      FROM profiles WHERE id = NEW.user_id;
+    ELSE
+      task_owner_name := 'Task owner';
+    END IF;
+    
+    -- Notify completer only (not the task owner)
+    IF completer_id IS NOT NULL AND completer_id != NEW.user_id THEN
+      -- Check if completer has notification preference enabled
+      IF EXISTS (
+        SELECT 1 FROM notification_preferences np
+        WHERE np.user_id = completer_id
+        AND (
+          (np.badge_task_completed = true) -- Use task_completed preference for task-related notifications
+        )
+      ) OR NOT EXISTS (
+        SELECT 1 FROM notification_preferences WHERE user_id = completer_id
+      ) THEN
+        -- Default preferences: enabled
+        INSERT INTO user_notifications (user_id, type, reference_id, bin_id, title, body)
+        VALUES (
+          completer_id,
+          'task_reverted',
+          NEW.id,
+          NEW.bin_id,
+          COALESCE(bin_name, 'Bin'),
+          'Your task completion was reverted by ' || COALESCE(task_owner_name, 'task owner') || '. XP has been subtracted.'
+        );
+      END IF;
+    END IF;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS notify_task_reverted ON tasks;
+CREATE TRIGGER notify_task_reverted
+  AFTER UPDATE ON tasks
+  FOR EACH ROW
+  WHEN (OLD.completion_status IS DISTINCT FROM NEW.completion_status AND NEW.completion_status = 'reverted')
+  EXECUTE FUNCTION trigger_notify_task_reverted();
 
 -- Trigger: Bin health deterioration notification
 CREATE OR REPLACE FUNCTION trigger_notify_bin_health()
@@ -334,5 +456,8 @@ COMMENT ON FUNCTION trigger_notify_new_message IS 'Trigger function to notify bi
 COMMENT ON FUNCTION trigger_notify_join_request IS 'Trigger function to notify bin admin of new join requests.';
 COMMENT ON FUNCTION trigger_notify_new_activity IS 'Trigger function to notify bin members of new activities.';
 COMMENT ON FUNCTION trigger_notify_help_request IS 'Trigger function to notify bin members of new help requests.';
+COMMENT ON FUNCTION trigger_notify_task_accepted IS 'Trigger function to notify task owner when task is accepted.';
+COMMENT ON FUNCTION trigger_notify_task_completion IS 'Trigger function to notify task owner when task is completed.';
+COMMENT ON FUNCTION trigger_notify_task_reverted IS 'Trigger function to notify completer when task completion is reverted.';
 COMMENT ON FUNCTION trigger_notify_bin_health IS 'Trigger function to notify bin members when bin health deteriorates.';
 
