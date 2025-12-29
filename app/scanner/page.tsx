@@ -102,16 +102,16 @@ export default function ScannerPage() {
       }
       
       // Create Html5Qrcode instance and scan the file
-      const html5QrCode = new Html5Qrcode(qrRegionId + "-img");
-      const result = await html5QrCode.scanFile(file, true);
+        const html5QrCode = new Html5Qrcode(qrRegionId + "-img");
+        const result = await html5QrCode.scanFile(file, true);
       
       // Clean up
       await html5QrCode.clear();
       
-      setResult(result);
-      if (result.includes("/bin/")) {
-        const match = result.match(/\/bin\/([a-zA-Z0-9\-]+)/);
-        if (match && match[1]) {
+        setResult(result);
+        if (result.includes("/bin/")) {
+          const match = result.match(/\/bin\/([a-zA-Z0-9\-]+)/);
+          if (match && match[1]) {
           // Call join API before navigating
           const joinBin = async () => {
             try {
@@ -134,11 +134,11 @@ export default function ScannerPage() {
         }
       } else {
         setError("QR code does not contain a valid bin link.");
-      }
-    } catch (err: any) {
+        }
+      } catch (err: any) {
       console.error("QR scan error:", err);
       setError("Could not scan image: " + (err?.message || err || "Unknown error"));
-    }
+      }
     
     // Reset file input
     if (fileInputRef.current) {

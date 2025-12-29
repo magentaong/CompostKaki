@@ -700,12 +700,12 @@ export default function BinDetailPage() {
             </button>
             <h2 className="text-xl font-bold mb-4 text-[#00796B]">Share Bin QR Code</h2>
             {qrDataUrl ? (
-              <img
-                id="qr-img"
+            <img
+              id="qr-img"
                 src={qrDataUrl}
-                alt="QR Code"
-                className="mb-4"
-              />
+              alt="QR Code"
+              className="mb-4"
+            />
             ) : (
               <div className="mb-4 w-[300px] h-[300px] flex items-center justify-center bg-gray-100 rounded">
                 <div className="text-gray-500">Generating QR code...</div>
@@ -725,8 +725,8 @@ export default function BinDetailPage() {
                   } catch (err) {
                     console.error("Failed to generate QR code:", err);
                     alert("Failed to generate QR code. Please try again.");
-                    return;
-                  }
+                  return;
+                }
                 }
                 
                 try {
@@ -747,9 +747,9 @@ export default function BinDetailPage() {
                   if (isMobile) {
                     // On mobile, try to download, but also provide option to open
                     link.target = '_blank';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
                     // Also show the image in a new tab as fallback
                     setTimeout(() => {
                       window.open(qrDataUrl!, '_blank');
