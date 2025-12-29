@@ -255,18 +255,24 @@ class NotificationService extends ChangeNotifier {
             _unreadMessages++;
             if (binId != null) {
               _binMessageCounts[binId] = (_binMessageCounts[binId] ?? 0) + 1;
+            } else {
+              print('Warning: Message notification without bin_id: ${notification['id']}');
             }
             break;
           case 'join_request':
             _unreadJoinRequests++;
             if (binId != null) {
               _binJoinRequestCounts[binId] = (_binJoinRequestCounts[binId] ?? 0) + 1;
+            } else {
+              print('Warning: Join request notification without bin_id: ${notification['id']}');
             }
             break;
           case 'activity':
             _unreadActivities++;
             if (binId != null) {
               _binActivityCounts[binId] = (_binActivityCounts[binId] ?? 0) + 1;
+            } else {
+              print('Warning: Activity notification without bin_id: ${notification['id']}');
             }
             break;
           case 'help_request':
@@ -277,6 +283,15 @@ class NotificationService extends ChangeNotifier {
             break;
         }
       }
+
+      // Debug: Print loaded counts
+      print('Loaded badge counts:');
+      print('  Total messages: $_unreadMessages');
+      print('  Total join requests: $_unreadJoinRequests');
+      print('  Total activities: $_unreadActivities');
+      print('  Per-bin message counts: $_binMessageCounts');
+      print('  Per-bin activity counts: $_binActivityCounts');
+      print('  Per-bin join request counts: $_binJoinRequestCounts');
 
       notifyListeners();
     } catch (e) {
@@ -336,6 +351,21 @@ class NotificationService extends ChangeNotifier {
       print('Error getting unread activity count for bin: $e');
       return 0;
     }
+  }
+
+  /// Get unread message count for a specific bin (synchronous, uses cache)
+  int getUnreadMessageCountForBinSync(String binId) {
+    return _binMessageCounts[binId] ?? 0;
+  }
+
+  /// Get unread activity count for a specific bin (synchronous, uses cache)
+  int getUnreadActivityCountForBinSync(String binId) {
+    return _binActivityCounts[binId] ?? 0;
+  }
+
+  /// Get unread join request count for a specific bin (synchronous, uses cache)
+  int getUnreadJoinRequestCountForBinSync(String binId) {
+    return _binJoinRequestCounts[binId] ?? 0;
   }
 
   /// Get unread join request count for a specific bin (with caching)
@@ -495,6 +525,11 @@ class NotificationService extends ChangeNotifier {
     } catch (e) {
       print('Error marking notifications as read: $e');
     }
+  }
+
+  /// Reload badge counts (public method for manual refresh)
+  Future<void> reloadBadgeCounts() async {
+    await _loadBadgeCounts();
   }
 
   /// Mark all notifications as read

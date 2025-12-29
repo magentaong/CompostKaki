@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'notification_badge.dart';
 
 class BinCard extends StatelessWidget {
   final Map<String, dynamic> bin;
@@ -79,33 +78,88 @@ class BinCard extends StatelessWidget {
           child: Row(
             children: [
               // Bin image with badge
-              NotificationBadge(
-                count: (unreadMessageCount ?? 0) + 
-                       (unreadActivityCount ?? 0) + 
-                       (unreadJoinRequestCount ?? 0),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: CachedNetworkImage(
-                    key: ValueKey(
-                        '${bin['id']}_${bin['updated_at'] ?? DateTime.now().millisecondsSinceEpoch}'),
-                    imageUrl: binImage,
-                    width: 48,
-                    height: 48,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: CachedNetworkImage(
+                      key: ValueKey(
+                          '${bin['id']}_${bin['updated_at'] ?? DateTime.now().millisecondsSinceEpoch}'),
+                      imageUrl: binImage,
                       width: 48,
                       height: 48,
-                      color: AppTheme.backgroundGray,
-                      child: const Icon(Icons.image),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      width: 48,
-                      height: 48,
-                      color: AppTheme.backgroundGray,
-                      child: const Icon(Icons.image),
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        width: 48,
+                        height: 48,
+                        color: AppTheme.backgroundGray,
+                        child: const Icon(Icons.image),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        width: 48,
+                        height: 48,
+                        color: AppTheme.backgroundGray,
+                        child: const Icon(Icons.image),
+                      ),
                     ),
                   ),
-                ),
+                  // More prominent notification badge
+                  Builder(
+                    builder: (context) {
+                      final totalCount = (unreadMessageCount ?? 0) + 
+                                       (unreadActivityCount ?? 0) + 
+                                       (unreadJoinRequestCount ?? 0);
+                      
+                      // Debug: Print counts for this bin
+                      if (totalCount > 0) {
+                        debugPrint('Bin ${bin['name']} (${bin['id']}): '
+                            'Messages: ${unreadMessageCount ?? 0}, '
+                            'Activities: ${unreadActivityCount ?? 0}, '
+                            'JoinRequests: ${unreadJoinRequestCount ?? 0}, '
+                            'Total: $totalCount');
+                      }
+                      
+                      if (totalCount > 0) {
+                        return Positioned(
+                          right: -6,
+                          top: -6,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 20,
+                              minHeight: 20,
+                            ),
+                            child: Center(
+                              child: Text(
+                                totalCount > 99 ? '99+' : '$totalCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                ],
               ),
               const SizedBox(width: 12),
 
@@ -114,13 +168,37 @@ class BinCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      bin['name'] as String? ?? 'Bin',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: AppTheme.primaryGreen,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            bin['name'] as String? ?? 'Bin',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: AppTheme.primaryGreen,
+                            ),
+                          ),
+                        ),
+                        // Show notification count badge next to name if > 0
+                        if ((unreadMessageCount ?? 0) + (unreadActivityCount ?? 0) + (unreadJoinRequestCount ?? 0) > 0)
+                          Container(
+                            margin: const EdgeInsets.only(left: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${(unreadMessageCount ?? 0) + (unreadActivityCount ?? 0) + (unreadJoinRequestCount ?? 0)}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(

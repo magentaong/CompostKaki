@@ -159,13 +159,15 @@ class ChatService {
     }
 
     // Prepare message data
+    // Always use UTC for database timestamps to avoid timezone issues
+    final nowUtc = DateTime.now().toUtc();
     final messageData = <String, dynamic>{
       'bin_id': binId,
       'sender_id': user.id,
       'message': message,
       'is_deleted': false,
-      'created_at': DateTime.now().toIso8601String(),
-      'updated_at': DateTime.now().toIso8601String(),
+      'created_at': nowUtc.toIso8601String(),
+      'updated_at': nowUtc.toIso8601String(),
     };
 
     // Add media data if present
@@ -236,12 +238,14 @@ class ChatService {
     }
 
     // Update the message
+    // Always use UTC for database timestamps
+    final nowUtc = DateTime.now().toUtc();
     await _supabaseService.client
         .from('bin_messages')
         .update({
           'message': newMessage,
-          'edited_at': now.toIso8601String(),
-          'updated_at': now.toIso8601String(),
+          'edited_at': nowUtc.toIso8601String(),
+          'updated_at': nowUtc.toIso8601String(),
         })
         .eq('id', messageId)
         .eq('sender_id', user.id);
@@ -265,20 +269,22 @@ class ChatService {
     }
 
     // Check time limit (15 minutes)
-    final createdAt = DateTime.parse(messageResponse['created_at']);
-    final now = DateTime.now();
-    final difference = now.difference(createdAt);
+    // Parse as UTC since we store UTC timestamps
+    final createdAt = DateTime.parse(messageResponse['created_at']).toUtc();
+    final nowUtc = DateTime.now().toUtc();
+    final difference = nowUtc.difference(createdAt);
 
     if (difference.inMinutes > 15) {
       throw Exception('Messages can only be deleted within 15 minutes');
     }
 
     // Soft delete the message
+    // Always use UTC for database timestamps
     await _supabaseService.client
         .from('bin_messages')
         .update({
           'is_deleted': true,
-          'updated_at': now.toIso8601String(),
+          'updated_at': nowUtc.toIso8601String(),
         })
         .eq('id', messageId)
         .eq('sender_id', user.id);

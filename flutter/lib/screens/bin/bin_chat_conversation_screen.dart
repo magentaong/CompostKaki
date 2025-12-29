@@ -474,16 +474,18 @@ class _BinChatConversationScreenState extends State<BinChatConversationScreen> {
     final currentUserId = _chatService.currentUserId;
     if (currentUserId == null) return;
 
-    // Create optimistic message (temporary ID, will be replaced by real one)
-    final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
-    final optimisticMessage = <String, dynamic>{
-      'id': tempId,
-      'bin_id': widget.binId,
-      'sender_id': currentUserId,
-      'message': message,
-      'is_deleted': false,
-      'created_at': DateTime.now().toIso8601String(),
-      'updated_at': DateTime.now().toIso8601String(),
+      // Create optimistic message (temporary ID, will be replaced by real one)
+      // Always use UTC for timestamps to match database
+      final nowUtc = DateTime.now().toUtc();
+      final tempId = 'temp_${nowUtc.millisecondsSinceEpoch}';
+      final optimisticMessage = <String, dynamic>{
+        'id': tempId,
+        'bin_id': widget.binId,
+        'sender_id': currentUserId,
+        'message': message,
+        'is_deleted': false,
+        'created_at': nowUtc.toIso8601String(),
+        'updated_at': nowUtc.toIso8601String(),
       'sender_profile': {
         'id': currentUserId,
         'first_name': 'You',
@@ -611,8 +613,9 @@ class _BinChatConversationScreenState extends State<BinChatConversationScreen> {
       'sender_id': currentUserId,
       'message': caption ?? '',
       'is_deleted': false,
-      'created_at': DateTime.now().toIso8601String(),
-      'updated_at': DateTime.now().toIso8601String(),
+      // Always use UTC for timestamps to match database
+      'created_at': DateTime.now().toUtc().toIso8601String(),
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
       'media_type': media.type.name,
       'sender_profile': {
         'id': currentUserId,

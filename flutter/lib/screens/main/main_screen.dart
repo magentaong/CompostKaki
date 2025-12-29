@@ -50,6 +50,8 @@ class _MainScreenState extends State<MainScreen> {
     final notificationService = context.read<NotificationService>();
     if (context.read<AuthService>().isAuthenticated) {
       notificationService.onUserLogin();
+      // Reload badge counts to ensure we have latest data
+      notificationService.reloadBadgeCounts();
     }
     
     // Set initial tab if provided
@@ -110,6 +112,10 @@ class _MainScreenState extends State<MainScreen> {
     });
 
     try {
+      // Reload badge counts first to ensure we have latest notification data
+      final notificationService = context.read<NotificationService>();
+      await notificationService.reloadBadgeCounts();
+
       final bins = await _binService.getUserBins();
 
       // Get log count
@@ -445,30 +451,18 @@ class _MainScreenState extends State<MainScreen> {
                   
                   return Consumer<NotificationService>(
                     builder: (context, notificationService, _) {
-                      return FutureBuilder<Map<String, int>>(
-                        future: Future.wait([
-                          notificationService.getUnreadMessageCountForBin(binId),
-                          notificationService.getUnreadActivityCountForBin(binId),
-                          notificationService.getUnreadJoinRequestCountForBin(binId),
-                        ]).then((results) => {
-                          'messages': results[0],
-                          'activities': results[1],
-                          'joinRequests': results[2],
-                        }),
-                        builder: (context, snapshot) {
-                          final unreadMessages = snapshot.data?['messages'] ?? 0;
-                          final unreadActivities = snapshot.data?['activities'] ?? 0;
-                          final unreadJoinRequests = snapshot.data?['joinRequests'] ?? 0;
-                          
-                          return BinCard(
-                            bin: bin,
-                            onTap: () => _openBin(binId),
-                            hasPendingRequest: hasPendingRequest,
-                            unreadMessageCount: unreadMessages,
-                            unreadActivityCount: unreadActivities,
-                            unreadJoinRequestCount: unreadJoinRequests,
-                          );
-                        },
+                      // Use synchronous getters for reactive updates
+                      final unreadMessages = notificationService.getUnreadMessageCountForBinSync(binId);
+                      final unreadActivities = notificationService.getUnreadActivityCountForBinSync(binId);
+                      final unreadJoinRequests = notificationService.getUnreadJoinRequestCountForBinSync(binId);
+                      
+                      return BinCard(
+                        bin: bin,
+                        onTap: () => _openBin(binId),
+                        hasPendingRequest: hasPendingRequest,
+                        unreadMessageCount: unreadMessages,
+                        unreadActivityCount: unreadActivities,
+                        unreadJoinRequestCount: unreadJoinRequests,
                       );
                     },
                   );
@@ -853,13 +847,22 @@ class _MainScreenState extends State<MainScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             Consumer<NotificationService>(
-              builder: (context, notificationService, _) => _buildNavItem(
-                index: 0,
-                icon: Icons.home,
-                label: 'Home',
-                badgeCount: notificationService.unreadMessages + 
-                           notificationService.unreadJoinRequests,
-              ),
+              builder: (context, notificationService, _) {
+                final homeBadgeCount = notificationService.unreadMessages + 
+                                      notificationService.unreadJoinRequests;
+                // Debug: Print home tab badge count
+                if (homeBadgeCount > 0) {
+                  debugPrint('Home tab badge count: $homeBadgeCount '
+                      '(Messages: ${notificationService.unreadMessages}, '
+                      'JoinRequests: ${notificationService.unreadJoinRequests})');
+                }
+                return _buildNavItem(
+                  index: 0,
+                  icon: Icons.home,
+                  label: 'Home',
+                  badgeCount: homeBadgeCount,
+                );
+              },
             ),
             Consumer<NotificationService>(
               builder: (context, notificationService, _) => _buildNavItem(
