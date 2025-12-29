@@ -29,7 +29,7 @@ Run this SQL (replace `your-user-id` with your actual user ID):
 -- Create a test notification (this will trigger push notification)
 INSERT INTO user_notifications (user_id, type, title, body, bin_id)
 VALUES (
-  'your-user-id-here',  -- Replace with your user ID
+  '7a1f0766-bba5-4c43-9ccb-42ccfe56d8be',  -- Replace with your user ID
   'message',
   'Test Push Notification',
   'This is a test push notification from the database!',
