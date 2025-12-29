@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'notification_badge.dart';
 
 class BinCard extends StatelessWidget {
   final Map<String, dynamic> bin;
   final VoidCallback onTap;
   final bool hasPendingRequest;
+  final int? unreadMessageCount;
+  final int? unreadActivityCount;
+  final int? unreadJoinRequestCount;
 
   const BinCard({
     super.key,
     required this.bin,
     required this.onTap,
     this.hasPendingRequest = false,
+    this.unreadMessageCount,
+    this.unreadActivityCount,
+    this.unreadJoinRequestCount,
   });
 
   static const _defaultBinImage =
@@ -71,27 +78,32 @@ class BinCard extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              // Bin image
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: CachedNetworkImage(
-                  key: ValueKey(
-                      '${bin['id']}_${bin['updated_at'] ?? DateTime.now().millisecondsSinceEpoch}'),
-                  imageUrl: binImage,
-                  width: 48,
-                  height: 48,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(
+              // Bin image with badge
+              NotificationBadge(
+                count: (unreadMessageCount ?? 0) + 
+                       (unreadActivityCount ?? 0) + 
+                       (unreadJoinRequestCount ?? 0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: CachedNetworkImage(
+                    key: ValueKey(
+                        '${bin['id']}_${bin['updated_at'] ?? DateTime.now().millisecondsSinceEpoch}'),
+                    imageUrl: binImage,
                     width: 48,
                     height: 48,
-                    color: AppTheme.backgroundGray,
-                    child: const Icon(Icons.image),
-                  ),
-                  errorWidget: (context, url, error) => Container(
-                    width: 48,
-                    height: 48,
-                    color: AppTheme.backgroundGray,
-                    child: const Icon(Icons.image),
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      width: 48,
+                      height: 48,
+                      color: AppTheme.backgroundGray,
+                      child: const Icon(Icons.image),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      width: 48,
+                      height: 48,
+                      color: AppTheme.backgroundGray,
+                      child: const Icon(Icons.image),
+                    ),
                   ),
                 ),
               ),

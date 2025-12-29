@@ -8,12 +8,15 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:provider/provider.dart';
 import '../../services/bin_service.dart';
 import '../../services/task_service.dart';
+import '../../services/notification_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/activity_timeline_item.dart';
 import '../../widgets/compost_loading_animation.dart';
 import '../../widgets/bin_leaderboard_widget.dart';
+import '../../widgets/notification_badge.dart';
 import '../../services/educational_service.dart';
 
 class BinDetailScreen extends StatefulWidget {
@@ -58,6 +61,12 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
   void initState() {
     super.initState();
     _loadBin();
+    
+    // Clear activity badges when viewing bin detail
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final notificationService = context.read<NotificationService>();
+      notificationService.markAsRead(type: 'activity', binId: widget.binId);
+    });
   }
 
   Future<void> _loadBin() async {
@@ -623,11 +632,54 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                                 length: 2,
                                 child: Column(
                                   children: [
-                                    const TabBar(
-                                      tabs: [
-                                        Tab(text: 'Members'),
-                                        Tab(text: 'Requests'),
-                                      ],
+                                    Consumer<NotificationService>(
+                                      builder: (context, notificationService, _) {
+                                        return FutureBuilder<int>(
+                                          future: notificationService.getUnreadJoinRequestCountForBin(widget.binId),
+                                          builder: (context, snapshot) {
+                                            final unreadCount = snapshot.data ?? 0;
+                                            
+                                            return TabBar(
+                                              tabs: [
+                                                const Tab(text: 'Members'),
+                                                Tab(
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      const Text('Requests'),
+                                                      if (unreadCount > 0) ...[
+                                                        const SizedBox(width: 6),
+                                                        Container(
+                                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                          decoration: BoxDecoration(
+                                                            color: Theme.of(context).colorScheme.error,
+                                                            borderRadius: BorderRadius.circular(10),
+                                                          ),
+                                                          constraints: const BoxConstraints(
+                                                            minWidth: 16,
+                                                            minHeight: 16,
+                                                          ),
+                                                          child: Center(
+                                                            child: Text(
+                                                              unreadCount > 99 ? '99+' : unreadCount.toString(),
+                                                              style: const TextStyle(
+                                                                color: Colors.white,
+                                                                fontSize: 10,
+                                                                fontWeight: FontWeight.bold,
+                                                              ),
+                                                              textAlign: TextAlign.center,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        );
+                                      },
                                     ),
                                     Expanded(
                                       child: TabBarView(
@@ -715,23 +767,34 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                                                 ),
 
                                           // Requests Tab
-                                          pendingRequests.isEmpty
-                                              ? const Center(
-                                                  child: Padding(
-                                                    padding: EdgeInsets.all(32),
-                                                    child: Text(
-                                                        'No pending requests.'),
-                                                  ),
-                                                )
-                                              : ListView.builder(
-                                                  padding:
-                                                      const EdgeInsets.all(16),
-                                                  itemCount:
-                                                      pendingRequests.length,
-                                                  itemBuilder:
-                                                      (context, index) {
-                                                    final request =
-                                                        pendingRequests[index];
+                                          Builder(
+                                            builder: (context) {
+                                              // Clear join request badges when viewing requests tab
+                                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                                final notificationService = Provider.of<NotificationService>(context, listen: false);
+                                                notificationService.markAsRead(
+                                                  type: 'join_request',
+                                                  binId: widget.binId,
+                                                );
+                                              });
+                                              
+                                              return pendingRequests.isEmpty
+                                                  ? const Center(
+                                                      child: Padding(
+                                                        padding: EdgeInsets.all(32),
+                                                        child: Text(
+                                                            'No pending requests.'),
+                                                      ),
+                                                    )
+                                                  : ListView.builder(
+                                                      padding:
+                                                          const EdgeInsets.all(16),
+                                                      itemCount:
+                                                          pendingRequests.length,
+                                                      itemBuilder:
+                                                          (context, index) {
+                                                        final request =
+                                                            pendingRequests[index];
                                                     final profile =
                                                         request['profiles']
                                                             as Map<String,
@@ -800,7 +863,9 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                                                       ),
                                                     );
                                                   },
-                                                ),
+                                                );
+                                            },
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -1157,17 +1222,36 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                       color: Colors.black54,
                       shape: BoxShape.circle,
                     ),
-                    child: IconButton(
-                      icon: const Icon(Icons.chat, color: Colors.white),
-                      onPressed: () {
-                        // Admin goes to chat list, normal users go directly to chat
-                        if (_isOwner) {
-                          context.push('/bin/${widget.binId}/chat');
-                        } else {
-                          context.push('/bin/${widget.binId}/chat');
-                        }
+                    child: Consumer<NotificationService>(
+                      builder: (context, notificationService, _) {
+                        return FutureBuilder<int>(
+                          future: notificationService.getUnreadMessageCountForBin(widget.binId),
+                          builder: (context, snapshot) {
+                            final unreadCount = snapshot.data ?? 0;
+                            
+                            return NotificationBadge(
+                              count: unreadCount,
+                              child: IconButton(
+                                icon: const Icon(Icons.chat, color: Colors.white),
+                                onPressed: () {
+                                  // Clear message badges when opening chat
+                                  notificationService.markAsRead(
+                                    type: 'message',
+                                    binId: widget.binId,
+                                  );
+                                  // Admin goes to chat list, normal users go directly to chat
+                                  if (_isOwner) {
+                                    context.push('/bin/${widget.binId}/chat');
+                                  } else {
+                                    context.push('/bin/${widget.binId}/chat');
+                                  }
+                                },
+                                tooltip: _isOwner ? 'View Messages' : 'Chat with Admin',
+                              ),
+                            );
+                          },
+                        );
                       },
-                      tooltip: _isOwner ? 'View Messages' : 'Chat with Admin',
                     ),
                   ),
                 ),
@@ -1179,11 +1263,25 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                         color: Colors.black54,
                         shape: BoxShape.circle,
                       ),
-                      child: IconButton(
-                        icon: const Icon(Icons.admin_panel_settings,
-                            color: Colors.white),
-                        onPressed: () => _showAdminPanel(context),
-                        tooltip: 'Manage Bin',
+                      child: Consumer<NotificationService>(
+                        builder: (context, notificationService, _) {
+                          return NotificationBadge(
+                            count: notificationService.unreadJoinRequests,
+                            child: IconButton(
+                              icon: const Icon(Icons.admin_panel_settings,
+                                  color: Colors.white),
+                              onPressed: () {
+                                // Clear join request badges when opening admin panel
+                                notificationService.markAsRead(
+                                  type: 'join_request',
+                                  binId: widget.binId,
+                                );
+                                _showAdminPanel(context);
+                              },
+                              tooltip: 'Manage Bin',
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -1353,9 +1451,9 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
             // Leaderboard
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: BinLeaderboardWidget(
-                  key: ValueKey('leaderboard_${_activities.length}_${DateTime.now().millisecondsSinceEpoch}'),
+                  key: ValueKey('leaderboard_${widget.binId}'),
                   binId: widget.binId,
                 ),
               ),

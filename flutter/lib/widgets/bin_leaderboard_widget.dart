@@ -32,30 +32,36 @@ class _BinLeaderboardWidgetState extends State<BinLeaderboardWidget> {
   @override
   void didUpdateWidget(BinLeaderboardWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.binId != widget.binId || oldWidget.key != widget.key) {
+    // Only reload if binId actually changed
+    if (oldWidget.binId != widget.binId) {
       _loadLeaderboard();
     }
   }
 
   Future<void> _loadLeaderboard() async {
+    // Prevent multiple simultaneous loads
+    if (_isLoading) return;
+    
     try {
-      debugPrint('Loading leaderboard for bin: ${widget.binId}');
+      setState(() {
+        _isLoading = true;
+      });
+      
       final leaderboard = await _xpService.getBinLeaderboard(widget.binId);
-      debugPrint('Leaderboard loaded: ${leaderboard.length} entries');
       if (mounted) {
         setState(() {
           _leaderboard = leaderboard;
           _isLoading = false;
         });
       }
-    } catch (e, stackTrace) {
-      debugPrint('Error loading leaderboard: $e');
-      debugPrint('Stack trace: $stackTrace');
+    } catch (e) {
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
       }
+      // Only log errors, not successful loads
+      debugPrint('Error loading leaderboard: $e');
     }
   }
 
@@ -149,7 +155,15 @@ class _BinLeaderboardWidgetState extends State<BinLeaderboardWidget> {
     final hasMore = _leaderboard.length > 5;
 
     return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade200, width: 1),
+      ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           InkWell(
             onTap: () {
@@ -192,10 +206,11 @@ class _BinLeaderboardWidgetState extends State<BinLeaderboardWidget> {
             ),
           ),
           if (_isExpanded) ...[
-            const Divider(height: 1),
+            const Divider(height: 1, thickness: 0.5),
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
               itemCount: displayList.length,
               separatorBuilder: (context, index) => const Divider(height: 1),
               itemBuilder: (context, index) {
@@ -208,11 +223,9 @@ class _BinLeaderboardWidgetState extends State<BinLeaderboardWidget> {
                 final level = XPService.calculateLevel(totalXP);
 
                 return Padding(
-                  padding: EdgeInsets.only(
-                    left: 16,
-                    right: 16,
-                    top: index == 0 ? 0 : 12, // Less padding for first item
-                    bottom: 12,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
                   ),
                   child: Row(
                     children: [
@@ -330,7 +343,7 @@ class _BinLeaderboardWidgetState extends State<BinLeaderboardWidget> {
             ),
             if (!_showAll && hasMore)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                padding: const EdgeInsets.only(top: 4, bottom: 8, left: 16, right: 16),
                 child: TextButton(
                   onPressed: () {
                     setState(() {
@@ -362,7 +375,7 @@ class _BinLeaderboardWidgetState extends State<BinLeaderboardWidget> {
               ),
             if (_showAll && hasMore)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                padding: const EdgeInsets.only(top: 4, bottom: 8, left: 16, right: 16),
                 child: TextButton(
                   onPressed: () {
                     setState(() {

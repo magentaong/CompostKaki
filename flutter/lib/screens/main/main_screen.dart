@@ -7,7 +7,9 @@ import '../../services/bin_service.dart';
 import '../../services/task_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/xp_service.dart';
+import '../../services/notification_service.dart';
 import '../../widgets/xp_floating_animation.dart';
+import '../../widgets/notification_badge.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/bin_card.dart';
 import '../../widgets/task_card.dart';
@@ -43,6 +45,13 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    
+    // Initialize notifications when user is authenticated
+    final notificationService = context.read<NotificationService>();
+    if (context.read<AuthService>().isAuthenticated) {
+      notificationService.onUserLogin();
+    }
+    
     // Set initial tab if provided
     if (widget.initialTab != null) {
       _selectedIndex = widget.initialTab!;
@@ -52,6 +61,8 @@ class _MainScreenState extends State<MainScreen> {
         _isLoading = false; // Don't show loading for bins
         // Load tasks immediately without waiting
         _loadTasks();
+        // Clear help request badges when viewing tasks tab
+        notificationService.markAsRead(type: 'help_request');
         // Load bins in background (non-blocking) for when user switches to Home tab
         _loadDataInBackground();
         return;
@@ -430,10 +441,36 @@ class _MainScreenState extends State<MainScreen> {
                 (context, index) {
                   final bin = sortedBins[index];
                   final hasPendingRequest = bin['has_pending_request'] == true;
-                  return BinCard(
-                    bin: bin,
-                    onTap: () => _openBin(bin['id'] as String),
-                    hasPendingRequest: hasPendingRequest,
+                  final binId = bin['id'] as String;
+                  
+                  return Consumer<NotificationService>(
+                    builder: (context, notificationService, _) {
+                      return FutureBuilder<Map<String, int>>(
+                        future: Future.wait([
+                          notificationService.getUnreadMessageCountForBin(binId),
+                          notificationService.getUnreadActivityCountForBin(binId),
+                          notificationService.getUnreadJoinRequestCountForBin(binId),
+                        ]).then((results) => {
+                          'messages': results[0],
+                          'activities': results[1],
+                          'joinRequests': results[2],
+                        }),
+                        builder: (context, snapshot) {
+                          final unreadMessages = snapshot.data?['messages'] ?? 0;
+                          final unreadActivities = snapshot.data?['activities'] ?? 0;
+                          final unreadJoinRequests = snapshot.data?['joinRequests'] ?? 0;
+                          
+                          return BinCard(
+                            bin: bin,
+                            onTap: () => _openBin(binId),
+                            hasPendingRequest: hasPendingRequest,
+                            unreadMessageCount: unreadMessages,
+                            unreadActivityCount: unreadActivities,
+                            unreadJoinRequestCount: unreadJoinRequests,
+                          );
+                        },
+                      );
+                    },
                   );
                 },
                 childCount: sortedBins.length,
@@ -815,15 +852,22 @@ class _MainScreenState extends State<MainScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _buildNavItem(
-              index: 0,
-              icon: Icons.home,
-              label: 'Home',
+            Consumer<NotificationService>(
+              builder: (context, notificationService, _) => _buildNavItem(
+                index: 0,
+                icon: Icons.home,
+                label: 'Home',
+                badgeCount: notificationService.unreadMessages + 
+                           notificationService.unreadJoinRequests,
+              ),
             ),
-            _buildNavItem(
-              index: 1,
-              icon: Icons.assignment,
-              label: 'Tasks',
+            Consumer<NotificationService>(
+              builder: (context, notificationService, _) => _buildNavItem(
+                index: 1,
+                icon: Icons.assignment,
+                label: 'Tasks',
+                badgeCount: notificationService.unreadHelpRequests,
+              ),
             ),
             _buildNavItem(
               index: 2,
@@ -847,9 +891,12 @@ class _MainScreenState extends State<MainScreen> {
     required IconData icon,
     required String label,
     VoidCallback? onTapOverride,
+    int? badgeCount,
   }) {
     final isSelected = _selectedIndex == index;
     final color = isSelected ? AppTheme.primaryGreen : AppTheme.textGray;
+    final notificationService = context.watch<NotificationService>();
+    
     return Expanded(
       child: InkWell(
         onTap: onTapOverride ??
@@ -860,6 +907,11 @@ class _MainScreenState extends State<MainScreen> {
                 });
                 if (index == 1) {
                   _loadTasks();
+                  // Clear help request badges when viewing tasks tab
+                  notificationService.markAsRead(type: 'help_request');
+                } else if (index == 0) {
+                  // Clear message badges when viewing home tab (messages are in bin detail)
+                  // We'll handle this in bin detail screen instead
                 }
               }
             },
@@ -868,7 +920,10 @@ class _MainScreenState extends State<MainScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: color),
+              NotificationBadge(
+                count: badgeCount ?? 0,
+                child: Icon(icon, color: color),
+              ),
               const SizedBox(height: 4),
               Text(
                 label,

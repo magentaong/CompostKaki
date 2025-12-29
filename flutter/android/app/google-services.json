@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "458123295744",
+    "project_id": "compostkaki-eaf61",
+    "storage_bucket": "compostkaki-eaf61.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:458123295744:android:8080cd4214ef766abd2ce5",
+        "android_client_info": {
+          "package_name": "com.example.compostkaki"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCxfYGnmNXr0te3o5DadEUuK7yvrtvaTak"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

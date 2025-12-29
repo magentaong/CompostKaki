@@ -171,7 +171,7 @@ class ChatService {
     // Add media data if present
     if (mediaData != null) {
       messageData.addAll(mediaData);
-    }
+  }
 
     // Add reply-to if present
     if (replyToMessageId != null && replyToMessageId.isNotEmpty) {

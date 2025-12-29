@@ -3,9 +3,11 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:video_player/video_player.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 import '../../services/chat_service.dart';
 import '../../services/bin_service.dart';
 import '../../services/media_service.dart';
+import '../../services/notification_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/media_picker_widget.dart';
 import '../../widgets/reply_preview_widget.dart';
@@ -55,6 +57,12 @@ class _BinChatConversationScreenState extends State<BinChatConversationScreen> {
     _loadRecentMessages();
     _subscribeToMessages();
     _setupScrollListener();
+    
+    // Clear message badges when viewing chat
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final notificationService = context.read<NotificationService>();
+      notificationService.markAsRead(type: 'message', binId: widget.binId);
+    });
   }
 
   void _setupScrollListener() {
@@ -317,56 +325,8 @@ class _BinChatConversationScreenState extends State<BinChatConversationScreen> {
   //                     ListView index 1 shows _messages[length-2] (second newest, above)
   // So when showing _messages[index], we compare with _messages[index+1] (newer, appears below)
   bool _shouldShowDateSeparator(int index) {
-    if (_messages.isEmpty || index < 0 || index >= _messages.length) return false;
-    
-    final currentMessage = _messages[index];
-    final currentTimestamp = currentMessage['created_at'] as String?;
-    if (currentTimestamp == null) return false;
-    
-    // Don't show separator for today's messages - skip entirely
-    try {
-      final currentDate = DateTime.parse(currentTimestamp).toLocal();
-      final now = DateTime.now().toLocal();
-      final currentDateOnly = DateTime(currentDate.year, currentDate.month, currentDate.day);
-      final nowDateOnly = DateTime(now.year, now.month, now.day);
-      
-      // Skip separator if message is from today
-      if (currentDateOnly.isAtSameMomentAs(nowDateOnly)) {
-        return false;
-      }
-    } catch (e) {
-      // If parsing fails, don't show separator
-      return false;
-    }
-    
-    // For non-today messages, check if there's a day change
-    if (index == _messages.length - 1) {
-      // This is the newest message, show separator if it's not from today
-      return true;
-    }
-    
-    // For other messages, compare with the next message in array (newer message, appears below)
-    final nextMessage = _messages[index + 1];
-    final nextTimestamp = nextMessage['created_at'] as String?;
-    
-    if (nextTimestamp == null) return false;
-    
-    try {
-      final currentDate = DateTime.parse(currentTimestamp).toLocal();
-      final nextDate = DateTime.parse(nextTimestamp).toLocal();
-      
-      // Normalize to date only (ignore time)
-      final currentDateOnly = DateTime(currentDate.year, currentDate.month, currentDate.day);
-      final nextDateOnly = DateTime(nextDate.year, nextDate.month, nextDate.day);
-      
-      // Show separator only if they're on different days
-      // This means: show separator if current message (older) is on different day than next message (newer)
-      return currentDateOnly.year != nextDateOnly.year ||
-          currentDateOnly.month != nextDateOnly.month ||
-          currentDateOnly.day != nextDateOnly.day;
-    } catch (e) {
-      return false;
-    }
+    // Disable date separators - always return false
+    return false;
   }
 
   // Build message widget (extracted for reuse)
@@ -1475,8 +1435,11 @@ class _MessageBubble extends StatelessWidget {
 
   String _formatTimestamp(String timestamp) {
     try {
-      final dateTime = DateTime.parse(timestamp).toLocal();
-      final now = DateTime.now().toLocal();
+      // Convert to Singapore timezone (UTC+8)
+      final utcDateTime = DateTime.parse(timestamp).toUtc();
+      final singaporeOffset = const Duration(hours: 8);
+      final dateTime = utcDateTime.add(singaporeOffset);
+      final now = DateTime.now().toUtc().add(singaporeOffset);
 
       // Same day - show time (e.g., "2:30 PM")
       if (dateTime.year == now.year && 
