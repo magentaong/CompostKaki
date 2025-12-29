@@ -35,30 +35,40 @@ supabase link --project-ref your-project-ref
 - Go to Supabase Dashboard → Project Settings → General
 - Look for **Reference ID** (format: `abcdefghijklmnop`)
 
-## Step 4: Set FCM Server Key Secret
+## Step 4: Get Firebase Service Account Key (for V1 API)
 
-```bash
-# Get your FCM Server Key from Firebase Console:
-# Firebase Console → Project Settings → Cloud Messaging → Server Key
-
-supabase secrets set FCM_SERVER_KEY=your-firebase-server-key-here
-```
-
-**To get FCM Server Key:**
+**To get Service Account Key:**
 1. Go to [Firebase Console](https://console.firebase.google.com/)
 2. Select project: **compostkaki-eaf61**
-3. Go to **Project Settings** → **Cloud Messaging** tab
-4. Scroll to **Cloud Messaging API (Legacy)**
-5. Copy the **Server key**
+3. Go to **Project Settings** → **Service Accounts** tab
+4. Click **"Generate new private key"**
+5. A JSON file will download - **keep this file secure!**
+6. Copy the entire JSON content
 
-## Step 5: Deploy Edge Function
+**Important:** This JSON contains sensitive credentials. Never commit it to git or share it publicly.
+
+## Step 5: Set FCM Service Account Secret
+
+```bash
+# Set the service account JSON as a secret
+# Replace the content with your actual service account JSON (all on one line)
+supabase secrets set FCM_SERVICE_ACCOUNT_JSON='{"type":"service_account","project_id":"compostkaki-eaf61",...}'
+```
+
+**Note:** The JSON must be on a single line. You can use `jq` to format it:
+```bash
+# If you have jq installed:
+cat path/to/service-account-key.json | jq -c | xargs -I {} supabase secrets set FCM_SERVICE_ACCOUNT_JSON='{}'
+```
+
+## Step 6: Deploy Edge Function
 
 ```bash
 cd /Users/itzsihui/CompostKaki
 supabase functions deploy send-push-notification
 ```
 
-## Step 6: Verify Deployment
+## Step 7: Verify Deployment
 
 ```bash
 # List deployed functions
@@ -68,7 +78,7 @@ supabase functions list
 supabase functions logs send-push-notification
 ```
 
-## Step 7: Test the Function
+## Step 8: Test the Function
 
 You can test the function using curl or from your app:
 
@@ -85,7 +95,7 @@ curl -X POST \
   }'
 ```
 
-## Step 8: Create Database Function to Call Edge Function
+## Step 9: Create Database Function to Call Edge Function
 
 Run this SQL in Supabase SQL Editor:
 
@@ -155,8 +165,14 @@ If `pg_net` extension is not available, you can use Supabase Database Webhooks i
 - Check function code syntax
 
 ### Function returns 401 Unauthorized
-- Verify FCM_SERVER_KEY secret is set correctly
+- Verify FCM_SERVICE_ACCOUNT_JSON secret is set correctly
+- Check the service account JSON is valid and complete
+- Ensure the service account has Firebase Cloud Messaging API enabled
 - Check Supabase anon key is correct
+
+### Function returns 403 Forbidden
+- Verify the service account has the "Firebase Cloud Messaging API" enabled in Google Cloud Console
+- Check that the service account has proper permissions
 
 ### Push notifications not received
 - Verify FCM token is saved in `user_fcm_tokens` table
