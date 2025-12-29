@@ -77,7 +77,49 @@ async function handleDeleteAccount(req: NextRequest) {
       })
       .eq('sender_id', user.id);
 
-    // Delete user's profile
+    // Delete user's notifications (ignore errors if table doesn't exist)
+    try {
+      await supabaseAdmin.from('user_notifications').delete().eq('user_id', user.id);
+    } catch (e) {
+      console.warn('Error deleting user_notifications:', e);
+    }
+    
+    // Delete user's FCM tokens (ignore errors if table doesn't exist)
+    try {
+      await supabaseAdmin.from('user_fcm_tokens').delete().eq('user_id', user.id);
+    } catch (e) {
+      console.warn('Error deleting user_fcm_tokens:', e);
+    }
+    
+    // Delete user's notification preferences (ignore errors if table doesn't exist)
+    try {
+      await supabaseAdmin.from('notification_preferences').delete().eq('user_id', user.id);
+    } catch (e) {
+      console.warn('Error deleting notification_preferences:', e);
+    }
+    
+    // Delete user's bin stats (ignore errors if table doesn't exist)
+    try {
+      await supabaseAdmin.from('user_bin_stats').delete().eq('user_id', user.id);
+    } catch (e) {
+      console.warn('Error deleting user_bin_stats:', e);
+    }
+    
+    // Delete user's XP logs (ignore errors if table doesn't exist)
+    try {
+      await supabaseAdmin.from('xp_logs').delete().eq('user_id', user.id);
+    } catch (e) {
+      console.warn('Error deleting xp_logs:', e);
+    }
+    
+    // Delete user's badges (ignore errors if table doesn't exist)
+    try {
+      await supabaseAdmin.from('user_badges').delete().eq('user_id', user.id);
+    } catch (e) {
+      console.warn('Error deleting user_badges:', e);
+    }
+
+    // Delete user's profile (must be done before auth user deletion)
     await supabaseAdmin.from('profiles').delete().eq('id', user.id);
 
     // Delete the auth user (requires admin privileges)
@@ -92,8 +134,10 @@ async function handleDeleteAccount(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
+    console.error('Error deleting user account:', error);
+    const errorMessage = error.message || error.toString() || 'Failed to delete account';
     return NextResponse.json(
-      { error: error.message || 'Failed to delete account' },
+      { error: `Database error deleting user: ${errorMessage}` },
       { status: 500 }
     );
   }
