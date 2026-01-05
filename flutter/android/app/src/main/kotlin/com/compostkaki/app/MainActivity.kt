@@ -1,5 +1,6 @@
-package com.example.compostkaki
+package com.compostkaki.app
 
 import io.flutter.embedding.android.FlutterActivity
 
 class MainActivity : FlutterActivity()
+
