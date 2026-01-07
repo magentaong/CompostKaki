@@ -1483,55 +1483,6 @@ class _TaskDetailDialog extends StatelessWidget {
     this.onRevert,
   });
 
-  Color _getUrgencyColor(String? urgency) {
-    switch (urgency?.toLowerCase()) {
-      case 'high':
-        return AppTheme.urgencyHigh;
-      case 'normal':
-        return AppTheme.urgencyNormal;
-      case 'low':
-      default:
-        return AppTheme.urgencyLow;
-    }
-  }
-
-  Color _getUrgencyTextColor(String? urgency) {
-    switch (urgency?.toLowerCase()) {
-      case 'high':
-        return AppTheme.urgencyHighText;
-      case 'normal':
-        return AppTheme.urgencyNormalText;
-      case 'low':
-      default:
-        return Colors.black87;
-    }
-  }
-
-  Color _getEffortColor(String? effort) {
-    switch (effort?.toLowerCase()) {
-      case 'high':
-        return Colors.orange.shade100;
-      case 'medium':
-        return Colors.blue.shade100;
-      case 'low':
-      default:
-        return Colors.grey.shade200;
-    }
-  }
-
-  Color _getStatusColor(String? status) {
-    switch (status?.toLowerCase()) {
-      case 'open':
-        return Colors.blue.shade100;
-      case 'accepted':
-        return Colors.orange.shade100;
-      case 'completed':
-        return AppTheme.primaryGreenLight;
-      default:
-        return Colors.grey.shade200;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final binId = task['bin_id'] as String?;
@@ -1598,7 +1549,7 @@ class _TaskDetailDialog extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             
-            // Urgency with colored badge
+            // Urgency as plain text
             Row(
               children: [
                 const Text(
@@ -1609,26 +1560,19 @@ class _TaskDetailDialog extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _getUrgencyColor(urgency),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    urgency,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: _getUrgencyTextColor(urgency),
-                    ),
+                Text(
+                  urgency,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
             
-            // Effort with colored badge
+            // Effort as plain text
             Row(
               children: [
                 const Text(
@@ -1639,26 +1583,19 @@ class _TaskDetailDialog extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _getEffortColor(effort),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    effort,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+                Text(
+                  effort,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
             
-            // Status with colored badge
+            // Status as plain text
             Row(
               children: [
                 const Text(
@@ -1669,21 +1606,12 @@ class _TaskDetailDialog extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(status),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    status.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: status.toLowerCase() == 'completed'
-                          ? AppTheme.primaryGreen
-                          : Colors.black87,
-                    ),
+                Text(
+                  status.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
                   ),
                 ),
               ],
