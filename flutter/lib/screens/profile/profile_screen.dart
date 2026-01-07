@@ -138,36 +138,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final authService = context.read<AuthService>();
     final currentEmail = authService.currentUser?.email ?? '';
 
-    showDialog(
-      context: context,
-      builder: (dialogContext) => _ResetPasswordDialog(
-        currentEmail: currentEmail,
-        onReset: (email) async {
-          try {
-            await authService.resetPassword(email);
-            if (dialogContext.mounted) {
-              Navigator.pop(dialogContext);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                      'Password reset email sent! Please check your inbox.'),
-                  backgroundColor: AppTheme.primaryGreen,
-                ),
-              );
-            }
-          } catch (e) {
-            if (dialogContext.mounted) {
-              ScaffoldMessenger.of(dialogContext).showSnackBar(
-                SnackBar(
-                  content: Text('Failed to send reset email: ${e.toString()}'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-          }
-        },
-      ),
-    );
+    // Navigate to reset password screen with current user's email as query parameter
+    context.push('/reset-password?email=${Uri.encodeComponent(currentEmail)}');
   }
 
   @override

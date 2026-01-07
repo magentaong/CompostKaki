@@ -15,6 +15,7 @@ import '../screens/educational/tips_screen.dart';
 import '../screens/bin/bin_chat_conversation_screen.dart';
 import '../screens/bin/bin_food_waste_guide_screen.dart';
 import '../screens/notifications/notifications_screen.dart';
+import '../screens/auth/reset_password_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -24,10 +25,13 @@ class AppRouter {
       final isAuthenticated = authService.isAuthenticated;
       final isLoginRoute = state.matchedLocation == '/login' ||
           state.matchedLocation == '/signup';
+      final isResetPasswordRoute = state.matchedLocation == '/reset-password';
 
-      if (!isAuthenticated && !isLoginRoute) {
+      // Unauthenticated users: redirect to login unless on login/signup/reset-password
+      if (!isAuthenticated && !isLoginRoute && !isResetPasswordRoute) {
         return '/login';
       }
+      // Authenticated users: redirect away from login/signup, but allow reset-password
       if (isAuthenticated && isLoginRoute) {
         return '/main';
       }
@@ -43,6 +47,14 @@ class AppRouter {
         builder: (context, state) {
           final email = state.uri.queryParameters['email'];
           return SignupScreen(email: email);
+        },
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (context, state) {
+          final email = state.uri.queryParameters['email'];
+          final token = state.uri.queryParameters['token'];
+          return ResetPasswordScreen(email: email, token: token);
         },
       ),
       GoRoute(
