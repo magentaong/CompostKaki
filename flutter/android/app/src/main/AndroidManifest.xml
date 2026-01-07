@@ -34,7 +34,17 @@
                     android:scheme="compostkaki"
                     android:host="bin" />
             </intent-filter>
+            <!-- Deep link for password reset -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="compostkaki"
+                    android:host="reset-password" />
+            </intent-filter>
             <!-- App Links for https://compostkaki.vercel.app -->
+            <!-- Handle bin deep links -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -43,6 +53,16 @@
                     android:scheme="https"
                     android:host="compostkaki.vercel.app"
                     android:pathPrefix="/bin" />
+            </intent-filter>
+            <!-- Handle reset-password deep links -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="compostkaki.vercel.app"
+                    android:pathPrefix="/reset-password" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

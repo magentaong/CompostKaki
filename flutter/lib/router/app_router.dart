@@ -20,19 +20,43 @@ import '../screens/auth/reset_password_screen.dart';
 class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: '/login',
+    onException: (context, state, exception) {
+      // Ignore errors from custom URL schemes (compostkaki://)
+      // These are handled by app_links package, not GoRouter
+      final errorString = exception.toString();
+      if (errorString.contains('Origin is only applicable to schemes http and https') ||
+          errorString.contains('compostkaki://')) {
+        print('⚠️ [ROUTER] Ignoring custom scheme URI error (handled by deep link handler)');
+        // Don't rethrow - this error is expected and harmless
+        return;
+      }
+      // Re-throw other exceptions
+      print('❌ [ROUTER] Unhandled router exception: $exception');
+      throw exception;
+    },
     redirect: (context, state) {
       final authService = Provider.of<AuthService>(context, listen: false);
       final isAuthenticated = authService.isAuthenticated;
-      final isLoginRoute = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/signup';
-      final isResetPasswordRoute = state.matchedLocation == '/reset-password';
+      final location = state.matchedLocation;
+      final isLoginRoute = location == '/login' || location == '/signup';
+      final isResetPasswordRoute = location == '/reset-password' || location.startsWith('/reset-password');
 
-      // Unauthenticated users: redirect to login unless on login/signup/reset-password
-      if (!isAuthenticated && !isLoginRoute && !isResetPasswordRoute) {
+      print('🔄 [ROUTER] Redirect check - location: $location, isAuthenticated: $isAuthenticated, isResetPasswordRoute: $isResetPasswordRoute');
+
+      // Always allow reset-password route (for password reset flow)
+      if (isResetPasswordRoute) {
+        print('✅ [ROUTER] Allowing reset-password route');
+        return null; // Allow navigation
+      }
+
+      // Unauthenticated users: redirect to login unless on login/signup
+      if (!isAuthenticated && !isLoginRoute) {
+        print('🔄 [ROUTER] Redirecting unauthenticated user to login');
         return '/login';
       }
-      // Authenticated users: redirect away from login/signup, but allow reset-password
+      // Authenticated users: redirect away from login/signup
       if (isAuthenticated && isLoginRoute) {
+        print('🔄 [ROUTER] Redirecting authenticated user away from login');
         return '/main';
       }
       return null;

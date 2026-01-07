@@ -23,6 +23,7 @@ dependencies:
   
   # Navigation
   go_router: ^13.0.0
+  app_links: ^6.3.1
   
   # QR Code (commented out - will add when implementing QR scanner)
   # qr_code_scanner: ^1.0.1

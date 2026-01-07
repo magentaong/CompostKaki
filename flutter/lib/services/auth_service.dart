@@ -102,16 +102,17 @@ class AuthService extends ChangeNotifier {
         throw Exception('Please enter a valid email address');
       }
 
-      // For Flutter app, we need to use a deep link or custom URL scheme
-      // The email will contain a link that should open the app
-      // Format: compostkaki://reset-password#access_token=...&type=recovery
-      final deepLinkUrl = 'compostkaki://reset-password';
+      // Use our API route that handles verify endpoint properly
+      // This ensures tokens are preserved and redirected correctly to the app
+      final webUrl = 'https://compostkaki.vercel.app/api/auth/verify-reset?redirect_to=https://compostkaki.vercel.app/reset-password';
       
       // Call Supabase reset password
-      // Note: redirectTo must be configured in Supabase dashboard
+      // Supabase will send email with: https://compostkaki.vercel.app/reset-password#tokens
+      // Web page will redirect to: compostkaki://reset-password#tokens
+      // App will receive deep link with tokens
       await _supabaseService.client.auth.resetPasswordForEmail(
         email,
-        redirectTo: deepLinkUrl,
+        redirectTo: webUrl,
       );
       
       // If we get here, the email was sent successfully
@@ -168,6 +169,39 @@ class AuthService extends ChangeNotifier {
       throw Exception('Failed to update password: ${e.message}');
     } catch (e) {
       throw Exception('Failed to update password: ${e.toString()}');
+    }
+  }
+
+  // Set recovery session from tokens (for password reset deep links)
+  Future<bool> setRecoverySession(String accessToken, String refreshToken) async {
+    try {
+      print('🔐 [AUTH SERVICE] Setting recovery session...');
+      print('🔐 [AUTH SERVICE] Access token length: ${accessToken.length}');
+      print('🔐 [AUTH SERVICE] Refresh token length: ${refreshToken.length}');
+      
+      final supabase = _supabaseService.client;
+      
+      // Try to set session using access token
+      // Supabase Flutter's setSession accepts a string (access token)
+      // The refresh token should be handled automatically by Supabase
+      final response = await supabase.auth.setSession(accessToken);
+      
+      print('🔐 [AUTH SERVICE] setSession response - hasSession: ${response.session != null}');
+      
+      if (response.session != null) {
+        print('✅ [AUTH SERVICE] Recovery session set successfully');
+        print('🔐 [AUTH SERVICE] User ID: ${response.session!.user.id}');
+        print('🔐 [AUTH SERVICE] Email: ${response.session!.user.email}');
+        notifyListeners();
+        return true;
+      }
+      
+      print('⚠️ [AUTH SERVICE] Session is null after setSession');
+      return false;
+    } catch (e, stackTrace) {
+      print('❌ [AUTH SERVICE] Error setting recovery session: $e');
+      print('Stack trace: $stackTrace');
+      return false;
     }
   }
 

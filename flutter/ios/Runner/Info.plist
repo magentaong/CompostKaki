@@ -51,5 +51,18 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.compostkaki.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>compostkaki</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
