@@ -43,20 +43,57 @@ export default function ResetPasswordPage() {
     }
     
     // Check if tokens are in hash (normal Supabase flow)
+    // Supabase PKCE flow redirects with tokens in hash: #access_token=...&refresh_token=...
     if (hash && hash.length > 1) {
-      // Extract tokens from hash and redirect to app immediately
-      const deepLink = `compostkaki://reset-password${hash}`
+      // Check if hash contains access_token (Supabase tokens)
+      const hashParams = new URLSearchParams(hash.substring(1))
+      const accessToken = hashParams.get('access_token')
+      const refreshToken = hashParams.get('refresh_token')
       
-      console.log('🔄 [REDIRECT] Redirecting to app with hash:', deepLink)
-      
-      // Try immediate redirect first
+      if (accessToken && refreshToken) {
+        // Supabase redirected with tokens in hash - redirect to app
+        const deepLink = `compostkaki://reset-password#type=recovery&access_token=${encodeURIComponent(accessToken)}&refresh_token=${encodeURIComponent(refreshToken)}`
+        
+        console.log('🔄 [REDIRECT] Found Supabase tokens in hash, redirecting to app')
+        console.log('🔄 [REDIRECT] Deep link:', deepLink)
+        
+        // Try immediate redirect
+        try {
+          window.location.href = deepLink
+          console.log('✅ [REDIRECT] window.location.href executed')
+          return
+        } catch (e) {
+          console.error('❌ [REDIRECT] Error with window.location.href:', e)
+        }
+      } else {
+        // Hash exists but no tokens - might be our format or error
+        const deepLink = `compostkaki://reset-password${hash}`
+        console.log('🔄 [REDIRECT] Hash exists but no Supabase tokens, redirecting as-is:', deepLink)
+        try {
+          window.location.href = deepLink
+          return
+        } catch (e) {
+          console.error('❌ [REDIRECT] Error:', e)
+        }
+      }
+    }
+    
+    // Also check query params for tokens (some Supabase flows use query params)
+    const accessTokenParam = urlParams.get('access_token')
+    const refreshTokenParam = urlParams.get('refresh_token')
+    if (accessTokenParam && refreshTokenParam) {
+      const deepLink = `compostkaki://reset-password#type=recovery&access_token=${encodeURIComponent(accessTokenParam)}&refresh_token=${encodeURIComponent(refreshTokenParam)}`
+      console.log('🔄 [REDIRECT] Found tokens in query params, redirecting to app')
       try {
         window.location.href = deepLink
-        console.log('✅ [REDIRECT] window.location.href executed')
         return
       } catch (e) {
-        console.error('❌ [REDIRECT] Error with window.location.href:', e)
+        console.error('❌ [REDIRECT] Error:', e)
       }
+    }
+    
+    // If we get here, no tokens found
+    if (!hash || hash.length <= 1) {
       
       // Also try window.open as backup (for some browsers/simulators)
       setTimeout(() => {

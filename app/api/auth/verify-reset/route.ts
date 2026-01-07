@@ -50,11 +50,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${redirectTo}?error=configuration_error`)
     }
 
-    // For recovery type, call Supabase's verify endpoint directly via HTTP
-    // because verifyOtp client method requires email for email types
-    console.log('🔐 [VERIFY API] Calling Supabase verify endpoint directly...')
+    // IMPORTANT: If we have a token, this means Supabase redirected to us
+    // We should NOT call verify again - instead, we need to exchange the token for a session
+    // For PKCE tokens, we need to use the exchangeCodeForSession method or call verify with proper redirect
     
-    const verifyUrl = `${supabaseUrl}/auth/v1/verify?token=${encodeURIComponent(token)}&type=${type}&redirect_to=${encodeURIComponent(redirectTo)}`
+    // However, if Supabase redirected here, it means the token was already verified
+    // The issue is that Supabase's verify endpoint redirects to our API route, but might not include tokens
+    // Let's try a different approach: call verify with redirect_to pointing back to ourselves
+    // This will make Supabase redirect back with tokens
+    
+    console.log('🔐 [VERIFY API] Token received from Supabase redirect, exchanging for session...')
+    
+    // Call Supabase verify endpoint with redirect_to pointing to our API route
+    // This will make Supabase verify and redirect back to us with tokens
+    const apiRouteUrl = 'https://compostkaki.vercel.app/api/auth/verify-reset'
+    const verifyUrl = `${supabaseUrl}/auth/v1/verify?token=${encodeURIComponent(token)}&type=${type}&redirect_to=${encodeURIComponent(apiRouteUrl)}`
+    
+    console.log('🔐 [VERIFY API] Calling Supabase verify endpoint:', verifyUrl)
     
     const verifyResponse = await fetch(verifyUrl, {
       method: 'GET',
