@@ -9,7 +9,7 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // This page receives tokens in hash from our API route
+    // This page receives tokens in hash from Supabase verify endpoint
     // It immediately redirects to the app
     
     const hash = window.location.hash
@@ -19,7 +19,43 @@ export default function ResetPasswordPage() {
     console.log('🔄 [REDIRECT PAGE] Page loaded')
     console.log('🔄 [REDIRECT PAGE] Full URL:', fullUrl)
     console.log('🔄 [REDIRECT PAGE] Hash:', hash)
-    console.log('🔄 [REDIRECT PAGE] Search params:', searchParams.toString())
+    console.log('🔄 [REDIRECT PAGE] Search params:', urlParams.toString())
+    
+    // Check if we're being called from Supabase verify endpoint (has token param)
+    const token = urlParams.get('token') || urlParams.get('code')
+    if (token && !hash) {
+      // Supabase verify endpoint redirected here but didn't include tokens in hash
+      // This means Supabase's redirect didn't work properly
+      // Let's manually call Supabase verify endpoint
+      console.log('🔐 [REDIRECT PAGE] Token found but no hash - calling Supabase verify...')
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://tqpjrlwdgoctacfrbanf.supabase.co'
+      const type = urlParams.get('type') || 'recovery'
+      const verifyUrl = `${supabaseUrl}/auth/v1/verify?token=${encodeURIComponent(token)}&type=${type}&redirect_to=${encodeURIComponent(window.location.origin + window.location.pathname)}`
+      
+      // Use fetch to call verify endpoint and get the redirect location
+      fetch(verifyUrl, { 
+        method: 'GET',
+        redirect: 'manual'
+      })
+      .then(response => {
+        if (response.status >= 300 && response.status < 400) {
+          const location = response.headers.get('location')
+          if (location) {
+            console.log('✅ [REDIRECT PAGE] Supabase redirected to:', location)
+            window.location.href = location
+            return
+          }
+        }
+        // If no redirect, try direct redirect
+        window.location.href = verifyUrl
+      })
+      .catch(err => {
+        console.error('❌ [REDIRECT PAGE] Error calling verify:', err)
+        // Fallback: try direct redirect
+        window.location.href = verifyUrl
+      })
+      return
+    }
     
     // Check for error responses first
     const errorParam = urlParams.get('error') || new URLSearchParams(hash.substring(1)).get('error')
@@ -89,57 +125,6 @@ export default function ResetPasswordPage() {
         return
       } catch (e) {
         console.error('❌ [REDIRECT] Error:', e)
-      }
-    }
-    
-    // If we get here, no tokens found
-    if (!hash || hash.length <= 1) {
-      
-      // Also try window.open as backup (for some browsers/simulators)
-      setTimeout(() => {
-        try {
-          window.open(deepLink, '_self')
-          console.log('✅ [REDIRECT] window.open executed')
-        } catch (e) {
-          console.error('❌ [REDIRECT] Error with window.open:', e)
-        }
-      }, 50)
-      
-      // For iOS Simulator, also try creating a link element and clicking it
-      setTimeout(() => {
-        try {
-          const link = document.createElement('a')
-          link.href = deepLink
-          link.style.display = 'none'
-          document.body.appendChild(link)
-          link.click()
-          document.body.removeChild(link)
-          console.log('✅ [REDIRECT] Link element click executed')
-        } catch (e) {
-          console.error('❌ [REDIRECT] Error with link element:', e)
-        }
-      }, 100)
-      
-      return
-    }
-    
-    // Check if tokens are in query params (SendGrid might have converted hash to query)
-    const accessToken = searchParams.get('access_token')
-    const refreshToken = searchParams.get('refresh_token')
-    const type = searchParams.get('type')
-    
-    if (accessToken && refreshToken && type === 'recovery') {
-      // Reconstruct hash from query params
-      const hashFromQuery = `#type=${type}&access_token=${accessToken}&refresh_token=${refreshToken}`
-      const deepLink = `compostkaki://reset-password${hashFromQuery}`
-      
-      console.log('🔄 [REDIRECT] Found tokens in query params, redirecting to app:', deepLink)
-      
-      try {
-        window.location.href = deepLink
-        return
-      } catch (e) {
-        console.error('❌ [REDIRECT] Error redirecting with query params:', e)
       }
     }
     
