@@ -5,7 +5,8 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const token = searchParams.get('token') || searchParams.get('code')
   const type = searchParams.get('type') || 'recovery'
-  const redirectTo = searchParams.get('redirect_to') || 'https://compostkaki.vercel.app/reset-password'
+  // Always redirect to reset-password page (no nested redirect_to needed)
+  const redirectTo = 'https://compostkaki.vercel.app/reset-password'
 
   console.log('🔐 [VERIFY API] Received request')
   console.log('🔐 [VERIFY API] Token:', token ? 'present' : 'missing')
@@ -63,6 +64,27 @@ export async function GET(request: NextRequest) {
       },
       redirect: 'manual' // Don't follow redirects automatically
     })
+
+    console.log('🔐 [VERIFY API] Supabase verify response status:', verifyResponse.status)
+    console.log('🔐 [VERIFY API] Supabase verify response headers:', Object.fromEntries(verifyResponse.headers.entries()))
+
+    // Check for error responses first
+    if (verifyResponse.status >= 400) {
+      const errorText = await verifyResponse.text()
+      console.error('🔐 [VERIFY API] Supabase verify endpoint returned error:', verifyResponse.status, errorText)
+      
+      // Try to parse error
+      try {
+        const errorJson = JSON.parse(errorText)
+        return NextResponse.redirect(
+          `${redirectTo}?error=${encodeURIComponent(errorJson.error || 'verification_failed')}&error_code=${encodeURIComponent(errorJson.error_code || verifyResponse.status.toString())}&error_description=${encodeURIComponent(errorJson.error_description || errorJson.message || 'Verification failed')}`
+        )
+      } catch (e) {
+        return NextResponse.redirect(
+          `${redirectTo}?error=verification_failed&error_code=${verifyResponse.status.toString()}&error_description=${encodeURIComponent(errorText.substring(0, 100))}`
+        )
+      }
+    }
 
     // Supabase verify endpoint returns a redirect with tokens in hash
     if (verifyResponse.status >= 300 && verifyResponse.status < 400) {

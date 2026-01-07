@@ -102,17 +102,16 @@ class AuthService extends ChangeNotifier {
         throw Exception('Please enter a valid email address');
       }
 
-      // Use our API route that handles verify endpoint properly
-      // This ensures tokens are preserved and redirected correctly to the app
-      final webUrl = 'https://compostkaki.vercel.app/api/auth/verify-reset?redirect_to=https://compostkaki.vercel.app/reset-password';
+      // Use our API route as the redirect URL
+      // Supabase will send email with link to: /auth/v1/verify?token=...&redirect_to=our_api_route
+      // Our API route will verify and redirect to reset-password page with tokens
+      final apiRouteUrl = 'https://compostkaki.vercel.app/api/auth/verify-reset';
       
       // Call Supabase reset password
-      // Supabase will send email with: https://compostkaki.vercel.app/reset-password#tokens
-      // Web page will redirect to: compostkaki://reset-password#tokens
-      // App will receive deep link with tokens
+      // Flow: Email link → Supabase verify → Our API route → Reset password page → App
       await _supabaseService.client.auth.resetPasswordForEmail(
         email,
-        redirectTo: webUrl,
+        redirectTo: apiRouteUrl,
       );
       
       // If we get here, the email was sent successfully
