@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "86R4H3R8L7.com.compostkaki.app",
+        "paths": [
+          "/reset-password*",
+          "/bin/*"
+        ]
+      }
+    ]
+  }
+}
+
