@@ -61,8 +61,42 @@ export default function CompostKaki() {
 
   const router = useRouter();
 
-  // Redirect logged-in users to /main
+  // Check for password reset token FIRST (before checking auth)
+  // This must run before the auth check to prevent redirect to /main
   useEffect(() => {
+    // Use window.location directly for immediate check (before React hydration)
+    const urlParams = new URLSearchParams(window.location.search);
+    const hash = window.location.hash;
+    const token = urlParams.get('token') || urlParams.get('code');
+    const type = urlParams.get('type');
+    
+    // If we have a recovery token, IMMEDIATELY redirect (don't wait)
+    if (token && (type === 'recovery' || hash.includes('access_token'))) {
+      console.log('🔐 [HOME PAGE] Password reset token detected, redirecting IMMEDIATELY');
+      
+      // Use window.location.href for immediate redirect (faster than router)
+      if (token && type === 'recovery') {
+        window.location.href = `/reset-password?token=${encodeURIComponent(token)}&type=${type}`;
+        return;
+      }
+      if (hash && hash.includes('access_token')) {
+        window.location.href = `/reset-password${hash}`;
+        return;
+      }
+    }
+  }, []); // Empty deps - run once on mount
+
+  // Redirect logged-in users to /main (but only if no reset token)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token') || urlParams.get('code');
+    const type = urlParams.get('type');
+    
+    // Don't redirect if we have a reset token
+    if (token && type === 'recovery') {
+      return; // Let the reset flow handle it
+    }
+    
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) router.replace('/main');
     });

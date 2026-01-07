@@ -21,39 +21,19 @@ export default function ResetPasswordPage() {
     console.log('🔄 [REDIRECT PAGE] Hash:', hash)
     console.log('🔄 [REDIRECT PAGE] Search params:', urlParams.toString())
     
-    // Check if we're being called from Supabase verify endpoint (has token param)
+    // NEW APPROACH: If we have a token but no hash, call our API to verify it
+    // This bypasses Supabase's redirect flow entirely
     const token = urlParams.get('token') || urlParams.get('code')
     if (token && !hash) {
-      // Supabase verify endpoint redirected here but didn't include tokens in hash
-      // This means Supabase's redirect didn't work properly
-      // Let's manually call Supabase verify endpoint
-      console.log('🔐 [REDIRECT PAGE] Token found but no hash - calling Supabase verify...')
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://tqpjrlwdgoctacfrbanf.supabase.co'
+      console.log('🔐 [REDIRECT PAGE] Token found but no hash - calling our verify API...')
       const type = urlParams.get('type') || 'recovery'
-      const verifyUrl = `${supabaseUrl}/auth/v1/verify?token=${encodeURIComponent(token)}&type=${type}&redirect_to=${encodeURIComponent(window.location.origin + window.location.pathname)}`
       
-      // Use fetch to call verify endpoint and get the redirect location
-      fetch(verifyUrl, { 
-        method: 'GET',
-        redirect: 'manual'
-      })
-      .then(response => {
-        if (response.status >= 300 && response.status < 400) {
-          const location = response.headers.get('location')
-          if (location) {
-            console.log('✅ [REDIRECT PAGE] Supabase redirected to:', location)
-            window.location.href = location
-            return
-          }
-        }
-        // If no redirect, try direct redirect
-        window.location.href = verifyUrl
-      })
-      .catch(err => {
-        console.error('❌ [REDIRECT PAGE] Error calling verify:', err)
-        // Fallback: try direct redirect
-        window.location.href = verifyUrl
-      })
+      // Call our API route that handles token verification
+      // Use absolute URL to ensure it works
+      const verifyApiUrl = `https://compostkaki.vercel.app/api/auth/verify-token?token=${encodeURIComponent(token)}&type=${type}`
+      
+      // Redirect to our API route - it will verify and redirect back with tokens
+      window.location.href = verifyApiUrl
       return
     }
     

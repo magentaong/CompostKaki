@@ -102,20 +102,19 @@ class AuthService extends ChangeNotifier {
         throw Exception('Please enter a valid email address');
       }
 
-      // IMPORTANT: Use the EXACT URL that's in Supabase's redirect URLs list
-      // Must match character-for-character, including trailing slash (or lack thereof)
-      // Check Supabase Dashboard → Auth → URL Configuration
-      final resetPasswordUrl = 'https://compostkaki.vercel.app/reset-password';
-      
+      // NEW APPROACH: Don't use redirect_to at all
+      // Let Supabase use its default redirect, then we'll intercept the token
+      // This avoids all redirect URL matching issues
       print('🔐 [AUTH SERVICE] Requesting password reset for: $email');
-      print('🔐 [AUTH SERVICE] Redirect URL: $resetPasswordUrl');
+      print('🔐 [AUTH SERVICE] Using no redirect_to to avoid URL matching issues');
       
-      // Call Supabase reset password
-      // Flow: Email link → Supabase verify → Reset password page (with tokens in hash) → App
-      // NOTE: Make sure resetPasswordUrl EXACTLY matches what's in Supabase redirect URLs
+      // Call Supabase reset password WITHOUT redirectTo
+      // The email will contain a link to Supabase's verify endpoint
+      // We'll create a page that extracts the token and calls our API to verify it
       await _supabaseService.client.auth.resetPasswordForEmail(
         email,
-        redirectTo: resetPasswordUrl,
+        // Don't specify redirectTo - let Supabase use default
+        // We'll handle the token extraction ourselves
       );
       
       print('✅ [AUTH SERVICE] Password reset email sent successfully');
