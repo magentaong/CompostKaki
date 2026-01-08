@@ -31,35 +31,42 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Verify OTP from database
-    const { data: otpData, error: otpError } = await supabase
+    // Normalize email to lowercase for consistency
+    const normalizedEmail = email.toLowerCase().trim()
+
+    // Verify OTP from database - find the most recent unused, non-expired OTP
+    const { data: otpDataList, error: otpError } = await supabase
       .from('password_reset_otps')
       .select('*')
-      .eq('email', email)
+      .eq('email', normalizedEmail)
       .eq('otp_code', otpCode)
-      .single()
+      .is('used_at', null) // Not used yet
+      .gt('expires_at', new Date().toISOString()) // Not expired
+      .order('created_at', { ascending: false }) // Most recent first
+      .limit(1)
 
-    if (otpError || !otpData) {
+    if (otpError || !otpDataList || otpDataList.length === 0) {
       return NextResponse.json(
         { error: 'Invalid OTP code' },
         { status: 400 }
       )
     }
 
+    const otpData = otpDataList[0]
+
     // Now check if user actually exists before creating recovery session
     // This prevents creating sessions for non-existent users
     const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers()
-    const normalizedEmail = email.toLowerCase().trim()
     const userExists = usersData?.users?.some(user => 
       user.email?.toLowerCase().trim() === normalizedEmail
     ) ?? false
 
     if (!userExists) {
-      // User doesn't exist - delete the OTP and return error
+      // User doesn't exist - mark the OTP as used and return error
       await supabase
         .from('password_reset_otps')
-        .delete()
-        .eq('email', email)
+        .update({ used_at: new Date().toISOString() })
+        .eq('id', otpData.id)
       
       return NextResponse.json(
         { error: 'Invalid OTP code' }, // Generic error for security
@@ -67,7 +74,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if OTP is expired
+    // OTP expiration is already checked in the query above
+    // But double-check just in case
     const expiresAt = new Date(otpData.expires_at)
     if (expiresAt < new Date()) {
       return NextResponse.json(
@@ -79,7 +87,7 @@ export async function POST(request: NextRequest) {
     // Generate recovery link using Supabase admin API
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: 'recovery',
-      email: email,
+      email: normalizedEmail,
     })
 
     if (linkError || !linkData) {
@@ -105,7 +113,7 @@ export async function POST(request: NextRequest) {
     const { data: verifyData, error: verifyError } = await anonSupabase.auth.verifyOtp({
       token: recoveryToken,
       type: 'recovery',
-      email: email,
+      email: normalizedEmail,
     } as any)
 
     if (verifyError || !verifyData.session) {
@@ -115,11 +123,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Delete used OTP
+    // Mark OTP as used (don't delete, keep for audit trail)
     await supabase
       .from('password_reset_otps')
-      .delete()
-      .eq('email', email)
+      .update({ used_at: new Date().toISOString() })
+      .eq('id', otpData.id)
 
     // Return session tokens
     return NextResponse.json({

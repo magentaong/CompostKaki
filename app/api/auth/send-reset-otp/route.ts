@@ -34,10 +34,40 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Normalize email to lowercase for consistency
+    const normalizedEmail = email.toLowerCase().trim()
+    console.log('📧 [SEND OTP] Normalized email:', normalizedEmail)
+
+    // Check rate limiting: prevent requesting new OTP within 30 seconds
+    const thirtySecondsAgo = new Date()
+    thirtySecondsAgo.setSeconds(thirtySecondsAgo.getSeconds() - 30)
+    
+    const { data: recentOtps, error: rateLimitError } = await supabase
+      .from('password_reset_otps')
+      .select('created_at')
+      .eq('email', normalizedEmail)
+      .gte('created_at', thirtySecondsAgo.toISOString())
+      .is('used_at', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    if (rateLimitError) {
+      console.error('📧 [SEND OTP] Rate limit check error:', rateLimitError)
+      // Continue anyway - don't block if there's a DB error
+    } else if (recentOtps && recentOtps.length > 0) {
+      const timeSinceLastRequest = Math.floor((new Date().getTime() - new Date(recentOtps[0].created_at).getTime()) / 1000)
+      const remainingSeconds = 30 - timeSinceLastRequest
+      if (remainingSeconds > 0) {
+        return NextResponse.json({
+          error: `Please wait ${remainingSeconds} seconds before requesting another OTP code.`,
+        }, { status: 429 })
+      }
+    }
+
     // Don't check if user exists - just generate and send OTP
     // This is more secure (prevents email enumeration attacks)
     // and simpler - if user doesn't exist, OTP just won't be used
-    console.log('📧 [SEND OTP] Generating OTP for email:', email)
+    console.log('📧 [SEND OTP] Generating OTP for email:', normalizedEmail)
 
     // Generate 6-digit OTP code
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
@@ -47,17 +77,15 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date()
     expiresAt.setMinutes(expiresAt.getMinutes() + 10)
 
-    // Create or update password_reset_otps table
+    // INSERT new OTP (allows multiple OTPs per email)
     console.log('📧 [SEND OTP] Storing OTP in database...')
     const { error: dbError } = await supabase
       .from('password_reset_otps')
-      .upsert({
-        email: email,
+      .insert({
+        email: normalizedEmail,
         otp_code: otpCode,
         expires_at: expiresAt.toISOString(),
         created_at: new Date().toISOString(),
-      }, {
-        onConflict: 'email'
       })
 
     if (dbError) {
@@ -128,7 +156,7 @@ If you didn't request this, please ignore this email.`
       },
       body: JSON.stringify({
         personalizations: [{
-          to: [{ email: email }],
+          to: [{ email: normalizedEmail }],
           subject: emailSubject,
         }],
         from: { email: 'compostkaki@gmail.com', name: 'CompostKaki' },
