@@ -33,26 +33,94 @@ export async function POST(request: NextRequest) {
 
     // Normalize email to lowercase for consistency
     const normalizedEmail = email.toLowerCase().trim()
+    console.log('🔐 [VERIFY OTP] Verifying OTP for email:', normalizedEmail, 'OTP:', otpCode)
+
+    // First, check what OTPs exist for this email (for debugging)
+    const { data: allOtps, error: checkError } = await supabase
+      .from('password_reset_otps')
+      .select('*')
+      .eq('email', normalizedEmail)
+      .order('created_at', { ascending: false })
+      .limit(5)
+
+    if (checkError) {
+      console.error('🔐 [VERIFY OTP] Error checking OTPs:', checkError)
+    } else {
+      console.log('🔐 [VERIFY OTP] Found OTPs for email:', allOtps?.length || 0)
+      if (allOtps && allOtps.length > 0) {
+        console.log('🔐 [VERIFY OTP] Recent OTPs:', allOtps.map(otp => ({
+          code: otp.otp_code,
+          expires_at: otp.expires_at,
+          used_at: otp.used_at,
+          created_at: otp.created_at
+        })))
+      }
+    }
 
     // Verify OTP from database - find the most recent unused, non-expired OTP
+    const now = new Date().toISOString()
+    console.log('🔐 [VERIFY OTP] Current time:', now)
+    
     const { data: otpDataList, error: otpError } = await supabase
       .from('password_reset_otps')
       .select('*')
       .eq('email', normalizedEmail)
-      .eq('otp_code', otpCode)
+      .eq('otp_code', otpCode.toString().trim()) // Ensure it's a string and trimmed
       .is('used_at', null) // Not used yet
-      .gt('expires_at', new Date().toISOString()) // Not expired
+      .gt('expires_at', now) // Not expired
       .order('created_at', { ascending: false }) // Most recent first
       .limit(1)
 
-    if (otpError || !otpDataList || otpDataList.length === 0) {
+    if (otpError) {
+      console.error('🔐 [VERIFY OTP] Database error:', otpError)
       return NextResponse.json(
-        { error: 'Invalid OTP code' },
+        { error: 'Database error while verifying OTP', details: otpError.message },
+        { status: 500 }
+      )
+    }
+
+    if (!otpDataList || otpDataList.length === 0) {
+      console.log('🔐 [VERIFY OTP] No matching OTP found')
+      // Check if OTP exists but is expired or used
+      const { data: expiredOtps } = await supabase
+        .from('password_reset_otps')
+        .select('*')
+        .eq('email', normalizedEmail)
+        .eq('otp_code', otpCode.toString().trim())
+        .limit(1)
+      
+      if (expiredOtps && expiredOtps.length > 0) {
+        const otp = expiredOtps[0]
+        if (otp.used_at) {
+          console.log('🔐 [VERIFY OTP] OTP already used')
+          return NextResponse.json(
+            { error: 'This OTP code has already been used. Please request a new one.' },
+            { status: 400 }
+          )
+        }
+        if (new Date(otp.expires_at) < new Date()) {
+          console.log('🔐 [VERIFY OTP] OTP expired')
+          return NextResponse.json(
+            { error: 'OTP code has expired. Please request a new one.' },
+            { status: 400 }
+          )
+        }
+      }
+      
+      return NextResponse.json(
+        { error: 'Invalid OTP code. Please check and try again.' },
         { status: 400 }
       )
     }
 
     const otpData = otpDataList[0]
+    console.log('🔐 [VERIFY OTP] Found matching OTP:', {
+      id: otpData.id,
+      email: otpData.email,
+      code: otpData.otp_code,
+      expires_at: otpData.expires_at,
+      created_at: otpData.created_at
+    })
 
     // Now check if user actually exists before creating recovery session
     // This prevents creating sessions for non-existent users
