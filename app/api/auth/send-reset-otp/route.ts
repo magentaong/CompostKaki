@@ -35,15 +35,25 @@ export async function POST(request: NextRequest) {
     })
 
     // Check if user exists (list all users and find by email)
-    console.log('📧 [SEND OTP] Checking if user exists...')
+    console.log('📧 [SEND OTP] Checking if user exists for email:', email)
     const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers()
     
     if (usersError) {
       console.error('📧 [SEND OTP] Error listing users:', usersError)
+      // Continue anyway - we'll try to send email
     }
     
-    const userExists = usersData?.users?.some(user => user.email === email) ?? false
+    // Check user existence (case-insensitive email comparison)
+    const normalizedEmail = email.toLowerCase().trim()
+    const userExists = usersData?.users?.some(user => 
+      user.email?.toLowerCase().trim() === normalizedEmail
+    ) ?? false
+    
+    console.log('📧 [SEND OTP] Total users in system:', usersData?.users?.length ?? 0)
     console.log('📧 [SEND OTP] User exists:', userExists)
+    if (usersData?.users && usersData.users.length > 0) {
+      console.log('📧 [SEND OTP] Sample user emails:', usersData.users.slice(0, 3).map(u => u.email))
+    }
 
     if (!userExists) {
       // Don't reveal if user exists (security)
