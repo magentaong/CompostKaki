@@ -53,16 +53,9 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // If we're on reset-password page with token but no hash, redirect to verify API
-  if (url.pathname === '/reset-password' && token && !url.hash) {
-    console.log('🔄 [MIDDLEWARE] Token found on reset-password page (no hash), redirecting to verify API')
-    
-    // Redirect to verify API
-    url.pathname = '/api/auth/verify-token'
-    // Keep token and type params
-    
-    return NextResponse.redirect(url)
-  }
+  // If we're on reset-password page with token but no hash, that's OK
+  // Supabase might redirect here with token, and the page will handle it
+  // Don't redirect to verify API - Supabase already verified when user clicked email link
 
   return NextResponse.next()
 }

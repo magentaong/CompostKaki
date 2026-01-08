@@ -57,32 +57,36 @@ export default function ResetPasswordPage() {
       return
     }
     
-    // Check if we have a token but no hash - need to verify it
+    // If we have a token but no hash, DO NOT verify again!
+    // The token was likely already consumed by email link prefetch/scanner
+    // Instead, show helpful UI for iOS users
     const token = urlParams.get('token') || urlParams.get('code')
     if (token && !hash) {
-      console.log('🔐 [RESET PASSWORD PAGE] Token found but no hash - calling verify API...')
-      const type = urlParams.get('type') || 'recovery'
+      console.log('⚠️ [RESET PASSWORD PAGE] Token found but no hash - token may have been consumed')
+      console.log('⚠️ [RESET PASSWORD PAGE] This often happens on iOS Gmail due to link prefetching')
       
-      // Redirect to verify API - it will redirect back with tokens in hash
-      const verifyApiUrl = `https://compostkaki.vercel.app/api/auth/verify-token?token=${encodeURIComponent(token)}&type=${type}`
-      window.location.href = verifyApiUrl
+      // Show iOS-specific help UI instead of trying to verify again
+      setError('This password reset link may have been opened automatically. Please request a new password reset email, or try opening the link directly in Safari (not Gmail\'s in-app browser).')
+      setTokensReady(false) // Don't show button, show error instead
       return
     }
     
-    // Check if tokens are in hash (ready to use)
+    // CRITICAL: Check if tokens are in hash FIRST (Supabase already verified)
+    // Supabase verifies token when user clicks email link, then redirects with tokens in hash
+    // We should NOT verify again - just read tokens from hash
     if (hash && hash.length > 1) {
       const hashParams = new URLSearchParams(hash.substring(1))
       const accessToken = hashParams.get('access_token')
       const refreshToken = hashParams.get('refresh_token')
       
       if (accessToken && refreshToken) {
+        console.log('✅ [RESET PASSWORD PAGE] Tokens found in hash (Supabase already verified)')
         // Tokens ready! Create deep link but don't auto-redirect immediately
         const link = `compostkaki://reset-password#type=recovery&access_token=${encodeURIComponent(accessToken)}&refresh_token=${encodeURIComponent(refreshToken)}`
         setDeepLink(link)
         setTokensReady(true)
         
-        // For iOS in-app browsers, don't auto-try (iOS blocks it)
-        // Show button immediately instead
+        // For iOS in-app browsers, show button immediately (iOS blocks auto-redirects)
         if (isIOS && isInAppBrowser) {
           console.log('📱 [RESET PASSWORD PAGE] iOS in-app browser detected - showing button immediately')
           setShowFallback(true)
@@ -90,7 +94,7 @@ export default function ResetPasswordPage() {
         }
         
         // For other browsers, try auto-opening after a short delay
-        // iOS Safari sometimes blocks immediate redirects
+        // Small delay helps with iOS Safari
         const timeoutId = setTimeout(() => {
           setTriedAutoOpen(true)
           try {
@@ -100,7 +104,7 @@ export default function ResetPasswordPage() {
             console.error('❌ [RESET PASSWORD PAGE] Error opening app:', e)
             setShowFallback(true)
           }
-        }, 300) // Small delay helps with iOS Safari
+        }, 300)
         
         // Show fallback after 2 seconds if app doesn't open
         setTimeout(() => {
@@ -125,7 +129,7 @@ export default function ResetPasswordPage() {
     // No tokens found
     console.log('⚠️ [RESET PASSWORD PAGE] No tokens found')
     setError('No valid reset token found. Please request a new password reset.')
-  }, [searchParams])
+  }, [searchParams, isIOS, isInAppBrowser])
 
   const handleOpenApp = () => {
     if (deepLink) {
@@ -154,6 +158,8 @@ export default function ResetPasswordPage() {
 
   // Show error state
   if (error) {
+    const isIOSHelp = error.includes('Gmail') || error.includes('Safari') || error.includes('in-app browser') || error.includes('automatically')
+    
     return (
       <div style={{ 
         display: 'flex', 
@@ -190,24 +196,67 @@ export default function ResetPasswordPage() {
             padding: '16px',
             marginBottom: '24px'
           }}>
-            <p style={{ color: '#d32f2f', margin: 0 }}>{error}</p>
+            <p style={{ color: '#d32f2f', margin: 0, lineHeight: '1.5' }}>{error}</p>
           </div>
-          <button
-            onClick={() => router.push('/')}
-            style={{
-              backgroundColor: '#00796B',
-              color: 'white',
-              border: 'none',
+          
+          {isIOSHelp && (
+            <div style={{
+              backgroundColor: '#e3f2fd',
+              border: '1px solid #2196f3',
               borderRadius: '8px',
-              padding: '12px 24px',
-              fontSize: '16px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              width: '100%'
-            }}
-          >
-            Back to Login
-          </button>
+              padding: '16px',
+              marginBottom: '24px',
+              textAlign: 'left'
+            }}>
+              <p style={{ color: '#1976d2', margin: '0 0 12px 0', fontWeight: 'bold' }}>💡 How to fix:</p>
+              <ol style={{ color: '#1976d2', margin: 0, paddingLeft: '20px', lineHeight: '1.8' }}>
+                <li>Tap the "..." menu in Gmail</li>
+                <li>Select "Open in Safari"</li>
+                <li>Then click the reset link again</li>
+              </ol>
+            </div>
+          )}
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <button
+              onClick={() => router.push('/')}
+              style={{
+                backgroundColor: '#00796B',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '12px 24px',
+                fontSize: '16px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                width: '100%'
+              }}
+            >
+              Back to Login
+            </button>
+            
+            {isIOSHelp && (
+              <button
+                onClick={() => {
+                  // Request new password reset - redirect to home page
+                  router.push('/')
+                }}
+                style={{
+                  backgroundColor: '#f5f5f5',
+                  color: '#00796B',
+                  border: '1px solid #e0e0e0',
+                  borderRadius: '8px',
+                  padding: '12px 24px',
+                  fontSize: '16px',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  width: '100%'
+                }}
+              >
+                Request New Reset Email
+              </button>
+            )}
+          </div>
         </div>
       </div>
     )
