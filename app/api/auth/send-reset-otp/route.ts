@@ -148,6 +148,12 @@ If you didn't request this, please ignore this email.`
     if (!sendGridResponse.ok) {
       const errorText = await sendGridResponse.text()
       console.error('📧 [SEND OTP] SendGrid error:', sendGridResponse.status, errorText)
+      console.error('📧 [SEND OTP] SendGrid error details:', JSON.stringify({
+        status: sendGridResponse.status,
+        statusText: sendGridResponse.statusText,
+        error: errorText,
+        email: email
+      }, null, 2))
       // Return error so user knows email failed
       return NextResponse.json({
         error: 'Failed to send email. Please try again later.',
