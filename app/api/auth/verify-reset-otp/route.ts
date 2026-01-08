@@ -59,8 +59,11 @@ export async function POST(request: NextRequest) {
     console.log('🔐 [VERIFY OTP] Verifying OTP for email:', emailNorm, 'OTP:', otpNorm)
 
     // PROBE: Check if API can read the table at all
+    const TABLE_NAME = 'password_reset_otps'
+    console.log('[TABLE_CHECK] Querying table:', TABLE_NAME)
+    
     const { data: probeData, error: probeError } = await supabase
-      .from('password_reset_otps')
+      .from(TABLE_NAME)
       .select('id,email,otp_code,expires_at,created_at,used_at')
       .eq('email', emailNorm)
       .order('created_at', { ascending: false })
@@ -109,8 +112,20 @@ export async function POST(request: NextRequest) {
     console.log('🔐 [VERIFY OTP] Current time (local):', now.toString())
     
     // Main verification query - use normalized values
+    console.log('[VERIFY_QUERY] Executing query on table:', TABLE_NAME, {
+      emailNorm,
+      otpNorm,
+      nowISO,
+      filters: {
+        email: emailNorm,
+        otp_code: otpNorm,
+        used_at: 'IS NULL',
+        expires_at: `> ${nowISO}`
+      }
+    })
+    
     const { data: otpDataList, error: otpError } = await supabase
-      .from('password_reset_otps')
+      .from(TABLE_NAME)
       .select('*')
       .eq('email', emailNorm)
       .eq('otp_code', otpNorm) // Use normalized OTP (digits only)
@@ -119,12 +134,21 @@ export async function POST(request: NextRequest) {
       .order('created_at', { ascending: false }) // Most recent first
       .limit(1)
     
-    console.log('[VERIFY_QUERY]', {
+    console.log('[VERIFY_QUERY_RESULT]', {
+      table: TABLE_NAME,
       emailNorm,
       otpNorm,
       nowISO,
       queryResult: otpDataList?.length || 0,
       error: otpError,
+      resultData: otpDataList?.[0] ? {
+        id: otpDataList[0].id,
+        email: otpDataList[0].email,
+        otp_code: otpDataList[0].otp_code,
+        otp_code_type: typeof otpDataList[0].otp_code,
+        expires_at: otpDataList[0].expires_at,
+        used_at: otpDataList[0].used_at,
+      } : null
     })
 
     if (otpError) {
@@ -138,12 +162,24 @@ export async function POST(request: NextRequest) {
     if (!otpDataList || otpDataList.length === 0) {
       console.log('🔐 [VERIFY OTP] No matching OTP found')
       // Check if OTP exists but is expired or used (use normalized values)
+      console.log('[FALLBACK_QUERY] Checking if OTP exists (ignoring used_at and expires_at) on table:', TABLE_NAME)
       const { data: expiredOtps } = await supabase
-        .from('password_reset_otps')
+        .from(TABLE_NAME)
         .select('*')
         .eq('email', emailNorm)
         .eq('otp_code', otpNorm)
         .limit(1)
+      
+      console.log('[FALLBACK_QUERY_RESULT]', {
+        found: expiredOtps?.length || 0,
+        data: expiredOtps?.[0] ? {
+          id: expiredOtps[0].id,
+          email: expiredOtps[0].email,
+          otp_code: expiredOtps[0].otp_code,
+          expires_at: expiredOtps[0].expires_at,
+          used_at: expiredOtps[0].used_at,
+        } : null
+      })
       
       if (expiredOtps && expiredOtps.length > 0) {
         const otp = expiredOtps[0]
