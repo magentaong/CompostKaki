@@ -4,8 +4,10 @@ import { createClient } from '@supabase/supabase-js'
 // Custom API to send OTP code for password reset
 // This generates a 6-digit OTP, stores it, and sends it via email
 export async function POST(request: NextRequest) {
+  console.log('📧 [SEND OTP] Request received')
   try {
     const { email } = await request.json()
+    console.log('📧 [SEND OTP] Email:', email)
 
     if (!email || !email.includes('@')) {
       return NextResponse.json(
@@ -33,12 +35,19 @@ export async function POST(request: NextRequest) {
     })
 
     // Check if user exists (list all users and find by email)
+    console.log('📧 [SEND OTP] Checking if user exists...')
     const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers()
     
+    if (usersError) {
+      console.error('📧 [SEND OTP] Error listing users:', usersError)
+    }
+    
     const userExists = usersData?.users?.some(user => user.email === email) ?? false
+    console.log('📧 [SEND OTP] User exists:', userExists)
 
     if (!userExists) {
       // Don't reveal if user exists (security)
+      console.log('📧 [SEND OTP] User not found, returning generic success')
       return NextResponse.json({
         success: true,
         message: 'If an account exists, an OTP code has been sent to your email.'
@@ -47,12 +56,14 @@ export async function POST(request: NextRequest) {
 
     // Generate 6-digit OTP code
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
+    console.log('📧 [SEND OTP] Generated OTP code:', otpCode)
 
     // Store OTP in database (with expiration - 10 minutes)
     const expiresAt = new Date()
     expiresAt.setMinutes(expiresAt.getMinutes() + 10)
 
     // Create or update password_reset_otps table
+    console.log('📧 [SEND OTP] Storing OTP in database...')
     const { error: dbError } = await supabase
       .from('password_reset_otps')
       .upsert({
@@ -65,23 +76,28 @@ export async function POST(request: NextRequest) {
       })
 
     if (dbError) {
-      console.error('Database error:', dbError)
-      // Table might not exist - we'll create it via migration or handle gracefully
-      // For now, continue and try to send email
+      console.error('📧 [SEND OTP] Database error:', dbError)
+      // Table might not exist - return error instead of continuing
+      return NextResponse.json({
+        error: 'Database table not found. Please run the migration to create password_reset_otps table.',
+        details: dbError.message
+      }, { status: 500 })
     }
+    console.log('📧 [SEND OTP] OTP stored in database successfully')
 
     // Send email with OTP code using SendGrid
+    console.log('📧 [SEND OTP] Checking SendGrid API key...')
     const sendGridApiKey = process.env.SENDGRID_API_KEY
     if (!sendGridApiKey) {
-      console.error('SENDGRID_API_KEY not configured')
+      console.error('📧 [SEND OTP] SENDGRID_API_KEY not configured')
       // Fallback: Still store OTP, but log error
       return NextResponse.json({
-        success: true,
-        message: 'OTP code generated. Email sending not configured.',
+        error: 'Email service not configured. Please add SENDGRID_API_KEY to Vercel environment variables.',
         // In development, return OTP for testing
         ...(process.env.NODE_ENV === 'development' && { otp: otpCode })
-      })
+      }, { status: 500 })
     }
+    console.log('📧 [SEND OTP] SendGrid API key found, sending email...')
 
     const emailSubject = 'CompostKaki - Password Reset Code'
     const emailHtml = `
@@ -146,17 +162,17 @@ If you didn't request this, please ignore this email.`
 
     if (!sendGridResponse.ok) {
       const errorText = await sendGridResponse.text()
-      console.error('SendGrid error:', sendGridResponse.status, errorText)
-      // Still return success (OTP is stored) but log error
-      // In development, return OTP for testing
+      console.error('📧 [SEND OTP] SendGrid error:', sendGridResponse.status, errorText)
+      // Return error so user knows email failed
       return NextResponse.json({
-        success: true,
-        message: 'OTP code generated. Email sending failed.',
+        error: 'Failed to send email. Please try again later.',
+        details: `SendGrid error: ${sendGridResponse.status} - ${errorText}`,
         // In development, return OTP for testing
         ...(process.env.NODE_ENV === 'development' && { otp: otpCode })
-      })
+      }, { status: 500 })
     }
 
+    console.log('📧 [SEND OTP] Email sent successfully via SendGrid')
     return NextResponse.json({
       success: true,
       message: 'OTP code sent to your email. Please check your inbox.',
@@ -166,7 +182,8 @@ If you didn't request this, please ignore this email.`
     })
 
   } catch (error: any) {
-    console.error('Send reset OTP error:', error)
+    console.error('📧 [SEND OTP] Unexpected error:', error)
+    console.error('📧 [SEND OTP] Error stack:', error.stack)
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }
