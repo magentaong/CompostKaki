@@ -58,8 +58,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify OTP from database - find the most recent unused, non-expired OTP
-    const now = new Date().toISOString()
-    console.log('🔐 [VERIFY OTP] Current time:', now)
+    // Use UTC time to avoid timezone issues
+    const now = new Date()
+    const nowISO = now.toISOString()
+    console.log('🔐 [VERIFY OTP] Current time (UTC):', nowISO)
+    console.log('🔐 [VERIFY OTP] Current time (local):', now.toString())
     
     const { data: otpDataList, error: otpError } = await supabase
       .from('password_reset_otps')
@@ -67,7 +70,7 @@ export async function POST(request: NextRequest) {
       .eq('email', normalizedEmail)
       .eq('otp_code', otpCode.toString().trim()) // Ensure it's a string and trimmed
       .is('used_at', null) // Not used yet
-      .gt('expires_at', now) // Not expired
+      .gt('expires_at', nowISO) // Not expired - compare with UTC ISO string
       .order('created_at', { ascending: false }) // Most recent first
       .limit(1)
 
@@ -91,15 +94,26 @@ export async function POST(request: NextRequest) {
       
       if (expiredOtps && expiredOtps.length > 0) {
         const otp = expiredOtps[0]
+        console.log('🔐 [VERIFY OTP] Found OTP but filtered out:', {
+          code: otp.otp_code,
+          expires_at: otp.expires_at,
+          used_at: otp.used_at,
+          expires_at_parsed: new Date(otp.expires_at).toISOString(),
+          current_time: nowISO,
+          is_expired: new Date(otp.expires_at) < now,
+          is_used: otp.used_at !== null
+        })
+        
         if (otp.used_at) {
-          console.log('🔐 [VERIFY OTP] OTP already used')
+          console.log('🔐 [VERIFY OTP] OTP already used at:', otp.used_at)
           return NextResponse.json(
             { error: 'This OTP code has already been used. Please request a new one.' },
             { status: 400 }
           )
         }
-        if (new Date(otp.expires_at) < new Date()) {
-          console.log('🔐 [VERIFY OTP] OTP expired')
+        const expiresAtDate = new Date(otp.expires_at)
+        if (expiresAtDate < now) {
+          console.log('🔐 [VERIFY OTP] OTP expired. Expires:', expiresAtDate.toISOString(), 'Now:', nowISO)
           return NextResponse.json(
             { error: 'OTP code has expired. Please request a new one.' },
             { status: 400 }
