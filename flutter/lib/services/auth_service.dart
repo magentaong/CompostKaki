@@ -183,10 +183,21 @@ class AuthService extends ChangeNotifier {
         throw Exception('Failed to get session tokens. Please try again.');
       }
 
-      // Set session using the tokens
+      // Set session using access token
+      // Supabase Flutter setSession accepts access token string
+      // The refresh token is stored automatically by Supabase
       await _supabaseService.client.auth.setSession(accessToken);
 
+      // Verify session was created
+      final currentSession = _supabaseService.client.auth.currentSession;
+      if (currentSession == null) {
+        print('❌ [AUTH SERVICE] Session is null after setSession');
+        throw Exception('Failed to create session. Please try requesting a new OTP.');
+      }
+
       print('✅ [AUTH SERVICE] OTP verified successfully, recovery session created');
+      print('🔐 [AUTH SERVICE] Session user: ${currentSession.user.email}');
+      print('🔐 [AUTH SERVICE] Session expires at: ${currentSession.expiresAt}');
       
       // Notify listeners
       notifyListeners();
