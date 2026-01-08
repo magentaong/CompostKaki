@@ -92,44 +92,112 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Reset password - sends password reset email
-  // IMPORTANT: This sends an email. User must click the link in email to get a recovery session.
-  // Then they can use updatePasswordWithRecovery() to set new password.
-  Future<void> resetPassword(String email) async {
+  // Request password reset OTP - sends OTP code to email
+  // Uses signInWithOtp with recovery type to send OTP code (not link)
+  Future<void> requestPasswordResetOTP(String email) async {
     try {
       // Validate email format first
       if (email.isEmpty || !email.contains('@')) {
         throw Exception('Please enter a valid email address');
       }
 
-      // Use redirectTo pointing to reset-password page
-      // Supabase will verify the token and redirect with tokens in hash
-      // We'll read tokens from hash and deep link to app
-      final resetPasswordUrl = 'https://compostkaki.vercel.app/reset-password';
+      print('🔐 [AUTH SERVICE] Requesting password reset OTP for: $email');
       
-      print('🔐 [AUTH SERVICE] Requesting password reset for: $email');
-      print('🔐 [AUTH SERVICE] Redirect URL: $resetPasswordUrl');
-      
-      // Call Supabase reset password with redirectTo
-      // Supabase will verify token and redirect to reset-password page with tokens in hash
-      await _supabaseService.client.auth.resetPasswordForEmail(
-        email,
-        redirectTo: resetPasswordUrl,
+      // Call custom backend API to send OTP code
+      final response = await http.post(
+        Uri.parse('https://compostkaki.vercel.app/api/auth/send-reset-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
       );
+
+      if (response.statusCode != 200) {
+        String errorMessage = 'Failed to send OTP';
+        if (response.body.isNotEmpty) {
+          try {
+            final errorData = jsonDecode(response.body) as Map<String, dynamic>;
+            errorMessage = errorData['error'] ?? errorMessage;
+          } catch (e) {
+            // If response is not valid JSON, use the raw body or status code
+            errorMessage = 'Failed to send OTP (Status: ${response.statusCode})';
+            if (response.body.isNotEmpty) {
+              errorMessage += ': ${response.body}';
+            }
+          }
+        } else {
+          errorMessage = 'Failed to send OTP (Status: ${response.statusCode})';
+        }
+        throw Exception(errorMessage);
+      }
+
+      // Parse success response
+      if (response.body.isNotEmpty) {
+        try {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          print('✅ [AUTH SERVICE] Password reset OTP sent successfully: ${data['message'] ?? 'Success'}');
+        } catch (e) {
+          // Response is not JSON, but status is 200, so assume success
+          print('✅ [AUTH SERVICE] Password reset OTP sent successfully');
+        }
+      } else {
+        print('✅ [AUTH SERVICE] Password reset OTP sent successfully');
+      }
       
-      print('✅ [AUTH SERVICE] Password reset email sent successfully');
-      
-      // If we get here, the email was sent successfully
       // Note: Supabase always returns success even if email doesn't exist (for security)
     } on AuthException catch (e) {
       // Handle Supabase auth-specific errors
-      throw Exception('Failed to send reset email: ${e.message}');
+      throw Exception('Failed to send OTP: ${e.message}');
     } catch (e) {
       // Handle other errors (network, etc.)
       if (e.toString().contains('network') || e.toString().contains('timeout')) {
         throw Exception('Network error. Please check your connection and try again.');
       }
-      throw Exception('Failed to send password reset email: ${e.toString()}');
+      throw Exception('Failed to send password reset OTP: ${e.toString()}');
+    }
+  }
+
+  // Verify OTP code and get recovery session via custom API
+  Future<void> verifyPasswordResetOTP(String email, String otpCode) async {
+    try {
+      print('🔐 [AUTH SERVICE] Verifying OTP code for: $email');
+      
+      // Call custom backend API to verify OTP and get session tokens
+      final response = await http.post(
+        Uri.parse('https://compostkaki.vercel.app/api/auth/verify-reset-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'otpCode': otpCode,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        final errorData = jsonDecode(response.body);
+        throw Exception(errorData['error'] ?? 'Failed to verify OTP');
+      }
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final accessToken = data['access_token'] as String?;
+      final refreshToken = data['refresh_token'] as String?;
+
+      if (accessToken == null || refreshToken == null) {
+        throw Exception('Failed to get session tokens. Please try again.');
+      }
+
+      // Set session using the tokens
+      await _supabaseService.client.auth.setSession(accessToken);
+
+      print('✅ [AUTH SERVICE] OTP verified successfully, recovery session created');
+      
+      // Notify listeners
+      notifyListeners();
+    } catch (e) {
+      if (e.toString().contains('network') || e.toString().contains('timeout')) {
+        throw Exception('Network error. Please check your connection and try again.');
+      }
+      if (e.toString().contains('Invalid OTP') || e.toString().contains('expired')) {
+        throw Exception(e.toString().replaceFirst('Exception: ', ''));
+      }
+      throw Exception('Failed to verify OTP: ${e.toString()}');
     }
   }
 
@@ -213,22 +281,34 @@ class AuthService extends ChangeNotifier {
   // This requires the user to be logged in
   Future<void> updatePassword(String newPassword) async {
     try {
-      final user = currentUser;
-      if (user == null) {
-        throw Exception('You must be logged in to change your password. Please use reset password instead.');
+      // Check if there's a session (authenticated or recovery)
+      final session = _supabaseService.client.auth.currentSession;
+      if (session == null) {
+        throw Exception('No active session. Please verify your OTP code first.');
       }
 
       if (newPassword.isEmpty || newPassword.length < 6) {
         throw Exception('Password must be at least 6 characters long');
       }
 
-      // Update password for authenticated user
+      print('🔐 [AUTH SERVICE] Updating password...');
+      
+      // Update password - works for both authenticated users and recovery sessions
       final response = await _supabaseService.client.auth.updateUser(
         UserAttributes(password: newPassword),
       );
 
       if (response.user == null) {
         throw Exception('Failed to update password');
+      }
+
+      print('✅ [AUTH SERVICE] Password updated successfully');
+      
+      // If this was a recovery session, sign out after password reset
+      // User needs to login with new password
+      if (session.user.emailConfirmedAt == null) {
+        print('🔐 [AUTH SERVICE] Recovery session detected, signing out...');
+        await signOut();
       }
 
       notifyListeners();
