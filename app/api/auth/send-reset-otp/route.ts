@@ -34,35 +34,10 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Check if user exists (list all users and find by email)
-    console.log('📧 [SEND OTP] Checking if user exists for email:', email)
-    const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers()
-    
-    if (usersError) {
-      console.error('📧 [SEND OTP] Error listing users:', usersError)
-      // Continue anyway - we'll try to send email
-    }
-    
-    // Check user existence (case-insensitive email comparison)
-    const normalizedEmail = email.toLowerCase().trim()
-    const userExists = usersData?.users?.some(user => 
-      user.email?.toLowerCase().trim() === normalizedEmail
-    ) ?? false
-    
-    console.log('📧 [SEND OTP] Total users in system:', usersData?.users?.length ?? 0)
-    console.log('📧 [SEND OTP] User exists:', userExists)
-    if (usersData?.users && usersData.users.length > 0) {
-      console.log('📧 [SEND OTP] Sample user emails:', usersData.users.slice(0, 3).map(u => u.email))
-    }
-
-    if (!userExists) {
-      // Don't reveal if user exists (security)
-      console.log('📧 [SEND OTP] User not found, returning generic success')
-      return NextResponse.json({
-        success: true,
-        message: 'If an account exists, an OTP code has been sent to your email.'
-      })
-    }
+    // Don't check if user exists - just generate and send OTP
+    // This is more secure (prevents email enumeration attacks)
+    // and simpler - if user doesn't exist, OTP just won't be used
+    console.log('📧 [SEND OTP] Generating OTP for email:', email)
 
     // Generate 6-digit OTP code
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
