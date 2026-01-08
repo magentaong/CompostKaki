@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { supabase } from "@/lib/supabaseClient"
 
 export default function ResetPasswordPage() {
   const router = useRouter()
@@ -11,6 +12,8 @@ export default function ResetPasswordPage() {
   const [deepLink, setDeepLink] = useState<string | null>(null)
   const [showFallback, setShowFallback] = useState(false)
   const [triedAutoOpen, setTriedAutoOpen] = useState(false)
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [tokenHash, setTokenHash] = useState<string | null>(null)
   
   // Detect iOS and in-app browsers
   const [isIOS, setIsIOS] = useState(false)
@@ -57,12 +60,21 @@ export default function ResetPasswordPage() {
       return
     }
     
-    // If we have a token but no hash, DO NOT verify again!
+    // Check for token_hash (new iOS-safe approach)
+    // token_hash doesn't consume OTP - we verify only on button click
+    const hashParam = urlParams.get('token_hash')
+    if (hashParam) {
+      console.log('🔐 [RESET PASSWORD PAGE] Token hash found - waiting for user to click button')
+      setTokenHash(hashParam)
+      setTokensReady(false) // Don't show "Tap to Open App" yet - show "Continue" button first
+      return
+    }
+    
+    // Legacy: If we have old token format but no hash, DO NOT verify again!
     // The token was likely already consumed by email link prefetch/scanner
-    // Instead, show helpful UI for iOS users
     const token = urlParams.get('token') || urlParams.get('code')
     if (token && !hash) {
-      console.log('⚠️ [RESET PASSWORD PAGE] Token found but no hash - token may have been consumed')
+      console.log('⚠️ [RESET PASSWORD PAGE] Old token format found but no hash - token may have been consumed')
       console.log('⚠️ [RESET PASSWORD PAGE] This often happens on iOS Gmail due to link prefetching')
       
       // Show iOS-specific help UI instead of trying to verify again
@@ -129,7 +141,75 @@ export default function ResetPasswordPage() {
     // No tokens found
     console.log('⚠️ [RESET PASSWORD PAGE] No tokens found')
     setError('No valid reset token found. Please request a new password reset.')
-  }, [searchParams, isIOS, isInAppBrowser])
+  }, [searchParams, isIOS, isInAppBrowser, tokenHash])
+
+  const handleVerifyAndContinue = async () => {
+    if (!tokenHash) {
+      setError('No token hash found. Please request a new password reset email.')
+      return
+    }
+
+    setIsVerifying(true)
+    setError(null)
+
+    try {
+      console.log('🔐 [RESET PASSWORD PAGE] Verifying token_hash on user click...')
+      
+      // Call verifyOtp with token_hash - this consumes the OTP
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: 'recovery',
+      } as any)
+
+      if (verifyError) {
+        console.error('❌ [RESET PASSWORD PAGE] Verification failed:', verifyError)
+        setError(verifyError.message || 'Failed to verify reset link. Please request a new password reset.')
+        setIsVerifying(false)
+        return
+      }
+
+      if (!data.session) {
+        console.error('❌ [RESET PASSWORD PAGE] No session returned')
+        setError('Failed to create session. Please request a new password reset.')
+        setIsVerifying(false)
+        return
+      }
+
+      console.log('✅ [RESET PASSWORD PAGE] Verification successful, creating deep link...')
+      
+      // Success! Create deep link with tokens
+      const link = `compostkaki://reset-password#type=recovery&access_token=${encodeURIComponent(data.session.access_token)}&refresh_token=${encodeURIComponent(data.session.refresh_token)}`
+      setDeepLink(link)
+      setTokensReady(true)
+      setIsVerifying(false)
+
+      // Try to open app automatically
+      if (isIOS && isInAppBrowser) {
+        // For iOS in-app browsers, show button immediately
+        setShowFallback(true)
+      } else {
+        // For other browsers, try auto-opening
+        setTimeout(() => {
+          setTriedAutoOpen(true)
+          try {
+            window.location.href = link
+          } catch (e) {
+            console.error('❌ [RESET PASSWORD PAGE] Error opening app:', e)
+            setShowFallback(true)
+          }
+        }, 300)
+
+        // Show fallback after 2 seconds if app doesn't open
+        setTimeout(() => {
+          setShowFallback(true)
+        }, 2000)
+      }
+    } catch (err: any) {
+      console.error('❌ [RESET PASSWORD PAGE] Unexpected error:', err)
+      setError(err.message || 'An unexpected error occurred. Please try again.')
+      setIsVerifying(false)
+    }
+  }
 
   const handleOpenApp = () => {
     if (deepLink) {
@@ -262,8 +342,91 @@ export default function ResetPasswordPage() {
     )
   }
 
-  // Show loading state while verifying token
-  if (!tokensReady) {
+  // Show "Continue to Reset Password" button if we have token_hash but haven't verified yet
+  if (tokenHash && !tokensReady) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        minHeight: '100vh',
+        backgroundColor: '#E6FFF3',
+        padding: '20px'
+      }}>
+        <div style={{ 
+          textAlign: 'center',
+          backgroundColor: 'white',
+          padding: '40px',
+          borderRadius: '12px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          maxWidth: '400px',
+          width: '100%'
+        }}>
+          <div style={{ fontSize: '64px', marginBottom: '20px' }}>🔐</div>
+          <h1 style={{ 
+            color: '#00796B', 
+            fontSize: '28px',
+            marginBottom: '12px',
+            fontWeight: 'bold'
+          }}>Reset Your Password</h1>
+          <p style={{ 
+            color: '#666',
+            fontSize: '16px',
+            marginBottom: '32px',
+            lineHeight: '1.5'
+          }}>
+            Click the button below to continue resetting your password.
+          </p>
+
+          <button
+            onClick={handleVerifyAndContinue}
+            disabled={isVerifying}
+            style={{
+              backgroundColor: isVerifying ? '#ccc' : '#00796B',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              padding: '16px 32px',
+              fontSize: '18px',
+              cursor: isVerifying ? 'not-allowed' : 'pointer',
+              fontWeight: 'bold',
+              width: '100%',
+              marginBottom: '16px',
+              boxShadow: isVerifying ? 'none' : '0 4px 6px rgba(0,0,0,0.1)',
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => {
+              if (!isVerifying) {
+                e.currentTarget.style.backgroundColor = '#005A4B'
+                e.currentTarget.style.transform = 'translateY(-2px)'
+              }
+            }}
+            onMouseOut={(e) => {
+              if (!isVerifying) {
+                e.currentTarget.style.backgroundColor = '#00796B'
+                e.currentTarget.style.transform = 'translateY(0)'
+              }
+            }}
+          >
+            {isVerifying ? '⏳ Verifying...' : '🔐 Continue to Reset Password'}
+          </button>
+
+          {isVerifying && (
+            <p style={{
+              color: '#999',
+              fontSize: '14px',
+              marginTop: '16px'
+            }}>
+              Please wait while we verify your reset link...
+            </p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Show loading state while verifying token (legacy flow)
+  if (!tokensReady && !tokenHash) {
     return (
       <div style={{ 
         display: 'flex', 
