@@ -61,39 +61,60 @@ export default function CompostKaki() {
 
   const router = useRouter();
 
-  // Check for password reset token FIRST (before checking auth)
-  // This must run before the auth check to prevent redirect to /main
+  // CRITICAL: Check for password reset token IMMEDIATELY on page load
+  // This runs BEFORE anything else renders
   useEffect(() => {
-    // Use window.location directly for immediate check (before React hydration)
+    // Check immediately - don't wait for React hydration
+    if (typeof window === 'undefined') return;
+    
     const urlParams = new URLSearchParams(window.location.search);
     const hash = window.location.hash;
     const token = urlParams.get('token') || urlParams.get('code');
     const type = urlParams.get('type');
     
-    // If we have a recovery token, IMMEDIATELY redirect (don't wait)
-    if (token && (type === 'recovery' || hash.includes('access_token'))) {
-      console.log('🔐 [HOME PAGE] Password reset token detected, redirecting IMMEDIATELY');
+    console.log('🔐 [HOME PAGE] Checking for reset token...', { 
+      token: token ? token.substring(0, 20) + '...' : null, 
+      type, 
+      hash: hash.substring(0, 50) 
+    });
+    
+    // If we have ANY token, assume it's a password reset token
+    if (token) {
+      // Check if it's a recovery token (type=recovery or token starts with pkce_ or has underscore)
+      const isRecoveryToken = type === 'recovery' || 
+                              token.startsWith('pkce_') || 
+                              token.includes('_') ||
+                              token.length > 20;
       
-      // Use window.location.href for immediate redirect (faster than router)
-      if (token && type === 'recovery') {
-        window.location.href = `/reset-password?token=${encodeURIComponent(token)}&type=${type}`;
-        return;
-      }
-      if (hash && hash.includes('access_token')) {
-        window.location.href = `/reset-password${hash}`;
-        return;
+      if (isRecoveryToken) {
+        console.log('🔐 [HOME PAGE] Recovery token detected, redirecting to reset-password IMMEDIATELY');
+        
+        // Use window.location.replace for immediate redirect (no back button, no flash)
+        const resetUrl = `/reset-password?token=${encodeURIComponent(token)}${type ? `&type=${encodeURIComponent(type)}` : '&type=recovery'}`;
+        window.location.replace(resetUrl);
+        return; // Stop execution
       }
     }
-  }, []); // Empty deps - run once on mount
+    
+    // Also check hash for tokens
+    if (hash && hash.includes('access_token')) {
+      console.log('🔐 [HOME PAGE] Tokens in hash detected, redirecting to reset-password');
+      window.location.replace(`/reset-password${hash}`);
+      return; // Stop execution
+    }
+  }, []); // Empty deps - run ONCE immediately on mount
 
   // Redirect logged-in users to /main (but only if no reset token)
   useEffect(() => {
+    // Double-check we don't have a reset token before redirecting
+    if (typeof window === 'undefined') return;
+    
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token') || urlParams.get('code');
     const type = urlParams.get('type');
     
     // Don't redirect if we have a reset token
-    if (token && type === 'recovery') {
+    if (token && (type === 'recovery' || token.startsWith('pkce_') || token.includes('_'))) {
       return; // Let the reset flow handle it
     }
     

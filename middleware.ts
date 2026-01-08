@@ -8,19 +8,29 @@ export function middleware(request: NextRequest) {
   const type = url.searchParams.get('type')
   
   // IMPORTANT: Check for token in URL (Supabase redirects with token in query params)
-  // If we're on the home page and have a recovery token, redirect to reset-password
+  // If we're on the home page and have ANY token, redirect to reset-password
+  // This catches all password reset links
   if (url.pathname === '/' && token) {
     // Check if it's a recovery token (type=recovery or token starts with pkce_)
-    const isRecoveryToken = type === 'recovery' || token.startsWith('pkce_')
+    // Also check if token looks like a Supabase token (has underscore or is long)
+    const isRecoveryToken = type === 'recovery' || 
+                            token.startsWith('pkce_') || 
+                            token.includes('_') ||
+                            token.length > 20
     
     if (isRecoveryToken) {
       console.log('🔄 [MIDDLEWARE] Password reset token detected on home page, redirecting to reset-password')
+      console.log('🔄 [MIDDLEWARE] Token:', token.substring(0, 20) + '...')
+      console.log('🔄 [MIDDLEWARE] Type:', type)
       
       // Redirect to reset-password page with token
       url.pathname = '/reset-password'
       url.searchParams.set('token', token)
       if (type) {
         url.searchParams.set('type', type)
+      } else {
+        // Assume recovery if no type specified
+        url.searchParams.set('type', 'recovery')
       }
       
       return NextResponse.redirect(url)
