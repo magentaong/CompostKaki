@@ -61,7 +61,7 @@ export default function CompostKaki() {
 
   const router = useRouter();
 
-  // CRITICAL: Check for password reset token IMMEDIATELY on page load
+  // CRITICAL: Check for password reset token OR errors IMMEDIATELY on page load
   // This runs BEFORE anything else renders
   useEffect(() => {
     // Check immediately - don't wait for React hydration
@@ -72,11 +72,18 @@ export default function CompostKaki() {
     const token = urlParams.get('token') || urlParams.get('code');
     const type = urlParams.get('type');
     
-    console.log('🔐 [HOME PAGE] Checking for reset token...', { 
+    console.log('🔐 [HOME PAGE] Checking for reset token or errors...', { 
       token: token ? token.substring(0, 20) + '...' : null, 
       type, 
-      hash: hash.substring(0, 50) 
+      hash: hash.substring(0, 100) 
     });
+    
+    // Check for errors in hash first (Supabase redirects with errors)
+    if (hash && hash.includes('error=')) {
+      console.log('🔐 [HOME PAGE] Error detected in hash, redirecting to reset-password');
+      window.location.replace(`/reset-password${hash}`);
+      return; // Stop execution
+    }
     
     // If we have ANY token, assume it's a password reset token
     if (token) {

@@ -7,6 +7,22 @@ export function middleware(request: NextRequest) {
   const token = url.searchParams.get('token') || url.searchParams.get('code')
   const type = url.searchParams.get('type')
   
+  // Check for errors in hash (Supabase redirects with errors in hash)
+  const hash = url.hash
+  if (hash) {
+    const hashParams = new URLSearchParams(hash.substring(1))
+    const error = hashParams.get('error')
+    const errorCode = hashParams.get('error_code')
+    
+    // If we have an error in hash, redirect to reset-password page to show error
+    if (error && url.pathname === '/') {
+      console.log('🔄 [MIDDLEWARE] Error detected in hash, redirecting to reset-password')
+      url.pathname = '/reset-password'
+      // Preserve hash with error
+      return NextResponse.redirect(url)
+    }
+  }
+  
   // IMPORTANT: Check for token in URL (Supabase redirects with token in query params)
   // If we're on the home page and have ANY token, redirect to reset-password
   // This catches all password reset links
