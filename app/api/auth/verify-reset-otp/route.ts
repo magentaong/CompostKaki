@@ -46,6 +46,27 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Now check if user actually exists before creating recovery session
+    // This prevents creating sessions for non-existent users
+    const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers()
+    const normalizedEmail = email.toLowerCase().trim()
+    const userExists = usersData?.users?.some(user => 
+      user.email?.toLowerCase().trim() === normalizedEmail
+    ) ?? false
+
+    if (!userExists) {
+      // User doesn't exist - delete the OTP and return error
+      await supabase
+        .from('password_reset_otps')
+        .delete()
+        .eq('email', email)
+      
+      return NextResponse.json(
+        { error: 'Invalid OTP code' }, // Generic error for security
+        { status: 400 }
+      )
+    }
+
     // Check if OTP is expired
     const expiresAt = new Date(otpData.expires_at)
     if (expiresAt < new Date()) {
