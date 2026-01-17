@@ -19,6 +19,11 @@ import '../../widgets/bin_leaderboard_widget.dart';
 import '../../widgets/notification_badge.dart';
 import '../../services/educational_service.dart';
 
+// Helper function to get current time in Singapore (UTC+8)
+DateTime _getSingaporeTime() {
+  return DateTime.now().toUtc().add(const Duration(hours: 8));
+}
+
 class BinDetailScreen extends StatefulWidget {
   final String binId;
 
@@ -248,6 +253,514 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
     final message =
         'Join $name on CompostKaki!\n\nTap here to join: $_deepLink';
     await Share.share(message);
+  }
+
+  Widget _buildBinStatusSection() {
+    if (_bin == null) return const SizedBox.shrink();
+
+    final binStatus = _bin!['bin_status'] as String? ?? 'active';
+    final restingUntil = _bin!['resting_until'] as String?;
+    final maturedAt = _bin!['matured_at'] as String?;
+
+    Color statusColor;
+    String statusText;
+    IconData statusIcon;
+
+    switch (binStatus) {
+      case 'resting':
+        statusColor = Colors.orange;
+        statusText = 'Resting';
+        statusIcon = Icons.bedtime;
+        break;
+      case 'matured':
+        statusColor = Colors.purple;
+        statusText = 'Matured';
+        statusIcon = Icons.hourglass_empty;
+        break;
+      default:
+        statusColor = AppTheme.primaryGreen;
+        statusText = 'Active';
+        statusIcon = Icons.check_circle;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: statusColor.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(statusIcon, color: statusColor, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Status: $statusText',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: statusColor,
+                  fontSize: 16,
+                ),
+              ),
+              const Spacer(),
+              if (_isOwner)
+                TextButton.icon(
+                  onPressed: _showStatusChangeDialog,
+                  icon: const Icon(Icons.edit, size: 16),
+                  label: const Text('Change'),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+            ],
+          ),
+          if (binStatus == 'resting' && restingUntil != null) ...[
+            const SizedBox(height: 8),
+            _buildRestingCountdown(restingUntil),
+          ],
+          if (binStatus == 'matured' && maturedAt != null) ...[
+            const SizedBox(height: 8),
+            _buildMaturedDepletion(maturedAt),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRestingCountdown(String restingUntilStr) {
+    return StreamBuilder<DateTime>(
+      stream: Stream.periodic(const Duration(seconds: 1), (_) => _getSingaporeTime()),
+      builder: (context, snapshot) {
+        final now = _getSingaporeTime();
+        // Parse the timestamp from database (stored in UTC)
+        // Supabase timestamps are in UTC, so parse as UTC and convert to Singapore time
+        DateTime until;
+        try {
+          // Parse the timestamp - Supabase stores in UTC
+          // Ensure we parse as UTC by adding Z if not present
+          String timestampStr = restingUntilStr;
+          if (!timestampStr.endsWith('Z') && !timestampStr.contains('+') && !timestampStr.contains('-', 10)) {
+            // No timezone info, add Z to force UTC parsing
+            timestampStr = '${timestampStr}Z';
+          }
+          final parsed = DateTime.parse(timestampStr);
+          // Convert UTC to Singapore time (add 8 hours)
+          until = parsed.isUtc 
+              ? parsed.add(const Duration(hours: 8))
+              : parsed.toUtc().add(const Duration(hours: 8));
+        } catch (e) {
+          // Fallback: try adding Z and parsing as UTC
+          until = DateTime.parse('${restingUntilStr}Z').add(const Duration(hours: 8));
+        }
+        final difference = until.difference(now);
+
+        if (difference.isNegative) {
+          return Text(
+            'Resting period completed',
+            style: TextStyle(
+              color: Colors.green[700],
+              fontSize: 12,
+            ),
+          );
+        }
+
+        final days = difference.inDays;
+        final hours = difference.inHours % 24;
+        final minutes = difference.inMinutes % 60;
+
+        // Calculate progress: estimate start time from updated_at or calculate backwards
+        // We'll use updated_at as when resting started, or estimate from remaining time
+        final restingStarted = _bin?['updated_at'] as String?;
+        double progressPercent = 0.0;
+        int totalDays = 0;
+        
+          try {
+            DateTime? started;
+            if (restingStarted != null) {
+              // Convert to Singapore time - handle timezone parsing
+              final startedStr = restingStarted.toString();
+              if (startedStr.endsWith('Z') || startedStr.contains('+') || startedStr.contains('-', 10)) {
+                started = DateTime.parse(startedStr).toUtc().add(const Duration(hours: 8));
+              } else {
+                started = DateTime.parse('${startedStr}Z').toUtc().add(const Duration(hours: 8));
+              }
+            } else {
+              // If no updated_at, estimate start as (now - some reasonable default)
+              // But we'll calculate backwards from until date
+              started = now.subtract(Duration(days: days + 1)); // Estimate 1 day has passed
+            }
+          
+          if (started != null) {
+            final totalDuration = until.difference(started);
+            final elapsed = now.difference(started);
+            
+            if (totalDuration.inDays > 0) {
+              totalDays = totalDuration.inDays;
+              progressPercent = (elapsed.inDays / totalDuration.inDays * 100).clamp(0.0, 100.0);
+            } else {
+              // Fallback: if duration calculation fails, use remaining days as estimate
+              totalDays = days + 1; // Assume at least 1 day has passed
+              progressPercent = ((totalDays - days) / totalDays * 100).clamp(0.0, 100.0);
+            }
+          }
+        } catch (e) {
+          // If parsing fails, use a simple estimate
+          totalDays = days + 1;
+          progressPercent = ((totalDays - days) / totalDays * 100).clamp(0.0, 100.0);
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.timer, size: 16, color: Colors.orange[700]),
+                const SizedBox(width: 4),
+                Text(
+                  'Unlocks in ${days}d ${hours}h ${minutes}m',
+                  style: TextStyle(
+                    color: Colors.orange[700],
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progressPercent / 100,
+                backgroundColor: Colors.orange[100],
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.orange[700]!),
+                minHeight: 6,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              days == 1 ? '$days day remaining' : '$days days remaining',
+              style: TextStyle(
+                color: Colors.orange[600],
+                fontSize: 11,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildMaturedDepletion(String maturedAtStr) {
+    // Convert to Singapore time - handle timezone parsing
+    DateTime matured;
+    if (maturedAtStr.endsWith('Z') || maturedAtStr.contains('+') || maturedAtStr.contains('-', 10)) {
+      matured = DateTime.parse(maturedAtStr).toUtc().add(const Duration(hours: 8));
+    } else {
+      matured = DateTime.parse('${maturedAtStr}Z').toUtc().add(const Duration(hours: 8));
+    }
+    final now = _getSingaporeTime();
+    final daysSinceMatured = now.difference(matured).inDays;
+    const sixMonthsInDays = 180;
+    final depletionPercent = (daysSinceMatured / sixMonthsInDays * 100).clamp(0.0, 100.0);
+    final daysRemaining = (sixMonthsInDays - daysSinceMatured).clamp(0, sixMonthsInDays);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.hourglass_bottom, size: 16, color: Colors.purple[700]),
+            const SizedBox(width: 4),
+            Text(
+              'Microbes depleting: ${depletionPercent.toStringAsFixed(1)}%',
+              style: TextStyle(
+                color: Colors.purple[700],
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: depletionPercent / 100,
+            backgroundColor: Colors.purple[100],
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.purple[700]!),
+            minHeight: 6,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          daysRemaining == 1 ? '$daysRemaining day remaining' : '$daysRemaining days remaining',
+          style: TextStyle(
+            color: Colors.purple[600],
+            fontSize: 11,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showStatusChangeDialog() async {
+    if (!_isOwner) return;
+
+    String selectedStatus = _bin!['bin_status'] as String? ?? 'active';
+    DateTime? restingUntil;
+    DateTime? maturedAt;
+
+    // Pre-fill existing dates (convert from UTC to Singapore time for display)
+    final existingRestingUntil = _bin!['resting_until'] as String?;
+    if (existingRestingUntil != null) {
+      final untilStr = existingRestingUntil.toString();
+      if (untilStr.endsWith('Z') || untilStr.contains('+') || untilStr.contains('-', 10)) {
+        restingUntil = DateTime.parse(untilStr).toUtc().add(const Duration(hours: 8));
+      } else {
+        restingUntil = DateTime.parse('${untilStr}Z').toUtc().add(const Duration(hours: 8));
+      }
+    }
+
+    final existingMaturedAt = _bin!['matured_at'] as String?;
+    if (existingMaturedAt != null) {
+      final maturedStr = existingMaturedAt.toString();
+      if (maturedStr.endsWith('Z') || maturedStr.contains('+') || maturedStr.contains('-', 10)) {
+        maturedAt = DateTime.parse(maturedStr).toUtc().add(const Duration(hours: 8));
+      } else {
+        maturedAt = DateTime.parse('${maturedStr}Z').toUtc().add(const Duration(hours: 8));
+      }
+    }
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Change Bin Status'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Select status:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                RadioListTile<String>(
+                  title: const Text('Active'),
+                  subtitle: const Text('Normal operation'),
+                  value: 'active',
+                  groupValue: selectedStatus,
+                  onChanged: (value) => setState(() => selectedStatus = value!),
+                ),
+                RadioListTile<String>(
+                  title: const Text('Resting'),
+                  subtitle: const Text('Locked away, only flipping allowed'),
+                  value: 'resting',
+                  groupValue: selectedStatus,
+                  onChanged: (value) => setState(() {
+                    selectedStatus = value!;
+                    if (restingUntil == null) {
+                      restingUntil = _getSingaporeTime().add(const Duration(days: 7));
+                    }
+                  }),
+                ),
+                if (selectedStatus == 'resting') ...[
+                  const SizedBox(height: 8),
+                  const Text('Resting until:', style: TextStyle(fontSize: 12)),
+                  const SizedBox(height: 4),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: restingUntil ?? _getSingaporeTime().add(const Duration(days: 7)),
+                        firstDate: _getSingaporeTime(),
+                        lastDate: _getSingaporeTime().add(const Duration(days: 365)),
+                      );
+                    if (picked != null) {
+                      final time = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay.fromDateTime(restingUntil ?? _getSingaporeTime()),
+                      );
+                      if (time != null) {
+                        setState(() {
+                          // Create DateTime - the picked date/time is what user wants in Singapore time
+                          // DateTime constructor creates in local time, but we treat it as Singapore time
+                          restingUntil = DateTime(
+                            picked.year,
+                            picked.month,
+                            picked.day,
+                            time.hour,
+                            time.minute,
+                          );
+                        });
+                      }
+                    }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.calendar_today, size: 16),
+                          const SizedBox(width: 8),
+                          Text(
+                            restingUntil != null
+                                ? DateFormat('MMM dd, yyyy HH:mm').format(restingUntil!)
+                                : 'Select date',
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+                RadioListTile<String>(
+                  title: const Text('Matured'),
+                  subtitle: const Text('Microbes depleting over 6 months'),
+                  value: 'matured',
+                  groupValue: selectedStatus,
+                  onChanged: (value) => setState(() {
+                    selectedStatus = value!;
+                    if (maturedAt == null) {
+                      maturedAt = _getSingaporeTime();
+                    }
+                  }),
+                ),
+                if (selectedStatus == 'matured') ...[
+                  const SizedBox(height: 8),
+                  const Text('Matured on:', style: TextStyle(fontSize: 12)),
+                  const SizedBox(height: 4),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: maturedAt ?? _getSingaporeTime(),
+                        firstDate: _getSingaporeTime().subtract(const Duration(days: 365)),
+                        lastDate: _getSingaporeTime(),
+                      );
+                      if (picked != null) {
+                        final time = await showTimePicker(
+                          context: context,
+                          initialTime: TimeOfDay.fromDateTime(maturedAt ?? _getSingaporeTime()),
+                        );
+                        if (time != null) {
+                          setState(() {
+                            // Create DateTime in Singapore time
+                            maturedAt = DateTime(
+                              picked.year,
+                              picked.month,
+                              picked.day,
+                              time.hour,
+                              time.minute,
+                            );
+                          });
+                        }
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.calendar_today, size: 16),
+                          const SizedBox(width: 8),
+                          Text(
+                            maturedAt != null
+                                ? DateFormat('MMM dd, yyyy HH:mm').format(maturedAt!)
+                                : 'Select date',
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  // Convert Singapore time back to UTC for storage
+                  // The DateTime from date picker represents Singapore time (what user selected)
+                  DateTime? restingUntilUtc;
+                  if (selectedStatus == 'resting' && restingUntil != null) {
+                    // The picked time represents Singapore time (16:55 SGT)
+                    // Convert to UTC: Singapore time - 8 hours = UTC (08:55 UTC)
+                    final sgTime = restingUntil!;
+                    // Create UTC DateTime with Singapore time values, then subtract 8 hours
+                    restingUntilUtc = DateTime.utc(
+                      sgTime.year,
+                      sgTime.month,
+                      sgTime.day,
+                      sgTime.hour,
+                      sgTime.minute,
+                    ).subtract(const Duration(hours: 8));
+                  }
+                  
+                  DateTime? maturedAtUtc;
+                  if (selectedStatus == 'matured' && maturedAt != null) {
+                    // The picked time represents Singapore time
+                    // Convert to UTC: Singapore time - 8 hours = UTC
+                    final sgTime = maturedAt!;
+                    maturedAtUtc = DateTime.utc(
+                      sgTime.year,
+                      sgTime.month,
+                      sgTime.day,
+                      sgTime.hour,
+                      sgTime.minute,
+                    ).subtract(const Duration(hours: 8));
+                  }
+                  
+                  await _binService.updateBinStatus(
+                    binId: widget.binId,
+                    status: selectedStatus,
+                    restingUntil: restingUntilUtc,
+                    maturedAt: maturedAtUtc,
+                  );
+                  _hasUpdates = true;
+                  await _loadBin();
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Bin status updated'),
+                        backgroundColor: AppTheme.primaryGreen,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to update status: $e')),
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryGreen,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _changePhoto() async {
@@ -1358,6 +1871,9 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    // Bin Status Section
+                    _buildBinStatusSection(),
                     const SizedBox(height: 16),
 
                     // Stats
@@ -1408,20 +1924,40 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                         Expanded(
                           child: SizedBox(
                             width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: () async {
-                                final result =
-                                    await context.push('/bin/${widget.binId}/log');
-                                if (result == true) {
-                                  _hasUpdates = true;
-                                  _loadBin();
-                                }
+                            child: Builder(
+                              builder: (context) {
+                                final binStatus = _bin?['bin_status'] as String? ?? 'active';
+                                // Disable button only when matured (no actions allowed)
+                                final isDisabled = binStatus == 'matured';
+                                
+                                return Opacity(
+                                  opacity: isDisabled ? 0.5 : 1.0,
+                                  child: ElevatedButton.icon(
+                                    onPressed: isDisabled ? () {
+                                      // Show message even when disabled
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Bin is matured. No actions allowed.'),
+                                        ),
+                                      );
+                                    } : () async {
+                                      // For matured bins, this shouldn't be called (button is disabled)
+                                      // For resting bins, allow opening the log screen (only Turn Pile will be available)
+                                      final result =
+                                          await context.push('/bin/${widget.binId}/log');
+                                      if (result == true) {
+                                        _hasUpdates = true;
+                                        _loadBin();
+                                      }
+                                    },
+                                    icon: const Icon(Icons.add, size: 18),
+                                    label: const Text('Log Activity'),
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                    ),
+                                  ),
+                                );
                               },
-                              icon: const Icon(Icons.add, size: 18),
-                              label: const Text('Log Activity'),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                              ),
                             ),
                           ),
                         ),

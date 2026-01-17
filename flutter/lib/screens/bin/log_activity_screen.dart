@@ -33,6 +33,7 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
   bool _isLoading = false;
   String? _error;
   String _binName = 'Bin';
+  Map<String, dynamic>? _bin;
 
   final List<String> _moistureOptions = [
     'Very Dry',
@@ -53,12 +54,34 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
       final bin = await _binService.getBin(widget.binId);
       if (mounted) {
         setState(() {
+          _bin = bin;
           _binName = bin['name'] as String? ?? 'Bin';
         });
       }
     } catch (e) {
       // Handle error
     }
+  }
+
+  List<String> get _allowedActivityTypes {
+    if (_bin == null) {
+      return ['Turn Pile', 'Add Materials', 'Add Water', 'Monitor'];
+    }
+
+    final status = _bin!['bin_status'] as String? ?? 'active';
+
+    if (status == 'resting') {
+      // Only allow flipping when resting
+      return ['Turn Pile'];
+    }
+
+    if (status == 'matured') {
+      // No actions allowed when matured
+      return [];
+    }
+
+    // Active - all actions allowed
+    return ['Turn Pile', 'Add Materials', 'Add Water', 'Monitor'];
   }
 
   void _selectType(String type) {
@@ -184,41 +207,100 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Show status warning if needed
+              if (_bin != null)
+                Builder(
+                  builder: (context) {
+                    final status = _bin!['bin_status'] as String? ?? 'active';
+                    if (status == 'matured') {
+                      return Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.purple[50],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.purple[200]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline, color: Colors.purple[700]),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Bin is matured. No actions allowed.',
+                                style: TextStyle(color: Colors.purple[700]),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    if (status == 'resting') {
+                      return Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.orange[50],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.orange[200]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.bedtime, color: Colors.orange[700]),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Bin is resting. Only flipping is allowed.',
+                                style: TextStyle(color: Colors.orange[700]),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+              if (_bin != null) const SizedBox(height: 16),
               // Action buttons
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1.2,
-                children: [
-                  _ActionButton(
-                    label: 'Add Materials',
-                    icon: Icons.eco,
-                    isSelected: _selectedType == 'Add Materials',
-                    onTap: () => _selectType('Add Materials'),
-                  ),
-                  _ActionButton(
-                    label: 'Add Water',
-                    icon: Icons.water_drop,
-                    isSelected: _selectedType == 'Add Water',
-                    onTap: () => _selectType('Add Water'),
-                  ),
-                  _ActionButton(
-                    label: 'Turn Pile',
-                    icon: Icons.refresh,
-                    isSelected: _selectedType == 'Turn Pile',
-                    onTap: () => _selectType('Turn Pile'),
-                  ),
-                  _ActionButton(
-                    label: 'Monitor',
-                    icon: Icons.thermostat,
-                    isSelected: _selectedType == 'Monitor',
-                    onTap: () => _selectType('Monitor'),
-                  ),
-                ],
-              ),
+              _allowedActivityTypes.isEmpty
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Text('No actions available for this bin status.'),
+                      ),
+                    )
+                  : GridView.count(
+                      crossAxisCount: 2,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 1.2,
+                      children: _allowedActivityTypes.map((type) {
+                        IconData icon;
+                        switch (type) {
+                          case 'Add Materials':
+                            icon = Icons.eco;
+                            break;
+                          case 'Add Water':
+                            icon = Icons.water_drop;
+                            break;
+                          case 'Turn Pile':
+                            icon = Icons.refresh;
+                            break;
+                          case 'Monitor':
+                            icon = Icons.thermostat;
+                            break;
+                          default:
+                            icon = Icons.info;
+                        }
+                        return _ActionButton(
+                          label: type,
+                          icon: icon,
+                          isSelected: _selectedType == type,
+                          onTap: () => _selectType(type),
+                        );
+                      }).toList(),
+                    ),
               const SizedBox(height: 24),
 
               // Materials checkboxes

@@ -4,6 +4,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_service.dart';
 import 'xp_service.dart';
 
+// Helper function to get current time in Singapore (UTC+8)
+DateTime _getSingaporeTime() {
+  return DateTime.now().toUtc().add(const Duration(hours: 8));
+}
+
 class BinNotFoundException implements Exception {
   final String message;
   BinNotFoundException(this.message);
@@ -138,6 +143,7 @@ class BinService {
       'location': location ?? name,
       'user_id': user.id,
       'health_status': 'Healthy',
+      'bin_status': 'active', // Default to active
     };
     if (image != null && image.isNotEmpty) {
       data['image'] = image;
@@ -446,6 +452,115 @@ class BinService {
         .order('created_at', ascending: false);
 
     return List<Map<String, dynamic>>.from(response);
+  }
+
+  // Update bin status (admin only)
+  Future<void> updateBinStatus({
+    required String binId,
+    required String status,
+    DateTime? restingUntil,
+    DateTime? maturedAt,
+  }) async {
+    final user = _supabaseService.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    // Verify user is owner
+    final bin = await getBin(binId);
+    if (bin['user_id'] != user.id) {
+      throw Exception('Only the bin owner can update bin status');
+    }
+
+    final updates = <String, dynamic>{
+      'bin_status': status,
+    };
+
+    if (status == 'resting' && restingUntil != null) {
+      updates['resting_until'] = restingUntil.toIso8601String();
+    } else if (status == 'resting') {
+      // Clear resting_until if not provided
+      updates['resting_until'] = null;
+    }
+
+    if (status == 'matured' && maturedAt != null) {
+      // maturedAt should already be in UTC when passed from the UI
+      updates['matured_at'] = maturedAt.toIso8601String();
+    } else if (status == 'matured') {
+      // Set matured_at to now in UTC if not provided
+      updates['matured_at'] = DateTime.now().toUtc().toIso8601String();
+    } else {
+      // Clear matured_at if status is not matured
+      updates['matured_at'] = null;
+    }
+
+    // Clear resting_until if status is not resting
+    if (status != 'resting') {
+      updates['resting_until'] = null;
+    }
+
+    await _supabaseService.client
+        .from('bins')
+        .update(updates)
+        .eq('id', binId);
+  }
+
+  // Get resting time remaining (in days)
+  int? getRestingDaysRemaining(Map<String, dynamic> bin) {
+    final restingUntil = bin['resting_until'] as String?;
+    if (restingUntil == null) return null;
+
+    // Convert from UTC to Singapore time - handle timezone parsing
+    final untilStr = restingUntil.toString();
+    DateTime until;
+    if (untilStr.endsWith('Z') || untilStr.contains('+') || untilStr.contains('-', 10)) {
+      until = DateTime.parse(untilStr).toUtc().add(const Duration(hours: 8));
+    } else {
+      until = DateTime.parse('${untilStr}Z').toUtc().add(const Duration(hours: 8));
+    }
+    final now = _getSingaporeTime();
+    final difference = until.difference(now).inDays;
+    return difference > 0 ? difference : 0;
+  }
+
+  // Get matured depletion percentage (0-100, over 6 months)
+  double getMaturedDepletionPercentage(Map<String, dynamic> bin) {
+    final maturedAt = bin['matured_at'] as String?;
+    if (maturedAt == null) return 0.0;
+
+    // Convert from UTC to Singapore time - handle timezone parsing
+    final maturedStr = maturedAt.toString();
+    DateTime matured;
+    if (maturedStr.endsWith('Z') || maturedStr.contains('+') || maturedStr.contains('-', 10)) {
+      matured = DateTime.parse(maturedStr).toUtc().add(const Duration(hours: 8));
+    } else {
+      matured = DateTime.parse('${maturedStr}Z').toUtc().add(const Duration(hours: 8));
+    }
+    final now = _getSingaporeTime();
+    final daysSinceMatured = now.difference(matured).inDays;
+    const sixMonthsInDays = 180; // ~6 months
+
+    if (daysSinceMatured >= sixMonthsInDays) return 100.0;
+    return (daysSinceMatured / sixMonthsInDays * 100).clamp(0.0, 100.0);
+  }
+
+  // Check if bin allows certain actions based on status
+  bool canPerformAction(Map<String, dynamic> bin, String action) {
+    final status = bin['bin_status'] as String? ?? 'active';
+
+    if (status == 'active') return true;
+
+    if (status == 'resting') {
+      // Only allow flipping when resting
+      // Allow 'log' action to open the screen, but only 'Turn Pile' will be available
+      if (action == 'log') return true;
+      return action == 'flip' || action == 'turn_pile' || action == 'Turn Pile';
+    }
+
+    if (status == 'matured') {
+      // No actions allowed when matured
+      return false;
+    }
+
+    return false;
   }
 
   // Calculate health status based on temperature and moisture

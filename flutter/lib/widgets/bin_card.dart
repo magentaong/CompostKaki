@@ -62,9 +62,32 @@ class BinCard extends StatelessWidget {
     }
   }
 
+  Color _getStatusColor(String? status) {
+    switch (status) {
+      case 'resting':
+        return Colors.orange;
+      case 'matured':
+        return Colors.purple;
+      default:
+        return AppTheme.primaryGreen;
+    }
+  }
+
+  String _getStatusText(String? status) {
+    switch (status) {
+      case 'resting':
+        return 'Resting';
+      case 'matured':
+        return 'Matured';
+      default:
+        return 'Active';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final healthStatus = bin['health_status'] as String? ?? 'Healthy';
+    final binStatus = bin['bin_status'] as String? ?? 'active';
     final temperature = bin['latest_temperature'];
     final binImage = _resolveBinImage(bin['image'] as String?);
 
@@ -245,6 +268,25 @@ class BinCard extends StatelessWidget {
                       ),
                     )
                   else ...[
+                    // Bin Status Badge
+                    if (binStatus != 'active')
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor(binStatus),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _getStatusText(binStatus),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    if (binStatus != 'active') const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
