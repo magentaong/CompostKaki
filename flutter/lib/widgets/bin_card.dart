@@ -84,6 +84,26 @@ class BinCard extends StatelessWidget {
     }
   }
 
+  String _getAgeText(String? createdAt) {
+    if (createdAt == null) return '';
+    try {
+      final createdDate = DateTime.parse(createdAt);
+      final now = DateTime.now();
+      final difference = now.difference(createdDate);
+      final days = difference.inDays;
+      
+      if (days == 0) {
+        return 'Created today';
+      } else if (days == 1) {
+        return '1 day old';
+      } else {
+        return '$days days old';
+      }
+    } catch (e) {
+      return '';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final healthStatus = bin['health_status'] as String? ?? 'Healthy';
@@ -224,13 +244,36 @@ class BinCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      bin['location'] as String? ?? '',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textGray,
+                    // Only show location if it's different from name and not empty
+                    if ((bin['location'] as String? ?? '').isNotEmpty &&
+                        (bin['location'] as String? ?? '') != (bin['name'] as String? ?? ''))
+                      Text(
+                        bin['location'] as String? ?? '',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textGray,
+                        ),
                       ),
-                    ),
+                    if (_getAgeText(bin['created_at'] as String?).isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_today,
+                            size: 10,
+                            color: AppTheme.textGray,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _getAgeText(bin['created_at'] as String?),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.textGray,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),

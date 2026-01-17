@@ -154,6 +154,26 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
     }
   }
 
+  String _getAgeText(String? createdAt) {
+    if (createdAt == null) return '';
+    try {
+      final createdDate = DateTime.parse(createdAt);
+      final now = DateTime.now();
+      final difference = now.difference(createdDate);
+      final days = difference.inDays;
+      
+      if (days == 0) {
+        return 'Created today';
+      } else if (days == 1) {
+        return '1 day old';
+      } else {
+        return '$days days old';
+      }
+    } catch (e) {
+      return '';
+    }
+  }
+
   void _popWithResult() {
     // Pop back with result so main screen can refresh
     // Always return true to indicate data should be refreshed
@@ -1871,6 +1891,27 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                         ),
                       ),
                     ),
+                    if (_getAgeText(_bin!['created_at'] as String?).isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.calendar_today,
+                            size: 14,
+                            color: AppTheme.textGray,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _getAgeText(_bin!['created_at'] as String?),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppTheme.textGray,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     // Bin Status Section
                     _buildBinStatusSection(),

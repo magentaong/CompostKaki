@@ -140,7 +140,7 @@ class BinService {
 
     final data = <String, dynamic>{
       'name': name,
-      'location': location ?? name,
+      'location': location ?? '',
       'user_id': user.id,
       'health_status': 'Healthy',
       'bin_status': 'active', // Default to active

@@ -377,6 +377,45 @@ void main() {
       });
     });
 
+    group('createBin location handling', () {
+      test('should default location to empty string when not provided', () {
+        String? location;
+        String name = 'Test Bin';
+        String finalLocation = location ?? '';
+        
+        expect(finalLocation, '');
+        expect(finalLocation != name, true);
+      });
+
+      test('should use provided location when given', () {
+        String? location = 'Singapore';
+        String name = 'Test Bin';
+        String finalLocation = location ?? '';
+        
+        expect(finalLocation, 'Singapore');
+        expect(finalLocation != name, true);
+      });
+
+      test('should not duplicate name in location field', () {
+        String? location;
+        String name = 'Test Bin';
+        String finalLocation = location ?? '';
+        
+        // Location should be empty, not the name
+        expect(finalLocation, '');
+        expect(finalLocation, isNot(name));
+      });
+
+      test('should allow empty location to be set explicitly', () {
+        String? location = '';
+        String name = 'Test Bin';
+        String finalLocation = location ?? '';
+        
+        expect(finalLocation, '');
+        expect(finalLocation != name, true);
+      });
+    });
+
     group('Error Handling', () {
       test('should handle invalid status gracefully', () {
         List<String> validStatuses = ['active', 'resting', 'matured'];

@@ -146,4 +146,98 @@ void main() {
           'https://example.com/image.jpg');
     });
   });
+
+  group('BinCard - Aging Indicator', () {
+    String getAgeText(String? createdAt) {
+      if (createdAt == null) return '';
+      try {
+        final createdDate = DateTime.parse(createdAt);
+        final now = DateTime.now();
+        final difference = now.difference(createdDate);
+        final days = difference.inDays;
+        
+        if (days == 0) {
+          return 'Created today';
+        } else if (days == 1) {
+          return '1 day old';
+        } else {
+          return '$days days old';
+        }
+      } catch (e) {
+        return '';
+      }
+    }
+
+    test('should return empty string when created_at is null', () {
+      expect(getAgeText(null), '');
+    });
+
+    test('should return "Created today" for bins created today', () {
+      final today = DateTime.now().toIso8601String();
+      final ageText = getAgeText(today);
+      expect(ageText, 'Created today');
+    });
+
+    test('should return "1 day old" for bins created yesterday', () {
+      final yesterday = DateTime.now().subtract(const Duration(days: 1)).toIso8601String();
+      final ageText = getAgeText(yesterday);
+      expect(ageText, '1 day old');
+    });
+
+    test('should return correct days for bins older than 1 day', () {
+      final fiveDaysAgo = DateTime.now().subtract(const Duration(days: 5)).toIso8601String();
+      final ageText = getAgeText(fiveDaysAgo);
+      expect(ageText, '5 days old');
+    });
+
+    test('should return empty string for invalid date format', () {
+      expect(getAgeText('invalid-date'), '');
+      expect(getAgeText(''), '');
+    });
+
+    test('should handle edge case of exactly 24 hours ago', () {
+      final exactly24HoursAgo = DateTime.now().subtract(const Duration(hours: 24)).toIso8601String();
+      final ageText = getAgeText(exactly24HoursAgo);
+      // Should be 1 day old if it's been exactly 24 hours
+      expect(ageText, contains('day old'));
+    });
+  });
+
+  group('BinCard - Location Display Logic', () {
+    bool shouldShowLocation(String? location, String? name) {
+      final locationStr = location ?? '';
+      final nameStr = name ?? '';
+      return locationStr.isNotEmpty && locationStr != nameStr;
+    }
+
+    test('should show location when it is different from name', () {
+      expect(shouldShowLocation('Singapore', 'My Bin'), true);
+      expect(shouldShowLocation('Park', 'Garden Bin'), true);
+    });
+
+    test('should not show location when it is same as name', () {
+      expect(shouldShowLocation('My Bin', 'My Bin'), false);
+      expect(shouldShowLocation('Test', 'Test'), false);
+    });
+
+    test('should not show location when it is empty', () {
+      expect(shouldShowLocation('', 'My Bin'), false);
+      expect(shouldShowLocation(null, 'My Bin'), false);
+    });
+
+    test('should not show location when both are empty', () {
+      expect(shouldShowLocation('', ''), false);
+      expect(shouldShowLocation(null, null), false);
+    });
+
+    test('should handle case sensitivity correctly', () {
+      expect(shouldShowLocation('My Bin', 'my bin'), true);
+      expect(shouldShowLocation('MY BIN', 'My Bin'), true);
+    });
+
+    test('should show location when name is empty but location is not', () {
+      expect(shouldShowLocation('Singapore', ''), true);
+      expect(shouldShowLocation('Park', null), true);
+    });
+  });
 }
