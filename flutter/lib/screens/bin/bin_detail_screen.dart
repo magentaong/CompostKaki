@@ -1477,9 +1477,9 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                     context: parentContext,
                     barrierDismissible: true,
                     builder: (dialogContext) => AlertDialog(
-                      title: const Text('Help Request Posted!'),
+                      title: const Text('Task Created!'),
                       content: const Text(
-                        'Your help request has been posted successfully. Would you like to view it in the Tasks page?',
+                        'Your task has been created successfully. Would you like to view it in the Tasks page?',
                       ),
                       actions: [
                         TextButton(
@@ -1509,7 +1509,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                     // Show success message if staying
                     ScaffoldMessenger.of(parentContext).showSnackBar(
                       const SnackBar(
-                        content: Text('Help request posted'),
+                        content: Text('Task created'),
                         backgroundColor: AppTheme.primaryGreen,
                       ),
                     );
@@ -1525,7 +1525,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                     // Sheet was closed, show error in snackbar instead
                     ScaffoldMessenger.of(parentContext).showSnackBar(
                       SnackBar(
-                        content: Text('Failed to post request: $e'),
+                        content: Text('Failed to create task: $e'),
                         backgroundColor: Colors.red,
                       ),
                     );
@@ -1538,7 +1538,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Ask for Help',
+                    'Create Task',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -1637,7 +1637,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                               width: 20,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Text('Post Request'),
+                          : const Text('Create Task'),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -2009,7 +2009,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                             child: OutlinedButton.icon(
                               onPressed: _showHelpSheet,
                               icon: const Text('💪', style: TextStyle(fontSize: 16)),
-                              label: const Text('Ask for Help'),
+                              label: const Text('Create Task'),
                               style: OutlinedButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(vertical: 8),
                               ),
