@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../services/auth_service.dart';
 import '../../services/supabase_service.dart';
 import '../../services/xp_service.dart';
@@ -21,6 +22,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoadingStats = true;
   final XPService _xpService = XPService();
   String? _lastUserId; // Track user ID to detect changes
+  String _appVersion = '1.1.1';
+  String _buildNumber = '6';
 
   @override
   void initState() {
@@ -29,6 +32,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadXPStats();
     _loadBadges();
     _loadBadgeProgress();
+    _loadVersionInfo();
+  }
+
+  Future<void> _loadVersionInfo() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      if (mounted) {
+        setState(() {
+          _appVersion = packageInfo.version;
+          _buildNumber = packageInfo.buildNumber;
+        });
+      }
+    } catch (e) {
+      // If package_info fails, keep default values
+    }
   }
 
 
@@ -317,6 +335,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onTap: () => _showDeleteAccountDialog(context),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // App Version
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 16,
+                    color: AppTheme.textGray,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Version $_appVersion (Build $_buildNumber)',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textGray,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
