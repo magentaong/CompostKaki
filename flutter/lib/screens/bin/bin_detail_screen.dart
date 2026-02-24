@@ -1449,15 +1449,21 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                       () => errorText = 'Please describe the help you need.');
                   return;
                 }
+                if (timeSensitive && dueDate == null) {
+                  setSheetState(
+                      () => errorText = 'Please pick a due date for time-sensitive tasks.');
+                  return;
+                }
                 setSheetState(() {
                   isSubmitting = true;
                   errorText = null;
                 });
                 try {
+                  final effectiveUrgency = timeSensitive ? 'High' : urgency;
                   await _taskService.createTask(
                     binId: widget.binId,
                     description: descController.text.trim(),
-                    urgency: urgency,
+                    urgency: effectiveUrgency,
                     effort: effort,
                     isTimeSensitive: timeSensitive,
                     dueDate: timeSensitive && dueDate != null
@@ -1503,7 +1509,9 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                     // Use go() to navigate directly to Tasks page, clearing navigation stack
                     // This ensures no back button appears and goes straight to Tasks tab
                     if (parentContext.mounted) {
-                      parentContext.go('/main?tab=tasks');
+                      final refreshToken =
+                          DateTime.now().millisecondsSinceEpoch.toString();
+                      parentContext.go('/main?tab=tasks&refresh=$refreshToken');
                     }
                   } else {
                     // Show success message if staying

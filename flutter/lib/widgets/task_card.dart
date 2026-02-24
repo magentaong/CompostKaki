@@ -41,6 +41,45 @@ class TaskCard extends StatelessWidget {
     }
   }
 
+  ({String text, Color color}) _getTimeLeft(String? dueDateRaw) {
+    if (dueDateRaw == null || dueDateRaw.trim().isEmpty) {
+      return (text: '', color: AppTheme.textGray);
+    }
+
+    try {
+      final due = DateTime.parse(dueDateRaw).toLocal();
+      final now = DateTime.now();
+      final diff = due.difference(now);
+      final isOverdue = diff.isNegative;
+      final absDiff = isOverdue ? now.difference(due) : diff;
+
+      final days = absDiff.inDays;
+      final hours = absDiff.inHours % 24;
+      final minutes = absDiff.inMinutes % 60;
+
+      String spanText;
+      if (days > 0) {
+        spanText = '${days}d ${hours}h';
+      } else if (absDiff.inHours > 0) {
+        spanText = '${absDiff.inHours}h ${minutes}m';
+      } else {
+        spanText = '${absDiff.inMinutes.clamp(0, 59)}m';
+      }
+
+      if (isOverdue) {
+        return (text: 'Overdue by $spanText', color: Colors.red.shade700);
+      }
+
+      if (absDiff.inHours <= 24) {
+        return (text: '$spanText left', color: Colors.orange.shade700);
+      }
+
+      return (text: '$spanText left', color: AppTheme.primaryGreen);
+    } catch (_) {
+      return (text: '', color: AppTheme.textGray);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final binId = task['bin_id'] as String?;
@@ -49,6 +88,9 @@ class TaskCard extends StatelessWidget {
       orElse: () => {'name': 'Unknown'},
     );
     final urgency = task['urgency'] as String? ?? 'Normal';
+    final isTimeSensitive = task['is_time_sensitive'] == true;
+    final dueDateRaw = task['due_date'] as String?;
+    final timeLeft = _getTimeLeft(dueDateRaw);
     final description = task['description'] as String? ?? '';
     final profile = task['profiles'] as Map<String, dynamic>?;
     final firstName = profile?['first_name'] as String? ?? 'Unknown';
@@ -130,6 +172,27 @@ class TaskCard extends StatelessWidget {
                         color: AppTheme.textGray,
                       ),
                     ),
+                    if (isTimeSensitive && timeLeft.text.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.schedule,
+                            size: 12,
+                            color: timeLeft.color,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            timeLeft.text,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: timeLeft.color,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     if (status == 'accepted' && acceptedByName != 'Unknown') ...[
                       const SizedBox(height: 4),
                       Row(

@@ -206,5 +206,38 @@ void main() {
       });
     });
   });
+
+  group('MainScreen - Tasks Refresh Token Navigation', () {
+    test('should refresh tasks when refresh token changes', () {
+      String? lastRefreshToken = '1000';
+      const incomingRefreshToken = '2000';
+
+      final shouldRefresh =
+          incomingRefreshToken.isNotEmpty && lastRefreshToken != incomingRefreshToken;
+      if (shouldRefresh) {
+        lastRefreshToken = incomingRefreshToken;
+      }
+
+      expect(shouldRefresh, true);
+      expect(lastRefreshToken, '2000');
+    });
+
+    test('should not refresh repeatedly for same refresh token', () {
+      String? lastRefreshToken = '2000';
+      const incomingRefreshToken = '2000';
+
+      final shouldRefresh =
+          incomingRefreshToken.isNotEmpty && lastRefreshToken != incomingRefreshToken;
+
+      expect(shouldRefresh, false);
+    });
+
+    test('should target tasks tab when tab query is tasks', () {
+      const tabParam = 'tasks';
+      final targetTab = tabParam == 'tasks' ? 1 : (tabParam == 'home' ? 0 : null);
+
+      expect(targetTab, 1);
+    });
+  });
 }
 

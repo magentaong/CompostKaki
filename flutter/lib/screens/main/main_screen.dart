@@ -42,6 +42,7 @@ class _MainScreenState extends State<MainScreen> {
   String? _error;
   int _userLogCount = 0;
   int _selectedIndex = 0;
+  String? _lastTasksRefreshToken;
 
   @override
   void initState() {
@@ -87,8 +88,29 @@ class _MainScreenState extends State<MainScreen> {
     // Check for tab query parameter in case widget is reused
     final uri = GoRouterState.of(context).uri;
     final tabParam = uri.queryParameters['tab'];
+    final refreshToken = uri.queryParameters['refresh'];
     final targetTab = tabParam == 'tasks' ? 1 : (tabParam == 'home' ? 0 : null);
-    
+
+    // If navigating explicitly to tasks, always refresh tasks at least once per refresh token.
+    // This ensures newly created tasks appear immediately without manual pull-to-refresh.
+    if (targetTab == 1 && refreshToken != null && _lastTasksRefreshToken != refreshToken) {
+      _lastTasksRefreshToken = refreshToken;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          if (_selectedIndex != 1) {
+            setState(() {
+              _selectedIndex = 1;
+            });
+          }
+          _loadTasks();
+          final notificationService = context.read<NotificationService>();
+          notificationService.markAsRead(type: 'help_request');
+          notificationService.markAsRead(type: 'task_completed');
+        }
+      });
+      return;
+    }
+
     if (targetTab != null && _selectedIndex != targetTab) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {

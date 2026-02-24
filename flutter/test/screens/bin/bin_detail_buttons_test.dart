@@ -177,6 +177,42 @@ void main() {
 
         expect(shouldDisable, true);
       });
+
+      test('should require due date when time sensitive is enabled', () {
+        bool timeSensitive = true;
+        DateTime? dueDate;
+        String? errorText;
+
+        if (timeSensitive && dueDate == null) {
+          errorText = 'Please pick a due date for time-sensitive tasks.';
+        }
+
+        expect(errorText, 'Please pick a due date for time-sensitive tasks.');
+      });
+
+      test('should allow submit when time sensitive has due date', () {
+        bool timeSensitive = true;
+        DateTime? dueDate = DateTime.now().add(const Duration(days: 1));
+        bool canSubmit = !(timeSensitive && dueDate == null);
+
+        expect(canSubmit, true);
+      });
+
+      test('should force urgency to High when time sensitive', () {
+        String selectedUrgency = 'Normal';
+        bool timeSensitive = true;
+        String effectiveUrgency = timeSensitive ? 'High' : selectedUrgency;
+
+        expect(effectiveUrgency, 'High');
+      });
+
+      test('should keep selected urgency when not time sensitive', () {
+        String selectedUrgency = 'Low';
+        bool timeSensitive = false;
+        String effectiveUrgency = timeSensitive ? 'High' : selectedUrgency;
+
+        expect(effectiveUrgency, 'Low');
+      });
     });
 
     group('Help Sheet - Cancel Button', () {
@@ -207,6 +243,14 @@ void main() {
         String targetRoute = '/main?tab=tasks';
         expect(targetRoute, '/main?tab=tasks');
         expect(targetRoute.contains('tab=tasks'), true);
+      });
+
+      test('should include refresh token when navigating to tasks tab', () {
+        final refreshToken = DateTime.now().millisecondsSinceEpoch.toString();
+        final targetRoute = '/main?tab=tasks&refresh=$refreshToken';
+
+        expect(targetRoute.contains('tab=tasks'), true);
+        expect(targetRoute.contains('refresh='), true);
       });
 
       test('should pop back to main screen first', () {
