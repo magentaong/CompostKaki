@@ -2493,7 +2493,7 @@ class _BinFoodWasteGuideContentState extends State<_BinFoodWasteGuideContent> {
                                             : Colors.black87),
                                     const SizedBox(width: 8),
                                     Text(
-                                      'Can Add',
+                                      'Can Compost',
                                       style: TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
@@ -2578,7 +2578,7 @@ class _BinFoodWasteGuideContentState extends State<_BinFoodWasteGuideContent> {
                                             : Colors.black87),
                                     const SizedBox(width: 8),
                                     Text(
-                                      'Cannot Add',
+                                      'Cannot Compost',
                                       style: TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
