@@ -288,4 +288,129 @@ void main() {
       expect(shouldIncrementFlips, true);
     });
   });
+
+  group('LogActivityScreen - Add Materials Missing Flow', () {
+    test('defaults all three materials to checked', () {
+      final materials = <String, bool>{
+        'greens': true,
+        'browns': true,
+        'water': true,
+      };
+
+      expect(materials['greens'], true);
+      expect(materials['browns'], true);
+      expect(materials['water'], true);
+      expect(materials.values.every((v) => v), true);
+    });
+
+    test('builds activity text from checked materials', () {
+      String buildContent(Map<String, bool> materials) {
+        final added = <String>[];
+        if (materials['greens'] == true) added.add('greens');
+        if (materials['browns'] == true) added.add('browns');
+        if (materials['water'] == true) added.add('water');
+
+        if (added.isEmpty) return 'No materials were added.';
+        if (added.length == 1) return 'Added materials: ${added.first}';
+
+        final last = added.removeLast();
+        return 'Added materials: ${added.join(', ')} and $last';
+      }
+
+      expect(
+        buildContent({'greens': true, 'browns': true, 'water': true}),
+        'Added materials: greens, browns and water',
+      );
+      expect(
+        buildContent({'greens': true, 'browns': true, 'water': false}),
+        'Added materials: greens and browns',
+      );
+      expect(
+        buildContent({'greens': false, 'browns': false, 'water': true}),
+        'Added materials: water',
+      );
+      expect(
+        buildContent({'greens': false, 'browns': false, 'water': false}),
+        'No materials were added.',
+      );
+    });
+
+    test('requires reasons for every unchecked material', () {
+      bool hasRequiredMissingReasons(
+        Map<String, bool> materials,
+        Map<String, String?> reasons,
+      ) {
+        final missing = materials.entries
+            .where((entry) => entry.value == false)
+            .map((entry) => entry.key);
+        return missing.every((key) => (reasons[key] ?? '').trim().isNotEmpty);
+      }
+
+      final materials = {'greens': true, 'browns': false, 'water': false};
+
+      expect(
+        hasRequiredMissingReasons(
+          materials,
+          {'browns': 'Need dry leaves', 'water': 'No water nearby'},
+        ),
+        true,
+      );
+      expect(
+        hasRequiredMissingReasons(
+          materials,
+          {'browns': 'Need dry leaves', 'water': ''},
+        ),
+        false,
+      );
+    });
+
+    test('sets task urgency/effort higher when 2+ materials are missing', () {
+      ({String urgency, String effort}) mapPriority(int missingCount) {
+        final urgency = missingCount >= 2 ? 'High' : 'Normal';
+        final effort = missingCount >= 2 ? 'High' : 'Medium';
+        return (urgency: urgency, effort: effort);
+      }
+
+      final oneMissing = mapPriority(1);
+      final twoMissing = mapPriority(2);
+      final threeMissing = mapPriority(3);
+
+      expect(oneMissing.urgency, 'Normal');
+      expect(oneMissing.effort, 'Medium');
+      expect(twoMissing.urgency, 'High');
+      expect(twoMissing.effort, 'High');
+      expect(threeMissing.urgency, 'High');
+      expect(threeMissing.effort, 'High');
+    });
+
+    test('uses fallback task title when user does not provide one', () {
+      String materialLabel(String key) {
+        switch (key) {
+          case 'greens':
+            return 'Greens';
+          case 'browns':
+            return 'Browns';
+          case 'water':
+            return 'Water';
+          default:
+            return key;
+        }
+      }
+
+      String buildTaskTitle(String inputTitle, List<String> missing) {
+        final generated = 'Need help getting '
+            '${missing.map(materialLabel).join(', ').toLowerCase()}';
+        return inputTitle.trim().isEmpty ? generated : inputTitle.trim();
+      }
+
+      expect(
+        buildTaskTitle('', ['greens']),
+        'Need help getting greens',
+      );
+      expect(
+        buildTaskTitle('Urgent supplies needed', ['greens', 'water']),
+        'Urgent supplies needed',
+      );
+    });
+  });
 }

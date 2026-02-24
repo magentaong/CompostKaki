@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../services/bin_service.dart';
+import '../../services/task_service.dart';
 import '../../widgets/xp_floating_animation.dart';
 import '../../theme/app_theme.dart';
 import 'dart:io';
@@ -17,17 +18,25 @@ class LogActivityScreen extends StatefulWidget {
 
 class _LogActivityScreenState extends State<LogActivityScreen> {
   final BinService _binService = BinService();
+  final TaskService _taskService = TaskService();
   final _formKey = GlobalKey<FormState>();
   final _contentController = TextEditingController();
   final _temperatureController = TextEditingController();
   final _weightController = TextEditingController();
+  final _taskTitleController = TextEditingController();
+  final _missingDetailsController = TextEditingController();
 
   String? _selectedType;
   String? _selectedMoisture;
   Map<String, bool> _materials = {
-    'greens': false,
-    'browns': false,
-    'water': false,
+    'greens': true,
+    'browns': true,
+    'water': true,
+  };
+  final Map<String, String?> _missingReasons = {
+    'greens': null,
+    'browns': null,
+    'water': null,
   };
   File? _imageFile;
   bool _isLoading = false;
@@ -42,6 +51,26 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
     'Wet',
     'Very Wet',
   ];
+  final Map<String, List<String>> _missingReasonOptions = const {
+    'greens': [
+      'No more greens available right now',
+      'Kitchen scraps ran out today',
+      'Need fresh greens collection support',
+      'Greens quality is not suitable today',
+    ],
+    'browns': [
+      'No dry leaves/cardboard available now',
+      'Stored browns are finished',
+      'Need more carbon-rich materials',
+      'Browns are too wet to use',
+    ],
+    'water': [
+      'No water source nearby at the moment',
+      'Watering tool is unavailable',
+      'Need help bringing water to the bin',
+      'Weather conditions prevented watering',
+    ],
+  };
 
   @override
   void initState() {
@@ -90,13 +119,66 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
       if (type == 'Turn Pile') {
         _contentController.text = 'Turned the pile';
       } else if (type == 'Add Materials') {
-        _contentController.text = 'Added materials: greens, browns and water';
+        _materials = {
+          'greens': true,
+          'browns': true,
+          'water': true,
+        };
+        _missingReasons.updateAll((key, value) => null);
+        _taskTitleController.clear();
+        _missingDetailsController.clear();
+        _updateAddMaterialsContent();
       } else if (type == 'Add Water') {
         _contentController.text = 'Added water to the bin';
       } else if (type == 'Monitor') {
         _contentController.text = 'Checked status';
       }
     });
+  }
+
+  void _updateAddMaterialsContent() {
+    final added = <String>[];
+    if (_materials['greens'] == true) added.add('greens');
+    if (_materials['browns'] == true) added.add('browns');
+    if (_materials['water'] == true) added.add('water');
+
+    if (added.isEmpty) {
+      _contentController.text = 'No materials were added.';
+      return;
+    }
+
+    if (added.length == 1) {
+      _contentController.text = 'Added materials: ${added.first}';
+      return;
+    }
+
+    final last = added.removeLast();
+    _contentController.text = 'Added materials: ${added.join(', ')} and $last';
+  }
+
+  List<String> get _missingMaterials => _materials.entries
+      .where((entry) => entry.value == false)
+      .map((entry) => entry.key)
+      .toList();
+
+  String _materialLabel(String key) {
+    switch (key) {
+      case 'greens':
+        return 'Greens';
+      case 'browns':
+        return 'Browns';
+      case 'water':
+        return 'Water';
+      default:
+        return key;
+    }
+  }
+
+  bool _hasRequiredMissingReasons() {
+    final missing = _missingMaterials;
+    return missing.every(
+      (material) => (_missingReasons[material] ?? '').trim().isNotEmpty,
+    );
   }
 
   Future<void> _pickImage() async {
@@ -112,7 +194,8 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
   bool _canSubmit() {
     if (_selectedType == null) return false;
     if (_selectedType == 'Add Materials') {
-      return _materials.values.every((v) => v);
+      if (_materials.values.every((v) => v)) return true;
+      return _hasRequiredMissingReasons();
     }
     if (_selectedType == 'Monitor') {
       return _temperatureController.text.isNotEmpty &&
@@ -121,8 +204,76 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
     return true;
   }
 
+  Future<bool> _askCreateTaskForMissingMaterials(List<String> missing) async {
+    final selected = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Missing Materials'),
+        content: Text(
+          'You are missing ${missing.length} material(s): ${missing.map(_materialLabel).join(', ')}.\n\nDo you want to create a task for help and continue logging?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Log Only'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryGreen,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Create Task + Log'),
+          ),
+        ],
+      ),
+    );
+
+    return selected ?? false;
+  }
+
+  Future<void> _createMissingMaterialsTask(List<String> missing) async {
+    final generatedTitle =
+        'Need help getting ${missing.map(_materialLabel).join(", ").toLowerCase()}';
+    final title = _taskTitleController.text.trim().isEmpty
+        ? generatedTitle
+        : _taskTitleController.text.trim();
+
+    final reasons = missing
+        .map((material) => '- ${_materialLabel(material)}: ${_missingReasons[material]}')
+        .join('\n');
+
+    final extraDetails = _missingDetailsController.text.trim();
+    final description = extraDetails.isEmpty
+        ? '$title\n\n$reasons'
+        : '$title\n\n$reasons\n\nAdditional details:\n$extraDetails';
+
+    final urgency = missing.length >= 2 ? 'High' : 'Normal';
+    final effort = missing.length >= 2 ? 'High' : 'Medium';
+
+    await _taskService.createTask(
+      binId: widget.binId,
+      description: description,
+      urgency: urgency,
+      effort: effort,
+    );
+  }
+
   Future<void> _submit() async {
     if (!_canSubmit() || !_formKey.currentState!.validate()) return;
+
+    bool shouldCreateTask = false;
+    final missing = _selectedType == 'Add Materials' ? _missingMaterials : <String>[];
+    if (_selectedType == 'Add Materials' && missing.isNotEmpty) {
+      if (!_hasRequiredMissingReasons()) {
+        setState(() {
+          _error = 'Please select a reason for each unchecked material.';
+        });
+        return;
+      }
+
+      shouldCreateTask = await _askCreateTaskForMissingMaterials(missing);
+    }
 
     setState(() {
       _isLoading = true;
@@ -133,6 +284,10 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
       String? imageUrl;
       if (_imageFile != null) {
         imageUrl = await _binService.uploadLogImage(_imageFile!, widget.binId);
+      }
+
+      if (shouldCreateTask && missing.isNotEmpty) {
+        await _createMissingMaterialsTask(missing);
       }
 
       final xpResult = await _binService.createBinLog(
@@ -191,6 +346,8 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
     _contentController.dispose();
     _temperatureController.dispose();
     _weightController.dispose();
+    _taskTitleController.dispose();
+    _missingDetailsController.dispose();
     super.dispose();
   }
 
@@ -329,6 +486,13 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                         onChanged: (value) {
                           setState(() {
                             _materials['greens'] = value ?? false;
+                            if (_materials['greens'] == true) {
+                              _missingReasons['greens'] = null;
+                            } else {
+                              _missingReasons['greens'] ??=
+                                  _missingReasonOptions['greens']!.first;
+                            }
+                            _updateAddMaterialsContent();
                           });
                         },
                         activeColor: AppTheme.primaryGreen,
@@ -339,6 +503,13 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                         onChanged: (value) {
                           setState(() {
                             _materials['browns'] = value ?? false;
+                            if (_materials['browns'] == true) {
+                              _missingReasons['browns'] = null;
+                            } else {
+                              _missingReasons['browns'] ??=
+                                  _missingReasonOptions['browns']!.first;
+                            }
+                            _updateAddMaterialsContent();
                           });
                         },
                         activeColor: AppTheme.primaryGreen,
@@ -349,10 +520,86 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                         onChanged: (value) {
                           setState(() {
                             _materials['water'] = value ?? false;
+                            if (_materials['water'] == true) {
+                              _missingReasons['water'] = null;
+                            } else {
+                              _missingReasons['water'] ??=
+                                  _missingReasonOptions['water']!.first;
+                            }
+                            _updateAddMaterialsContent();
                           });
                         },
                         activeColor: AppTheme.primaryGreen,
                       ),
+                      if (_missingMaterials.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        const Divider(),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Explain missing items (required):',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryGreen,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ..._missingMaterials.map((material) {
+                          final options = _missingReasonOptions[material] ?? const <String>[];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: DropdownMenu<String>(
+                                    initialSelection: _missingReasons[material],
+                                    expandedInsets: EdgeInsets.zero,
+                                    label: Text('${_materialLabel(material)} reason'),
+                                    onSelected: (value) {
+                                      setState(() {
+                                        _missingReasons[material] = value;
+                                      });
+                                    },
+                                    dropdownMenuEntries: options.map((option) {
+                                      return DropdownMenuEntry<String>(
+                                        value: option,
+                                        label: option,
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                                if ((_missingReasons[material] ?? '').trim().isEmpty)
+                                  const Padding(
+                                    padding: EdgeInsets.only(top: 6, left: 12),
+                                    child: Text(
+                                      'Please select a reason',
+                                      style: TextStyle(color: Colors.red, fontSize: 12),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
+                        }),
+                        TextFormField(
+                          controller: _taskTitleController,
+                          decoration: const InputDecoration(
+                            labelText: 'Task title (optional)',
+                            hintText: 'e.g. Need help getting greens',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _missingDetailsController,
+                          maxLines: 3,
+                          decoration: const InputDecoration(
+                            labelText: 'Additional details (optional)',
+                            hintText: 'Any extra context for the task...',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
