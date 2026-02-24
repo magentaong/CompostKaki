@@ -936,7 +936,10 @@ class _MainScreenState extends State<MainScreen> {
         },
         onComplete: () async {
           final xpResult = await _taskService.completeTask(task['id']);
-          _updateLocalTask(task['id'], {'status': 'completed'});
+          _updateLocalTask(task['id'], {
+            'status': 'completed',
+            'accepted_by': _taskService.currentUserId,
+          });
           if (mounted) {
             _loadTasks();
             // Close dialog first
@@ -1521,9 +1524,15 @@ class _TaskDetailDialog extends StatelessWidget {
     final firstName = profile?['first_name'] as String? ?? 'Unknown';
     final taskPosterId = task['user_id'] as String?;
     final acceptedBy = task['accepted_by'];
+    final assignedToProfile = task['assigned_to_profile'] as Map<String, dynamic>?;
     // Get current user ID from TaskService
     final taskService = TaskService();
     final currentUserId = taskService.currentUserId;
+    final assignedFirstName = assignedToProfile?['first_name'] as String?;
+    final assignedLastName = assignedToProfile?['last_name'] as String?;
+    final assignedToName = assignedFirstName != null && assignedLastName != null
+        ? '$assignedFirstName $assignedLastName'.trim()
+        : assignedFirstName ?? 'Anyone';
     final acceptedByProfile = task['accepted_by_profile'] as Map<String, dynamic>?;
     final acceptedByFirstName = acceptedByProfile?['first_name'] as String?;
     final acceptedByLastName = acceptedByProfile?['last_name'] as String?;
@@ -1661,6 +1670,27 @@ class _TaskDetailDialog extends StatelessWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Text(
+                  'Assigned to: ',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppTheme.textGray,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  assignedToName,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
             
             // Taken by (only show if task is accepted)
             if (status == 'accepted' && acceptedBy != null) ...[
@@ -1669,6 +1699,29 @@ class _TaskDetailDialog extends StatelessWidget {
                 children: [
                   const Text(
                     'Taken by: ',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.textGray,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    acceptedByName,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryGreen,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (status == 'completed' && acceptedBy != null) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Text(
+                    'Completed by: ',
                     style: TextStyle(
                       fontSize: 14,
                       color: AppTheme.textGray,
@@ -1696,9 +1749,8 @@ class _TaskDetailDialog extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Show buttons if: current user accepted the task OR current user posted the task
-              if (status == 'accepted' && 
-                  (acceptedBy == currentUserId || taskPosterId == currentUserId)) ...[
+              // Any authenticated member can complete an accepted task
+              if (status == 'accepted' && currentUserId != null) ...[
                 // Mark as Completed (top)
                 SizedBox(
                   width: double.infinity,

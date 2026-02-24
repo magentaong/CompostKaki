@@ -1421,8 +1421,10 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
     String effort = 'Medium';
     bool timeSensitive = false;
     DateTime? dueDate;
+    String? assignedToUserId;
     bool isSubmitting = false;
     String? errorText;
+    final assignableUsers = await _taskService.getBinAssignableUsers(widget.binId);
     
     // Capture parent context for use after sheet is closed
     final parentContext = context;
@@ -1469,6 +1471,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                     dueDate: timeSensitive && dueDate != null
                         ? dueDate!.toIso8601String()
                         : null,
+                    assignedTo: assignedToUserId,
                   );
                   
                   // Close the bottom sheet first
@@ -1541,10 +1544,15 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                 }
               }
 
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+              return ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(sheetContext).size.height * 0.8,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                   const Text(
                     'Create Task',
                     style: TextStyle(
@@ -1595,6 +1603,31 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                         .toList(),
                   ),
                   const SizedBox(height: 12),
+                  if (assignableUsers.isNotEmpty) ...[
+                    DropdownButtonFormField<String>(
+                      value: assignedToUserId,
+                      decoration: const InputDecoration(
+                        labelText: 'Assign to (optional)',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: [
+                        const DropdownMenuItem<String>(
+                          value: null,
+                          child: Text('Anyone can take this task'),
+                        ),
+                        ...assignableUsers.map(
+                          (user) => DropdownMenuItem<String>(
+                            value: user['id'],
+                            child: Text(user['name'] ?? 'User'),
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setSheetState(() => assignedToUserId = value);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Time sensitive?'),
@@ -1648,8 +1681,10 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                           : const Text('Create Task'),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                ],
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
               );
             },
           ),

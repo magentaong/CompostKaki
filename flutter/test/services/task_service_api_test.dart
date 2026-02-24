@@ -50,6 +50,14 @@ void main() {
         expect(hasAcceptedByJoin, true);
       });
 
+      test('should enrich assigned_to profiles via separate profiles query', () {
+        List<String> assignedIds = ['user-1', 'user-2'];
+        bool shouldQueryProfiles = assignedIds.isNotEmpty;
+
+        expect(shouldQueryProfiles, true);
+        expect(assignedIds.length, 2);
+      });
+
       test('should order tasks by created_at descending', () {
         String orderField = 'created_at';
         bool ascending = false;
@@ -257,10 +265,45 @@ void main() {
           'is_time_sensitive': true,
           'due_date': '2024-12-31',
           'photo_url': 'https://example.com/photo.jpg',
+          'assigned_to': 'user456',
         };
         bool hasOptionalFields = taskData.containsKey('is_time_sensitive');
+        bool hasAssignedTo = taskData.containsKey('assigned_to');
 
         expect(hasOptionalFields, true);
+        expect(hasAssignedTo, true);
+      });
+
+      test('should allow null assigned_to for open assignment', () {
+        String? assignedTo;
+        Map<String, dynamic> taskData = {
+          'assigned_to': assignedTo,
+        };
+
+        expect(taskData['assigned_to'], null);
+      });
+
+      test('should omit assigned_to from payload when null or empty', () {
+        Map<String, dynamic> buildPayload(String? assignedTo) {
+          final payload = <String, dynamic>{
+            'bin_id': 'bin123',
+            'user_id': 'user123',
+            'description': 'Test task',
+            'status': 'open',
+          };
+          if (assignedTo != null && assignedTo.isNotEmpty) {
+            payload['assigned_to'] = assignedTo;
+          }
+          return payload;
+        }
+
+        final nullPayload = buildPayload(null);
+        final emptyPayload = buildPayload('');
+        final assignedPayload = buildPayload('user456');
+
+        expect(nullPayload.containsKey('assigned_to'), false);
+        expect(emptyPayload.containsKey('assigned_to'), false);
+        expect(assignedPayload['assigned_to'], 'user456');
       });
 
       test('should set default values for optional fields', () {

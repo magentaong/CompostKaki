@@ -7,6 +7,42 @@ class TaskService {
 
   String? get currentUserId => _supabaseService.currentUser?.id;
 
+  Future<List<Map<String, dynamic>>> _attachAssignedProfiles(
+    List<Map<String, dynamic>> tasks,
+  ) async {
+    final assignedIds = tasks
+        .map((t) => t['assigned_to'] as String?)
+        .where((id) => id != null && id.isNotEmpty)
+        .cast<String>()
+        .toSet()
+        .toList();
+
+    if (assignedIds.isEmpty) return tasks;
+
+    final profilesResponse = await _supabaseService.client
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .inFilter('id', assignedIds);
+
+    final profileMap = <String, Map<String, dynamic>>{};
+    for (final item in profilesResponse as List) {
+      final profile = Map<String, dynamic>.from(item as Map);
+      final id = profile['id'] as String?;
+      if (id != null && id.isNotEmpty) {
+        profileMap[id] = profile;
+      }
+    }
+
+    for (final task in tasks) {
+      final assignedTo = task['assigned_to'] as String?;
+      if (assignedTo != null && assignedTo.isNotEmpty) {
+        task['assigned_to_profile'] = profileMap[assignedTo];
+      }
+    }
+
+    return tasks;
+  }
+
   // Get community tasks
   Future<List<Map<String, dynamic>>> getCommunityTasks() async {
     final user = _supabaseService.currentUser;
@@ -43,6 +79,7 @@ class TaskService {
           .inFilter('bin_id', allBinIds)
           .order('created_at', ascending: false);
       tasks = List<Map<String, dynamic>>.from(tasksResponse);
+      tasks = await _attachAssignedProfiles(tasks);
     }
 
     // Also get tasks posted by user
@@ -53,7 +90,8 @@ class TaskService {
         .eq('user_id', user.id)
         .order('created_at', ascending: false);
 
-    final myTasks = List<Map<String, dynamic>>.from(myTasksResponse);
+    final myTasks =
+        await _attachAssignedProfiles(List<Map<String, dynamic>>.from(myTasksResponse));
 
     // Merge and deduplicate
     final allTasks = <Map<String, dynamic>>[];
@@ -110,6 +148,9 @@ class TaskService {
 
   // Complete task
   Future<Map<String, dynamic>?> completeTask(String taskId) async {
+    final user = _supabaseService.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
     // Get task to find bin_id
     final taskResponse = await _supabaseService.client
         .from('tasks')
@@ -123,6 +164,7 @@ class TaskService {
     await _supabaseService.client.from('tasks').update({
       'status': 'completed',
       'completion_status': 'pending_check',
+      'accepted_by': user.id, // Track who actually completed the task
       'completed_at': nowUtc.toIso8601String(),
     }).eq('id', taskId);
 
@@ -185,11 +227,12 @@ class TaskService {
     bool? isTimeSensitive,
     String? dueDate,
     String? photoUrl,
+    String? assignedTo,
   }) async {
     final user = _supabaseService.currentUser;
     if (user == null) throw Exception('Not authenticated');
 
-    await _supabaseService.client.from('tasks').insert({
+    final payload = <String, dynamic>{
       'bin_id': binId,
       'user_id': user.id,
       'description': description,
@@ -199,7 +242,12 @@ class TaskService {
       'due_date': dueDate,
       'photo_url': photoUrl,
       'status': 'open',
-    });
+    };
+    if (assignedTo != null && assignedTo.isNotEmpty) {
+      payload['assigned_to'] = assignedTo;
+    }
+
+    await _supabaseService.client.from('tasks').insert(payload);
 
     // Award XP for posting a task
     try {
@@ -208,6 +256,56 @@ class TaskService {
     } catch (e) {
       print('Error awarding XP: $e');
     }
+  }
+
+  Future<List<Map<String, String>>> getBinAssignableUsers(String binId) async {
+    final binResponse = await _supabaseService.client
+        .from('bins')
+        .select('user_id')
+        .eq('id', binId)
+        .maybeSingle();
+
+    if (binResponse == null) return [];
+
+    final ownerId = binResponse['user_id'] as String?;
+    final memberResponse = await _supabaseService.client
+        .from('bin_members')
+        .select('user_id')
+        .eq('bin_id', binId);
+
+    final userIds = <String>{};
+    if (ownerId != null && ownerId.isNotEmpty) {
+      userIds.add(ownerId);
+    }
+    for (final item in memberResponse as List) {
+      final id = item['user_id'] as String?;
+      if (id != null && id.isNotEmpty) {
+        userIds.add(id);
+      }
+    }
+
+    if (userIds.isEmpty) return [];
+
+    final profilesResponse = await _supabaseService.client
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .inFilter('id', userIds.toList());
+
+    final users = <Map<String, String>>[];
+    for (final profile in profilesResponse as List) {
+      final id = profile['id'] as String?;
+      if (id == null || id.isEmpty) continue;
+      final firstName = (profile['first_name'] as String?)?.trim() ?? '';
+      final lastName = (profile['last_name'] as String?)?.trim() ?? '';
+      final fullName = '$firstName $lastName'.trim();
+      users.add({
+        'id': id,
+        'name': fullName.isNotEmpty ? fullName : 'User',
+      });
+    }
+
+    users.sort((a, b) => a['name']!.toLowerCase().compareTo(b['name']!.toLowerCase()));
+    return users;
   }
 
   // Check task (owner confirms completion)

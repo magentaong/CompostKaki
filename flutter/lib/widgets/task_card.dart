@@ -95,7 +95,13 @@ class TaskCard extends StatelessWidget {
     final profile = task['profiles'] as Map<String, dynamic>?;
     final firstName = profile?['first_name'] as String? ?? 'Unknown';
     final status = task['status'] as String? ?? 'open';
+    final assignedToProfile = task['assigned_to_profile'] as Map<String, dynamic>?;
     final acceptedByProfile = task['accepted_by_profile'] as Map<String, dynamic>?;
+    final assignedFirstName = assignedToProfile?['first_name'] as String?;
+    final assignedLastName = assignedToProfile?['last_name'] as String?;
+    final assignedToName = assignedFirstName != null && assignedLastName != null
+        ? '$assignedFirstName $assignedLastName'.trim()
+        : assignedFirstName ?? 'Anyone';
     final acceptedByFirstName = acceptedByProfile?['first_name'] as String?;
     final acceptedByLastName = acceptedByProfile?['last_name'] as String?;
     final acceptedByName = acceptedByFirstName != null && acceptedByLastName != null
@@ -172,6 +178,14 @@ class TaskCard extends StatelessWidget {
                         color: AppTheme.textGray,
                       ),
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Assigned to: $assignedToName',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textGray,
+                      ),
+                    ),
                     if (isTimeSensitive && timeLeft.text.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Row(
@@ -199,6 +213,28 @@ class TaskCard extends StatelessWidget {
                         children: [
                           const Text(
                             'Taken by: ',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textGray,
+                            ),
+                          ),
+                          Text(
+                            acceptedByName,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.primaryGreen,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (status == 'completed' && acceptedByName != 'Unknown') ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Text(
+                            'Completed by: ',
                             style: TextStyle(
                               fontSize: 12,
                               color: AppTheme.textGray,

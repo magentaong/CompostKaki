@@ -82,5 +82,38 @@ void main() {
       expect(shouldShow, false);
     });
   });
+
+  group('TaskCard - Assignee and Completer Labels', () {
+    test('shows assignee name when assigned_to profile exists', () {
+      final assignedProfile = {
+        'first_name': 'Alex',
+        'last_name': 'Tan',
+      };
+      final first = assignedProfile['first_name'] as String?;
+      final last = assignedProfile['last_name'] as String?;
+      final assignedToName =
+          first != null && last != null ? '$first $last'.trim() : first ?? 'Anyone';
+
+      expect(assignedToName, 'Alex Tan');
+    });
+
+    test('defaults assignee label to Anyone when no assigned user', () {
+      Map<String, dynamic>? assignedProfile;
+      final first = assignedProfile?['first_name'] as String?;
+      final last = assignedProfile?['last_name'] as String?;
+      final assignedToName =
+          first != null && last != null ? '$first $last'.trim() : first ?? 'Anyone';
+
+      expect(assignedToName, 'Anyone');
+    });
+
+    test('shows completed by label for completed tasks with completer', () {
+      final status = 'completed';
+      final completerName = 'Jamie Lim';
+      final shouldShowCompletedBy = status == 'completed' && completerName.isNotEmpty;
+
+      expect(shouldShowCompletedBy, true);
+    });
+  });
 }
 

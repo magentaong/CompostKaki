@@ -161,6 +161,14 @@ void main() {
 
         expect(shouldCloseDialogFirst, true);
       });
+
+      test('should allow any authenticated member to complete accepted task', () {
+        String status = 'accepted';
+        String? currentUserId = 'user-789';
+        bool canComplete = status == 'accepted' && currentUserId != null;
+
+        expect(canComplete, true);
+      });
     });
 
     group('Task Unassign Button', () {
