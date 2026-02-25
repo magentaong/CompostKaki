@@ -300,6 +300,13 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       appBar: _buildAppBar(),
       body: _buildBody(),
+      floatingActionButton: _selectedIndex == 0
+          ? FloatingActionButton.extended(
+              onPressed: _showLogBinPicker,
+              icon: const Icon(Icons.edit_note),
+              label: const Text('Log Activity'),
+            )
+          : null,
       bottomNavigationBar: _buildBottomBar(),
     );
   }
@@ -1457,37 +1464,53 @@ class _MainScreenState extends State<MainScreen> {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'Log Activity',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetContext).size.height * 0.75,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Log Activity',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
-            ..._bins.map((bin) => ListTile(
-                  leading: const Icon(Icons.eco, color: AppTheme.primaryGreen),
-                  title: Text(bin['name'] as String? ?? 'Bin'),
-                  subtitle: Text(bin['location'] as String? ?? ''),
-                  onTap: () async {
-                    Navigator.pop(sheetContext);
-                    final result = await context.push('/bin/${bin['id']}/log');
-                    if (result == true && mounted) {
-                      _refreshBinsOnly();
-                    }
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _bins.length,
+                  itemBuilder: (context, index) {
+                    final bin = _bins[index];
+                    return ListTile(
+                      leading:
+                          const Icon(Icons.eco, color: AppTheme.primaryGreen),
+                      title: Text(bin['name'] as String? ?? 'Bin'),
+                      subtitle: Text(bin['location'] as String? ?? ''),
+                      onTap: () async {
+                        Navigator.pop(sheetContext);
+                        final result = await context.push('/bin/${bin['id']}/log');
+                        if (result == true && mounted) {
+                          _refreshBinsOnly();
+                        }
+                      },
+                    );
                   },
-                )),
-            const SizedBox(height: 8),
-          ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );

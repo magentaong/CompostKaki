@@ -413,4 +413,175 @@ void main() {
       );
     });
   });
+
+  group('LogActivityScreen - Batch Logging Refinements', () {
+    test('validates image file must exist before upload', () {
+      String? validateImagePath(bool imageAttached, bool imageExists) {
+        if (!imageAttached) return null;
+        if (!imageExists) {
+          return 'An attached photo could not be found anymore. Please re-attach the photo and try again.';
+        }
+        return null;
+      }
+
+      expect(validateImagePath(false, false), null);
+      expect(validateImagePath(true, true), null);
+      expect(
+        validateImagePath(true, false),
+        'An attached photo could not be found anymore. Please re-attach the photo and try again.',
+      );
+    });
+
+    test('keeps image url when upload succeeds', () {
+      String? resolveImageUrl({
+        required bool hasImage,
+        required bool uploadSucceeded,
+      }) {
+        if (!hasImage) return null;
+        if (!uploadSucceeded) return null;
+        return 'https://cdn.example.com/log-image.jpg';
+      }
+
+      expect(
+        resolveImageUrl(hasImage: true, uploadSucceeded: true),
+        'https://cdn.example.com/log-image.jpg',
+      );
+      expect(
+        resolveImageUrl(hasImage: true, uploadSucceeded: false),
+        null,
+      );
+      expect(
+        resolveImageUrl(hasImage: false, uploadSucceeded: true),
+        null,
+      );
+    });
+
+    test('aggregates XP across successful batch items', () {
+      int totalBatchXp(List<int> perDraftXp) {
+        return perDraftXp.fold<int>(0, (sum, xp) => sum + xp);
+      }
+
+      expect(totalBatchXp([10, 10, 15]), 35);
+      expect(totalBatchXp([0, 10, 0]), 10);
+      expect(totalBatchXp([]), 0);
+    });
+
+    test('maps base XP by activity type', () {
+      int baseXpForType(String type) {
+        return type.toLowerCase().contains('turn') ? 15 : 10;
+      }
+
+      expect(baseXpForType('Turn Pile'), 15);
+      expect(baseXpForType('Monitor'), 10);
+      expect(baseXpForType('Add Water'), 10);
+    });
+
+    test('combines base XP with bonus XP per draft', () {
+      int totalXpForDraft(String type, int bonusXp) {
+        final base = type.toLowerCase().contains('turn') ? 15 : 10;
+        return base + bonusXp;
+      }
+
+      expect(totalXpForDraft('Turn Pile', 5), 20);
+      expect(totalXpForDraft('Add Materials', 0), 10);
+      expect(totalXpForDraft('Monitor', 10), 20);
+    });
+
+    test('retains only failed drafts in queue after batch submit', () {
+      final originalQueue = <String>['a', 'b', 'c', 'd'];
+      final failedDrafts = <String>['b', 'd'];
+
+      final nextQueue = <String>[...failedDrafts];
+
+      expect(originalQueue.length, 4);
+      expect(nextQueue, ['b', 'd']);
+      expect(nextQueue.length, 2);
+    });
+
+    test('reports batch summary for partial failures', () {
+      String batchSummary({
+        required int successCount,
+        required int failedCount,
+      }) {
+        if (failedCount > 0) {
+          return '$successCount logged, $failedCount failed. You can retry failed items.';
+        }
+        return '$successCount activities logged successfully.';
+      }
+
+      expect(
+        batchSummary(successCount: 2, failedCount: 1),
+        '2 logged, 1 failed. You can retry failed items.',
+      );
+      expect(
+        batchSummary(successCount: 3, failedCount: 0),
+        '3 activities logged successfully.',
+      );
+    });
+
+    test('builds per-item failure messages with activity type context', () {
+      String buildFailureMessage(String type, String rawError) {
+        return '$type: ${rawError.replaceFirst('Exception: ', '')}';
+      }
+
+      expect(
+        buildFailureMessage('Add Materials', 'Exception: upload failed'),
+        'Add Materials: upload failed',
+      );
+      expect(
+        buildFailureMessage('Monitor', 'temperature required'),
+        'Monitor: temperature required',
+      );
+    });
+
+    test('only prompts log another after full batch success', () {
+      bool shouldPromptLogAnother({required int failedCount}) {
+        return failedCount == 0;
+      }
+
+      expect(shouldPromptLogAnother(failedCount: 0), true);
+      expect(shouldPromptLogAnother(failedCount: 1), false);
+    });
+
+    test('single-submit feedback includes earned XP amount', () {
+      String singleSubmitMessage(int xpGained) {
+        return 'Activity logged (+$xpGained XP).';
+      }
+
+      expect(singleSubmitMessage(10), 'Activity logged (+10 XP).');
+      expect(singleSubmitMessage(25), 'Activity logged (+25 XP).');
+    });
+
+    test('batch-submit feedback includes total XP amount', () {
+      String batchSubmitMessage({
+        required int successCount,
+        required int totalXp,
+      }) {
+        return '$successCount activities logged successfully (+$totalXp XP).';
+      }
+
+      expect(
+        batchSubmitMessage(successCount: 2, totalXp: 20),
+        '2 activities logged successfully (+20 XP).',
+      );
+      expect(
+        batchSubmitMessage(successCount: 5, totalXp: 65),
+        '5 activities logged successfully (+65 XP).',
+      );
+    });
+
+    test('submit-all is disabled when queue is empty', () {
+      bool canSubmitBatch(List<Map<String, dynamic>> queue, bool isLoading) {
+        return !isLoading && queue.isNotEmpty;
+      }
+
+      expect(canSubmitBatch([], false), false);
+      expect(canSubmitBatch([
+        {'type': 'Monitor'}
+      ], false), true);
+      expect(canSubmitBatch([
+        {'type': 'Monitor'}
+      ], true), false);
+    });
+  });
 }

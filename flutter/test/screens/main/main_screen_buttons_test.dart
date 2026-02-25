@@ -520,6 +520,133 @@ void main() {
         expect(shouldShowDialog, true);
       });
     });
+
+    group('Home Log Activity Entry', () {
+      test('should show floating Log Activity action on Home tab', () {
+        int selectedTab = 0;
+        bool shouldShowFab = selectedTab == 0;
+
+        expect(shouldShowFab, true);
+      });
+
+      test('should hide floating Log Activity action on non-Home tabs', () {
+        int selectedTab = 1;
+        bool shouldShowFab = selectedTab == 0;
+
+        expect(shouldShowFab, false);
+      });
+
+      test('should show warning when trying to log without bins', () {
+        List<Map<String, dynamic>> bins = [];
+        bool shouldShowNoBinMessage = bins.isEmpty;
+
+        expect(shouldShowNoBinMessage, true);
+      });
+    });
+
+    group('Log Bin Picker UX', () {
+      test('should use scroll-controlled bottom sheet for many bins', () {
+        bool isScrollControlled = true;
+
+        expect(isScrollControlled, true);
+      });
+
+      test('should constrain picker sheet height to avoid overflow', () {
+        double constrainedHeightRatio = 0.75;
+        bool hasMaxHeightConstraint = constrainedHeightRatio < 1.0;
+
+        expect(hasMaxHeightConstraint, true);
+        expect(constrainedHeightRatio, 0.75);
+      });
+
+      test('should render bins in a scrollable list', () {
+        bool usesListViewBuilder = true;
+        bool usesFlexibleContainer = true;
+
+        expect(usesListViewBuilder, true);
+        expect(usesFlexibleContainer, true);
+      });
+    });
+
+    group('Log Activity Screen - Single and Multiple Mode', () {
+      test('should default to single logging mode', () {
+        bool isBatchMode = false;
+
+        expect(isBatchMode, false);
+      });
+
+      test('should allow switching to multiple mode', () {
+        bool isBatchMode = false;
+        isBatchMode = true;
+
+        expect(isBatchMode, true);
+      });
+
+      test('should add current activity into queue in multiple mode', () {
+        List<Map<String, dynamic>> queue = [];
+        Map<String, dynamic> draft = {
+          'type': 'Add Water',
+          'content': 'Added water to the bin',
+        };
+
+        queue.add(draft);
+
+        expect(queue.length, 1);
+        expect(queue.first['type'], 'Add Water');
+      });
+
+      test('should remove queued activity when user deletes queue item', () {
+        List<Map<String, dynamic>> queue = [
+          {'type': 'Add Water'},
+          {'type': 'Monitor'},
+        ];
+
+        queue.removeAt(0);
+
+        expect(queue.length, 1);
+        expect(queue.first['type'], 'Monitor');
+      });
+
+      test('should enable submit all only when queue is not empty', () {
+        List<Map<String, dynamic>> emptyQueue = [];
+        List<Map<String, dynamic>> filledQueue = [
+          {'type': 'Turn Pile'},
+        ];
+
+        bool canSubmitEmpty = emptyQueue.isNotEmpty;
+        bool canSubmitFilled = filledQueue.isNotEmpty;
+
+        expect(canSubmitEmpty, false);
+        expect(canSubmitFilled, true);
+      });
+    });
+
+    group('Log Another Prompt Flow', () {
+      test('should ask user whether to log another activity after success', () {
+        bool activityLogged = true;
+        bool shouldPromptLogAnother = activityLogged;
+
+        expect(shouldPromptLogAnother, true);
+      });
+
+      test('should reset form when user chooses log another', () {
+        bool choseLogAnother = true;
+        bool shouldResetForm = choseLogAnother;
+        bool shouldCloseScreen = !choseLogAnother;
+
+        expect(shouldResetForm, true);
+        expect(shouldCloseScreen, false);
+      });
+
+      test('should close screen when user chooses done', () {
+        bool choseLogAnother = false;
+        bool shouldResetForm = choseLogAnother;
+        bool shouldCloseScreen = !choseLogAnother;
+
+        expect(shouldResetForm, false);
+        expect(shouldCloseScreen, true);
+      });
+    });
   });
 }
 

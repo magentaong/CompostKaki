@@ -7,6 +7,40 @@ import '../../widgets/xp_floating_animation.dart';
 import '../../theme/app_theme.dart';
 import 'dart:io';
 
+class _ActivityDraft {
+  final String type;
+  final String content;
+  final int? temperature;
+  final String? moisture;
+  final double? weight;
+  final File? imageFile;
+  final List<String> missingMaterials;
+  final Map<String, String?> missingReasons;
+  final bool createTaskForMissing;
+  final String taskTitleInput;
+  final String missingDetailsInput;
+
+  const _ActivityDraft({
+    required this.type,
+    required this.content,
+    required this.temperature,
+    required this.moisture,
+    required this.weight,
+    required this.imageFile,
+    required this.missingMaterials,
+    required this.missingReasons,
+    required this.createTaskForMissing,
+    required this.taskTitleInput,
+    required this.missingDetailsInput,
+  });
+}
+
+class _DraftSubmitResult {
+  final int xpGained;
+
+  const _DraftSubmitResult({required this.xpGained});
+}
+
 class LogActivityScreen extends StatefulWidget {
   final String binId;
 
@@ -40,9 +74,11 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
   };
   File? _imageFile;
   bool _isLoading = false;
+  bool _isBatchMode = false;
   String? _error;
   String _binName = 'Bin';
   Map<String, dynamic>? _bin;
+  final List<_ActivityDraft> _queuedActivities = [];
 
   final List<String> _moistureOptions = [
     'Very Dry',
@@ -232,18 +268,23 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
     return selected ?? false;
   }
 
-  Future<void> _createMissingMaterialsTask(List<String> missing) async {
+  Future<void> _createMissingMaterialsTask({
+    required List<String> missing,
+    required Map<String, String?> reasonMap,
+    required String taskTitleInput,
+    required String missingDetailsInput,
+  }) async {
     final generatedTitle =
         'Need help getting ${missing.map(_materialLabel).join(", ").toLowerCase()}';
-    final title = _taskTitleController.text.trim().isEmpty
+    final title = taskTitleInput.trim().isEmpty
         ? generatedTitle
-        : _taskTitleController.text.trim();
+        : taskTitleInput.trim();
 
     final reasons = missing
-        .map((material) => '- ${_materialLabel(material)}: ${_missingReasons[material]}')
+        .map((material) => '- ${_materialLabel(material)}: ${reasonMap[material]}')
         .join('\n');
 
-    final extraDetails = _missingDetailsController.text.trim();
+    final extraDetails = missingDetailsInput.trim();
     final description = extraDetails.isEmpty
         ? '$title\n\n$reasons'
         : '$title\n\n$reasons\n\nAdditional details:\n$extraDetails';
@@ -259,21 +300,232 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
     );
   }
 
-  Future<void> _submit() async {
-    if (!_canSubmit() || !_formKey.currentState!.validate()) return;
+  Future<_ActivityDraft?> _buildDraftFromCurrent() async {
+    if (!_canSubmit() || !_formKey.currentState!.validate()) return null;
 
     bool shouldCreateTask = false;
-    final missing = _selectedType == 'Add Materials' ? _missingMaterials : <String>[];
+    final missing =
+        _selectedType == 'Add Materials' ? List<String>.from(_missingMaterials) : <String>[];
     if (_selectedType == 'Add Materials' && missing.isNotEmpty) {
       if (!_hasRequiredMissingReasons()) {
         setState(() {
           _error = 'Please select a reason for each unchecked material.';
         });
-        return;
+        return null;
       }
-
       shouldCreateTask = await _askCreateTaskForMissingMaterials(missing);
     }
+
+    return _ActivityDraft(
+      type: _selectedType!,
+      content: _contentController.text.trim(),
+      temperature: _temperatureController.text.isNotEmpty
+          ? int.tryParse(_temperatureController.text)
+          : null,
+      moisture: _selectedMoisture,
+      weight: _weightController.text.isNotEmpty
+          ? double.tryParse(_weightController.text)
+          : null,
+      imageFile: _imageFile,
+      missingMaterials: missing,
+      missingReasons: Map<String, String?>.from(_missingReasons),
+      createTaskForMissing: shouldCreateTask,
+      taskTitleInput: _taskTitleController.text,
+      missingDetailsInput: _missingDetailsController.text,
+    );
+  }
+
+  void _resetForAnotherActivity() {
+    setState(() {
+      _selectedType = null;
+      _selectedMoisture = null;
+      _contentController.clear();
+      _temperatureController.clear();
+      _weightController.clear();
+      _taskTitleController.clear();
+      _missingDetailsController.clear();
+      _materials = {
+        'greens': true,
+        'browns': true,
+        'water': true,
+      };
+      _missingReasons.updateAll((key, value) => null);
+      _imageFile = null;
+      _error = null;
+      _isLoading = false;
+    });
+  }
+
+  Future<bool> _askLogAnother({required int count}) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Activity Logged'),
+        content: Text(
+          count == 1
+              ? 'Your activity was logged successfully.\n\nDo you want to log another activity?'
+              : '$count activities were logged successfully.\n\nDo you want to log another activity?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Done'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryGreen,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Log Another'),
+          ),
+        ],
+      ),
+    );
+
+    return result ?? false;
+  }
+
+  Future<_DraftSubmitResult> _submitDraft(
+    _ActivityDraft draft, {
+    required bool showXpAnimation,
+  }) async {
+    String? imageUrl;
+    if (draft.imageFile != null) {
+      final imageExists = await draft.imageFile!.exists();
+      if (!imageExists) {
+        throw Exception(
+          'An attached photo could not be found anymore. Please re-attach the photo and try again.',
+        );
+      }
+      imageUrl = await _binService.uploadLogImage(draft.imageFile!, widget.binId);
+    }
+
+    if (draft.createTaskForMissing && draft.missingMaterials.isNotEmpty) {
+      await _createMissingMaterialsTask(
+        missing: draft.missingMaterials,
+        reasonMap: draft.missingReasons,
+        taskTitleInput: draft.taskTitleInput,
+        missingDetailsInput: draft.missingDetailsInput,
+      );
+    }
+
+    final xpResult = await _binService.createBinLog(
+      binId: widget.binId,
+      type: draft.type,
+      content: draft.content,
+      temperature: draft.temperature,
+      moisture: draft.moisture,
+      weight: draft.weight,
+      image: imageUrl,
+    );
+
+    if (xpResult == null) {
+      return const _DraftSubmitResult(xpGained: 0);
+    }
+
+    final baseXP = draft.type.toLowerCase().contains('turn') ? 15 : 10;
+    final bonusXP = (xpResult['bonusXP'] as int?) ?? 0;
+    final xpGained = baseXP + bonusXP;
+    final isLevelUp = (xpResult['levelUp'] as bool?) ?? false;
+
+    if (!showXpAnimation || !mounted) {
+      return _DraftSubmitResult(xpGained: xpGained);
+    }
+
+    if (xpGained > 0) {
+      showXPFloatingAnimation(
+        context,
+        xpAmount: xpGained,
+        isLevelUp: isLevelUp,
+      );
+      await Future.delayed(const Duration(milliseconds: 1500));
+    }
+
+    return _DraftSubmitResult(xpGained: xpGained);
+  }
+
+  Future<void> _addCurrentToQueue() async {
+    final draft = await _buildDraftFromCurrent();
+    if (draft == null) return;
+
+    if (!mounted) return;
+    setState(() {
+      _queuedActivities.add(draft);
+      _error = null;
+    });
+    _resetForAnotherActivity();
+  }
+
+  Future<void> _submitBatch() async {
+    if (_queuedActivities.isEmpty) return;
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    int successCount = 0;
+    int totalXpGained = 0;
+    final failedDrafts = <_ActivityDraft>[];
+    final failureMessages = <String>[];
+
+    for (final draft in List<_ActivityDraft>.from(_queuedActivities)) {
+      try {
+        final result = await _submitDraft(draft, showXpAnimation: false);
+        successCount += 1;
+        totalXpGained += result.xpGained;
+      } catch (e) {
+        failedDrafts.add(draft);
+        failureMessages.add('${draft.type}: ${e.toString().replaceFirst('Exception: ', '')}');
+      }
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _queuedActivities
+        ..clear()
+        ..addAll(failedDrafts);
+      _isLoading = false;
+    });
+
+    if (failedDrafts.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '$successCount logged, ${failedDrafts.length} failed. You can retry failed items.',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      setState(() {
+        _error = failureMessages.isNotEmpty ? failureMessages.join('\n') : null;
+      });
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '$successCount activities logged successfully (+$totalXpGained XP).',
+        ),
+        backgroundColor: AppTheme.primaryGreen,
+      ),
+    );
+
+    final shouldLogAnother = await _askLogAnother(count: successCount);
+    if (!mounted) return;
+    if (shouldLogAnother) {
+      _resetForAnotherActivity();
+    } else {
+      Navigator.pop(context, true);
+    }
+  }
+
+  Future<void> _submit() async {
+    final draft = await _buildDraftFromCurrent();
+    if (draft == null) return;
 
     setState(() {
       _isLoading = true;
@@ -281,54 +533,22 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
     });
 
     try {
-      String? imageUrl;
-      if (_imageFile != null) {
-        imageUrl = await _binService.uploadLogImage(_imageFile!, widget.binId);
-      }
+      final result = await _submitDraft(draft, showXpAnimation: true);
+      if (!mounted) return;
 
-      if (shouldCreateTask && missing.isNotEmpty) {
-        await _createMissingMaterialsTask(missing);
-      }
-
-      final xpResult = await _binService.createBinLog(
-        binId: widget.binId,
-        type: _selectedType!,
-        content: _contentController.text,
-        temperature: _temperatureController.text.isNotEmpty
-            ? int.tryParse(_temperatureController.text)
-            : null,
-        moisture: _selectedMoisture,
-        weight: _weightController.text.isNotEmpty
-            ? double.tryParse(_weightController.text)
-            : null,
-        image: imageUrl,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Activity logged (+${result.xpGained} XP).'),
+          backgroundColor: AppTheme.primaryGreen,
+        ),
       );
 
-      if (mounted) {
-        // Show celebration if XP was earned
-        if (xpResult != null) {
-          // The result contains 'xpGained' which is the total XP (base + bonus)
-          // We need to calculate it from base + bonus since xpGained in result is just the amount passed to awardXP
-          final baseXP = _selectedType?.toLowerCase().contains('turn') == true ? 15 : 10;
-          final bonusXP = (xpResult['bonusXP'] as int?) ?? 0;
-          final xpGained = baseXP + bonusXP;
-          final isLevelUp = (xpResult['levelUp'] as bool?) ?? false;
-          
-          print('XP Result: $xpResult');
-          print('XP Gained: $xpGained (base: $baseXP, bonus: $bonusXP)');
-          print('Level Up: $isLevelUp');
+      final shouldLogAnother = await _askLogAnother(count: 1);
+      if (!mounted) return;
 
-          if (xpGained > 0) {
-            // Show animation immediately - don't wait for post frame
-            showXPFloatingAnimation(
-              context,
-              xpAmount: xpGained,
-              isLevelUp: isLevelUp,
-            );
-            // Wait for animation before closing
-            await Future.delayed(const Duration(milliseconds: 1500));
-          }
-        }
+      if (shouldLogAnother) {
+        _resetForAnotherActivity();
+      } else {
         Navigator.pop(context, true);
       }
     } catch (e) {
@@ -417,6 +637,42 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                   },
                 ),
               if (_bin != null) const SizedBox(height: 16),
+              const Text(
+                'Logging Mode',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryGreen,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  ChoiceChip(
+                    label: const Text('Single'),
+                    selected: !_isBatchMode,
+                    onSelected: _isLoading
+                        ? null
+                        : (_) {
+                            setState(() {
+                              _isBatchMode = false;
+                            });
+                          },
+                  ),
+                  const SizedBox(width: 8),
+                  ChoiceChip(
+                    label: Text('Multiple (${_queuedActivities.length})'),
+                    selected: _isBatchMode,
+                    onSelected: _isLoading
+                        ? null
+                        : (_) {
+                            setState(() {
+                              _isBatchMode = true;
+                            });
+                          },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
               // Action buttons
               _allowedActivityTypes.isEmpty
                   ? const Center(
@@ -459,6 +715,65 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                       }).toList(),
                     ),
               const SizedBox(height: 24),
+              if (_isBatchMode && _queuedActivities.isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.backgroundGray,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Queued Activities',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryGreen,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ..._queuedActivities.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final draft = entry.value;
+                        return ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          leading: CircleAvatar(
+                            radius: 12,
+                            backgroundColor: AppTheme.primaryGreenLight,
+                            child: Text(
+                              '${index + 1}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppTheme.primaryGreen,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          title: Text(draft.type),
+                          subtitle: Text(
+                            draft.content.isEmpty ? 'No details' : draft.content,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.close, size: 18),
+                            onPressed: _isLoading
+                                ? null
+                                : () {
+                                    setState(() {
+                                      _queuedActivities.removeAt(index);
+                                    });
+                                  },
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // Materials checkboxes
               if (_selectedType == 'Add Materials') ...[
@@ -692,19 +1007,43 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
               ],
 
               const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading || !_canSubmit() ? null : _submit,
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Log Activity'),
+              if (_isBatchMode) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoading || !_canSubmit() ? null : _addCurrentToQueue,
+                    icon: const Icon(Icons.playlist_add),
+                    label: const Text('Add Activity To List'),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading || _queuedActivities.isEmpty ? null : _submitBatch,
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text('Submit All (${_queuedActivities.length})'),
+                  ),
+                ),
+              ] else
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading || !_canSubmit() ? null : _submit,
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Log Activity'),
+                  ),
+                ),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
