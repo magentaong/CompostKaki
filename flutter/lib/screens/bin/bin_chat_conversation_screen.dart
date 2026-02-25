@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:video_player/video_player.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
+import 'dart:io';
 import '../../services/chat_service.dart';
 import '../../services/bin_service.dart';
 import '../../services/media_service.dart';
@@ -344,6 +345,8 @@ class _BinChatConversationScreenState extends State<BinChatConversationScreen> {
   }) {
     final mediaType = message['media_type'] as String?;
     final mediaUrl = message['media_url'] as String?;
+    final localMediaPath = message['local_media_path'] as String?;
+    final localThumbnailPath = message['local_thumbnail_path'] as String?;
     final thumbnailUrl = message['media_thumbnail_url'] as String?;
     final mediaDuration = message['media_duration'] as int?;
     final mediaFilename = message['media_filename'] as String?;
@@ -369,6 +372,8 @@ class _BinChatConversationScreenState extends State<BinChatConversationScreen> {
         canEditDelete: canEditDelete,
         mediaType: mediaType,
         mediaUrl: mediaUrl,
+        localMediaPath: localMediaPath,
+        localThumbnailPath: localThumbnailPath,
         thumbnailUrl: thumbnailUrl,
         mediaDuration: mediaDuration,
         mediaFilename: mediaFilename,
@@ -495,8 +500,10 @@ class _BinChatConversationScreenState extends State<BinChatConversationScreen> {
 
     // Add media data if present
     if (_selectedMedia != null) {
-      // Note: Media URLs will be added when real message arrives
+      // Show local media immediately while upload/realtime insert completes.
       optimisticMessage['media_type'] = _selectedMedia!.type.name;
+      optimisticMessage['local_media_path'] = _selectedMedia!.file.path;
+      optimisticMessage['local_thumbnail_path'] = _selectedMedia!.thumbnailPath;
     }
 
     // Add reply-to if present
@@ -617,6 +624,8 @@ class _BinChatConversationScreenState extends State<BinChatConversationScreen> {
       'created_at': DateTime.now().toUtc().toIso8601String(),
       'updated_at': DateTime.now().toUtc().toIso8601String(),
       'media_type': media.type.name,
+      'local_media_path': media.file.path,
+      'local_thumbnail_path': media.thumbnailPath,
       'sender_profile': {
         'id': currentUserId,
         'first_name': 'You',
@@ -1199,6 +1208,8 @@ class _MessageBubble extends StatelessWidget {
   final bool canEditDelete;
   final String? mediaType;
   final String? mediaUrl;
+  final String? localMediaPath;
+  final String? localThumbnailPath;
   final String? thumbnailUrl;
   final int? mediaDuration;
   final String? mediaFilename;
@@ -1220,6 +1231,8 @@ class _MessageBubble extends StatelessWidget {
     this.canEditDelete = false,
     this.mediaType,
     this.mediaUrl,
+    this.localMediaPath,
+    this.localThumbnailPath,
     this.thumbnailUrl,
     this.mediaDuration,
     this.mediaFilename,
@@ -1377,17 +1390,24 @@ class _MessageBubble extends StatelessWidget {
                   ),
                 ),
               // Media
-              if (mediaUrl != null && mediaType != null)
+              if (mediaType != null && (mediaUrl != null || localMediaPath != null))
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: MediaMessageWidget(
-                    mediaUrl: mediaUrl,
-                    thumbnailUrl: thumbnailUrl,
-                    mediaType: mediaType!,
-                    duration: mediaDuration,
-                    filename: mediaFilename,
-                    onTap: onMediaTap,
-                  ),
+                  child: mediaUrl != null
+                      ? MediaMessageWidget(
+                          mediaUrl: mediaUrl,
+                          thumbnailUrl: thumbnailUrl,
+                          mediaType: mediaType!,
+                          duration: mediaDuration,
+                          filename: mediaFilename,
+                          onTap: onMediaTap,
+                        )
+                      : _LocalMediaPreview(
+                          mediaType: mediaType!,
+                          localMediaPath: localMediaPath,
+                          localThumbnailPath: localThumbnailPath,
+                          isUser: isUser,
+                        ),
                 ),
               // Message text
               if (message.isNotEmpty)
@@ -1483,6 +1503,92 @@ class _MessageBubble extends StatelessWidget {
     } catch (e) {
       return '';
     }
+  }
+}
+
+class _LocalMediaPreview extends StatelessWidget {
+  final String mediaType;
+  final String? localMediaPath;
+  final String? localThumbnailPath;
+  final bool isUser;
+
+  const _LocalMediaPreview({
+    required this.mediaType,
+    required this.localMediaPath,
+    required this.localThumbnailPath,
+    required this.isUser,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (mediaType == 'image' && localMediaPath != null) {
+      final imageFile = File(localMediaPath!);
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.file(
+          imageFile,
+          width: 220,
+          height: 220,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _fallbackCard(Icons.image_not_supported),
+        ),
+      );
+    }
+
+    if (mediaType == 'video') {
+      if (localThumbnailPath != null) {
+        final thumbFile = File(localThumbnailPath!);
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Stack(
+            children: [
+              Image.file(
+                thumbFile,
+                width: 220,
+                height: 180,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _fallbackCard(Icons.videocam),
+              ),
+              Positioned.fill(
+                child: Center(
+                  child: Icon(
+                    Icons.play_circle_fill,
+                    size: 40,
+                    color: Colors.white.withOpacity(0.9),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+      return _fallbackCard(Icons.videocam);
+    }
+
+    if (mediaType == 'audio') {
+      return _fallbackCard(Icons.audiotrack);
+    }
+
+    return _fallbackCard(Icons.attachment);
+  }
+
+  Widget _fallbackCard(IconData icon) {
+    return Container(
+      width: 220,
+      height: 120,
+      decoration: BoxDecoration(
+        color: isUser ? Colors.white24 : AppTheme.backgroundGray,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 26),
+          const SizedBox(height: 6),
+          const Text('Uploading...', style: TextStyle(fontSize: 12)),
+        ],
+      ),
+    );
   }
 }
 
