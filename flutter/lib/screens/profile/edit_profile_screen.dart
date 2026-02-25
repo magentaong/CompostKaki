@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../../services/auth_service.dart';
+import '../../services/supabase_service.dart';
 import '../../theme/app_theme.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -15,8 +18,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
   bool _isLoading = false;
   String? _error;
+  String? _avatarUrl;
+  File? _selectedAvatarFile;
 
   @override
   void initState() {
@@ -27,6 +33,38 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         user?.userMetadata?['first_name'] as String? ?? '';
     _lastNameController.text =
         user?.userMetadata?['last_name'] as String? ?? '';
+    _avatarUrl = user?.userMetadata?['avatar_url'] as String?;
+    _loadProfileAvatar();
+  }
+
+  Future<void> _loadProfileAvatar() async {
+    final user = context.read<AuthService>().currentUser;
+    if (user == null) return;
+
+    try {
+      final profile = await SupabaseService()
+          .client
+          .from('profiles')
+          .select('avatar_url')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (!mounted) return;
+      setState(() {
+        _avatarUrl = (profile?['avatar_url'] as String?) ?? _avatarUrl;
+      });
+    } catch (_) {
+      // Silently ignore and fallback to metadata avatar
+    }
+  }
+
+  Future<void> _pickAvatarImage() async {
+    final picked = await _imagePicker.pickImage(source: ImageSource.gallery);
+    if (picked == null || !mounted) return;
+
+    setState(() {
+      _selectedAvatarFile = File(picked.path);
+    });
   }
 
   @override
@@ -46,9 +84,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     try {
       final authService = context.read<AuthService>();
+      String? uploadedAvatarUrl = _avatarUrl;
+      if (_selectedAvatarFile != null) {
+        uploadedAvatarUrl = await authService.uploadProfileImage(_selectedAvatarFile!);
+      }
       await authService.updateProfile(
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
+        avatarUrl: uploadedAvatarUrl,
       );
 
       if (mounted) {
@@ -79,6 +122,36 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            Center(
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 44,
+                    backgroundColor: AppTheme.primaryGreen.withOpacity(0.12),
+                    backgroundImage: _selectedAvatarFile != null
+                        ? FileImage(_selectedAvatarFile!)
+                        : (_avatarUrl != null && _avatarUrl!.isNotEmpty
+                            ? NetworkImage(_avatarUrl!) as ImageProvider
+                            : null),
+                    child: (_selectedAvatarFile == null &&
+                            (_avatarUrl == null || _avatarUrl!.isEmpty))
+                        ? const Icon(
+                            Icons.person,
+                            size: 36,
+                            color: AppTheme.primaryGreen,
+                          )
+                        : null,
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: _isLoading ? null : _pickAvatarImage,
+                    icon: const Icon(Icons.photo_camera_outlined),
+                    label: const Text('Change Profile Photo'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
             if (_error != null)
               Container(
                 padding: const EdgeInsets.all(12),

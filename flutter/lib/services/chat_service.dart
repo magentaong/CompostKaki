@@ -13,7 +13,7 @@ class ChatService {
     try {
       final response = await _supabaseService.client
           .from('profiles')
-          .select('id, first_name, last_name')
+          .select('id, first_name, last_name, avatar_url')
           .eq('id', userId)
           .maybeSingle();
       return response != null ? Map<String, dynamic>.from(response) : null;

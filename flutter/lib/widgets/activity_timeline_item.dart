@@ -23,6 +23,7 @@ class ActivityTimelineItem extends StatelessWidget {
     final profile = activity['profiles'] as Map<String, dynamic>?;
     final firstName = profile?['first_name'] as String? ?? 'Unknown';
     final lastName = profile?['last_name'] as String? ?? '';
+    final avatarUrl = profile?['avatar_url'] as String?;
     final initials = ((firstName.isNotEmpty ? firstName[0] : '?') +
             (lastName.isNotEmpty ? lastName[0] : ''))
         .toUpperCase();
@@ -85,14 +86,19 @@ class ActivityTimelineItem extends StatelessWidget {
                       CircleAvatar(
                         radius: 12,
                         backgroundColor: AppTheme.backgroundGray,
-                        child: Text(
-                          initials,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: AppTheme.primaryGreen,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
+                            ? CachedNetworkImageProvider(avatarUrl)
+                            : null,
+                        child: avatarUrl != null && avatarUrl.isNotEmpty
+                            ? null
+                            : Text(
+                                initials,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: AppTheme.primaryGreen,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                       ),
                       const SizedBox(width: 8),
                       Text(

@@ -59,7 +59,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final supabaseService = SupabaseService();
       final response = await supabaseService.client
           .from('profiles')
-          .select('id, first_name, last_name')
+          .select('id, first_name, last_name, avatar_url')
           .eq('id', user.id)
           .maybeSingle();
 
@@ -185,6 +185,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final lastName = user?.userMetadata?['last_name'] as String? ??
         _profile?['last_name'] as String? ??
         '';
+    final avatarUrl = user?.userMetadata?['avatar_url'] as String? ??
+        _profile?['avatar_url'] as String?;
 
     // Build avatar initials safely
     String getAvatarInitials() {
@@ -222,14 +224,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   CircleAvatar(
                     radius: 48,
                     backgroundColor: AppTheme.primaryGreen,
-                    child: Text(
-                      getAvatarInitials(),
-                      style: const TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
+                    backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
+                        ? NetworkImage(avatarUrl)
+                        : null,
+                    child: avatarUrl != null && avatarUrl.isNotEmpty
+                        ? null
+                        : Text(
+                            getAvatarInitials(),
+                            style: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
                   ),
                   const SizedBox(height: 16),
                   Text(

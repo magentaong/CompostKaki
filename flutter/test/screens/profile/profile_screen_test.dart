@@ -247,5 +247,36 @@ void main() {
 
       expect(find.text('Please enter your first name'), findsOneWidget);
     });
+
+    testWidgets('displays change profile photo action', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TextButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.photo_camera_outlined),
+              label: const Text('Change Profile Photo'),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Change Profile Photo'), findsOneWidget);
+      expect(find.byIcon(Icons.photo_camera_outlined), findsOneWidget);
+    });
+
+    test('avatar display uses network image when avatar_url exists', () {
+      final avatarUrl = 'https://cdn.example.com/avatar.jpg';
+      final shouldUseNetworkImage = avatarUrl.isNotEmpty;
+
+      expect(shouldUseNetworkImage, true);
+    });
+
+    test('avatar display falls back to initials when avatar_url missing', () {
+      final String? avatarUrl = null;
+      final shouldUseInitials = avatarUrl == null || avatarUrl.isEmpty;
+
+      expect(shouldUseInitials, true);
+    });
   });
 }

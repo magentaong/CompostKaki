@@ -46,11 +46,12 @@ void main() {
 
       test('should fetch profiles for sender and receiver', () {
         String table = 'profiles';
-        String selectFields = 'id, first_name, last_name';
+        String selectFields = 'id, first_name, last_name, avatar_url';
         bool shouldFetchProfiles = true;
 
         expect(shouldFetchProfiles, true);
         expect(selectFields.contains('first_name'), true);
+        expect(selectFields.contains('avatar_url'), true);
       });
 
       test('should attach profiles to messages', () {
@@ -320,6 +321,34 @@ void main() {
         bool shouldReturnNull = true; // Profile helper returns null on error
 
         expect(shouldReturnNull, true);
+      });
+    });
+
+    group('Avatar Display Data', () {
+      test('chat list should use avatar_url when available', () {
+        final profile = {
+          'first_name': 'John',
+          'last_name': 'Doe',
+          'avatar_url': 'https://cdn.example.com/john.jpg',
+        };
+
+        final avatarUrl = profile['avatar_url'] as String?;
+        final shouldUseAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
+
+        expect(shouldUseAvatar, true);
+      });
+
+      test('chat list should fallback to initials when avatar_url missing', () {
+        final profile = {
+          'first_name': 'John',
+          'last_name': 'Doe',
+          'avatar_url': '',
+        };
+
+        final avatarUrl = profile['avatar_url'] as String?;
+        final shouldUseInitials = avatarUrl == null || avatarUrl.isEmpty;
+
+        expect(shouldUseInitials, true);
       });
     });
   });

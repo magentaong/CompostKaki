@@ -159,6 +159,8 @@ class _BinChatListScreenState extends State<BinChatListScreen> {
                                 profile?['first_name'] as String? ?? 'User';
                             final lastName =
                                 profile?['last_name'] as String? ?? '';
+                            final avatarUrl =
+                                profile?['avatar_url'] as String?;
                             final userName = '$firstName $lastName'.trim();
                             // Ensure userName is never empty
                             final displayName =
@@ -173,10 +175,16 @@ class _BinChatListScreenState extends State<BinChatListScreen> {
                             return ListTile(
                               leading: CircleAvatar(
                                 backgroundColor: AppTheme.primaryGreen,
-                                child: Text(
-                                  displayName[0].toUpperCase(),
-                                  style: const TextStyle(color: Colors.white),
-                                ),
+                                backgroundImage:
+                                    avatarUrl != null && avatarUrl.isNotEmpty
+                                        ? NetworkImage(avatarUrl)
+                                        : null,
+                                child: avatarUrl != null && avatarUrl.isNotEmpty
+                                    ? null
+                                    : Text(
+                                        displayName[0].toUpperCase(),
+                                        style: const TextStyle(color: Colors.white),
+                                      ),
                               ),
                               title: Text(
                                 displayName,

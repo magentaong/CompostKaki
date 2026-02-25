@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:convert';
+import 'dart:io';
+import 'package:path/path.dart' as path;
 import 'supabase_service.dart';
 
 class AuthService extends ChangeNotifier {
@@ -68,6 +70,7 @@ class AuthService extends ChangeNotifier {
   Future<void> updateProfile({
     required String firstName,
     required String lastName,
+    String? avatarUrl,
   }) async {
     final userId = currentUser?.id;
     if (userId == null) throw Exception('No user logged in');
@@ -78,6 +81,7 @@ class AuthService extends ChangeNotifier {
         data: {
           'first_name': firstName,
           'last_name': lastName,
+          if (avatarUrl != null) 'avatar_url': avatarUrl,
         },
       ),
     );
@@ -87,9 +91,31 @@ class AuthService extends ChangeNotifier {
       'id': userId,
       'first_name': firstName,
       'last_name': lastName,
+      if (avatarUrl != null) 'avatar_url': avatarUrl,
     });
 
     notifyListeners();
+  }
+
+  Future<String> uploadProfileImage(File file) async {
+    final userId = currentUser?.id;
+    if (userId == null) throw Exception('No user logged in');
+
+    final bytes = await file.readAsBytes();
+    final ext = path.extension(file.path).replaceFirst('.', '').toLowerCase();
+    final safeExt = ext.isEmpty ? 'jpg' : ext;
+    final fileName = 'avatar_${userId}_${DateTime.now().millisecondsSinceEpoch}.$safeExt';
+
+    await _supabaseService.client.storage.from('avatars').uploadBinary(
+          fileName,
+          bytes,
+          fileOptions: FileOptions(
+            upsert: true,
+            contentType: 'image/${safeExt == 'jpg' ? 'jpeg' : safeExt}',
+          ),
+        );
+
+    return _supabaseService.client.storage.from('avatars').getPublicUrl(fileName);
   }
 
   // Request password reset OTP - sends OTP code to email

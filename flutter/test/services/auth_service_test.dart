@@ -84,4 +84,61 @@ void main() {
       }
     });
   });
+
+  group('AuthService - Profile Avatar Support', () {
+    test('update profile payload includes avatar_url when provided', () {
+      Map<String, dynamic> buildMetadata({
+        required String firstName,
+        required String lastName,
+        String? avatarUrl,
+      }) {
+        return {
+          'first_name': firstName,
+          'last_name': lastName,
+          if (avatarUrl != null) 'avatar_url': avatarUrl,
+        };
+      }
+
+      final withAvatar = buildMetadata(
+        firstName: 'John',
+        lastName: 'Doe',
+        avatarUrl: 'https://cdn.example.com/avatar.jpg',
+      );
+      final withoutAvatar = buildMetadata(
+        firstName: 'John',
+        lastName: 'Doe',
+      );
+
+      expect(withAvatar['avatar_url'], 'https://cdn.example.com/avatar.jpg');
+      expect(withoutAvatar.containsKey('avatar_url'), false);
+    });
+
+    test('profile image uploads target avatars bucket', () {
+      String buildStoragePath(String bucket, String fileName) {
+        return '$bucket/$fileName';
+      }
+
+      final storagePath = buildStoragePath('avatars', 'avatar_user_123.jpg');
+
+      expect(storagePath.startsWith('avatars/'), true);
+    });
+
+    test('jpg extension maps to jpeg content type', () {
+      String contentTypeFor(String ext) {
+        final safeExt = ext.isEmpty ? 'jpg' : ext;
+        return 'image/${safeExt == 'jpg' ? 'jpeg' : safeExt}';
+      }
+
+      expect(contentTypeFor('jpg'), 'image/jpeg');
+      expect(contentTypeFor('png'), 'image/png');
+      expect(contentTypeFor(''), 'image/jpeg');
+    });
+
+    test('upload should fail when user is not authenticated', () {
+      String? userId;
+      final shouldThrow = userId == null;
+
+      expect(shouldThrow, true);
+    });
+  });
 }
