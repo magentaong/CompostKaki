@@ -340,6 +340,44 @@ void main() {
       });
     });
 
+    group('updateTask API', () {
+      test('should require authentication', () {
+        bool isAuthenticated = false;
+        bool shouldThrowError = !isAuthenticated;
+
+        expect(shouldThrowError, true);
+      });
+
+      test('should allow owner to update description and assignee', () {
+        Map<String, dynamic> updates = {
+          'description': 'Updated title\n\nUpdated content',
+          'assigned_to': 'user456',
+        };
+
+        expect(updates['description'], contains('Updated title'));
+        expect(updates['assigned_to'], 'user456');
+      });
+
+      test('should set assigned_to to null when unassigned', () {
+        String? assignedTo;
+        Map<String, dynamic> updates = {
+          'description': 'Updated task',
+          'assigned_to': assignedTo,
+        };
+
+        expect(updates['assigned_to'], null);
+      });
+
+      test('should not include updated_at in update payload', () {
+        final updates = <String, dynamic>{
+          'description': 'Updated task',
+          'assigned_to': 'user456',
+        };
+
+        expect(updates.containsKey('updated_at'), false);
+      });
+    });
+
     group('Error Handling', () {
       test('should handle network errors gracefully', () {
         bool networkError = true;

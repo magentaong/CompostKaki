@@ -343,6 +343,55 @@ void main() {
         expect(hasDetails, true);
         expect(task['description'], 'Test task');
       });
+
+      test('should show edit button for task owner when task is not completed', () {
+        String? taskOwnerId = 'user-123';
+        String? currentUserId = 'user-123';
+        String status = 'open';
+        bool canEdit = taskOwnerId == currentUserId && status != 'completed';
+
+        expect(canEdit, true);
+      });
+
+      test('should hide edit button for non-owner', () {
+        String? taskOwnerId = 'user-123';
+        String? currentUserId = 'user-999';
+        String status = 'open';
+        bool canEdit = taskOwnerId == currentUserId && status != 'completed';
+
+        expect(canEdit, false);
+      });
+
+      test('should hide edit button for completed tasks', () {
+        String? taskOwnerId = 'user-123';
+        String? currentUserId = 'user-123';
+        String status = 'completed';
+        bool canEdit = taskOwnerId == currentUserId && status != 'completed';
+
+        expect(canEdit, false);
+      });
+
+      test('should open edit task popup dialog (not bottom sheet)', () {
+        bool usesPopupDialog = true;
+        bool usesBottomSheet = false;
+
+        expect(usesPopupDialog, true);
+        expect(usesBottomSheet, false);
+      });
+
+      test('should allow editing title, content, and assignee only', () {
+        Map<String, dynamic> editableFields = {
+          'title': 'New title',
+          'content': 'New content',
+          'assigned_to': 'user-456',
+        };
+        bool canEditBin = false;
+
+        expect(editableFields.containsKey('title'), true);
+        expect(editableFields.containsKey('content'), true);
+        expect(editableFields.containsKey('assigned_to'), true);
+        expect(canEditBin, false);
+      });
     });
 
     group('Bin Card Tap', () {

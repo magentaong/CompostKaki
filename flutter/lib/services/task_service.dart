@@ -400,4 +400,40 @@ class TaskService {
   Future<void> deleteTask(String taskId) async {
     await _supabaseService.client.from('tasks').delete().eq('id', taskId);
   }
+
+  // Update task (owner only) - supports editing description and assignee.
+  Future<void> updateTask({
+    required String taskId,
+    required String description,
+    String? assignedTo,
+  }) async {
+    final user = _supabaseService.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    final task = await _supabaseService.client
+        .from('tasks')
+        .select('user_id')
+        .eq('id', taskId)
+        .maybeSingle();
+
+    if (task == null) {
+      throw Exception('Task not found');
+    }
+
+    if (task['user_id'] != user.id) {
+      throw Exception('Only the task owner can edit this task');
+    }
+
+    final updates = <String, dynamic>{
+      'description': description,
+      'assigned_to': (assignedTo != null && assignedTo.isNotEmpty)
+          ? assignedTo
+          : null,
+    };
+
+    await _supabaseService.client
+        .from('tasks')
+        .update(updates)
+        .eq('id', taskId);
+  }
 }

@@ -1046,7 +1046,182 @@ class _MainScreenState extends State<MainScreen> {
                 }
               }
             : null,
+        onEdit: task['user_id'] == _taskService.currentUserId &&
+                task['status'] != 'completed'
+            ? () async {
+                Navigator.pop(dialogContext);
+                await _showEditTaskDialog(task);
+              }
+            : null,
       ),
+    );
+  }
+
+  Future<void> _showEditTaskDialog(Map<String, dynamic> task) async {
+    final taskId = task['id'] as String?;
+    final binId = task['bin_id'] as String?;
+    if (taskId == null || binId == null) return;
+
+    final originalDescription = (task['description'] as String? ?? '').trim();
+    final split = originalDescription.split('\n');
+    final initialTitle = split.isNotEmpty ? split.first.trim() : '';
+    final initialContent = split.length > 1
+        ? split.sublist(1).join('\n').trim()
+        : '';
+
+    final titleController = TextEditingController(text: initialTitle);
+    final contentController = TextEditingController(text: initialContent);
+
+    final assignableUsers = await _taskService.getBinAssignableUsers(binId);
+    String? assignedToUserId = task['assigned_to'] as String?;
+    bool isSaving = false;
+    String? errorText;
+    final parentContext = context;
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            Future<void> submitEdit() async {
+              final title = titleController.text.trim();
+              final content = contentController.text.trim();
+              if (title.isEmpty) {
+                setSheetState(() {
+                  errorText = 'Please enter a task title.';
+                });
+                return;
+              }
+
+              setSheetState(() {
+                isSaving = true;
+                errorText = null;
+              });
+
+              final updatedDescription =
+                  content.isEmpty ? title : '$title\n\n$content';
+
+              try {
+                await _taskService.updateTask(
+                  taskId: taskId,
+                  description: updatedDescription,
+                  assignedTo: assignedToUserId,
+                );
+
+                if (Navigator.canPop(dialogContext)) {
+                  Navigator.pop(dialogContext);
+                }
+
+                if (parentContext.mounted) {
+                  await _loadTasks();
+                  ScaffoldMessenger.of(parentContext).showSnackBar(
+                    const SnackBar(
+                      content: Text('Task updated successfully'),
+                      backgroundColor: AppTheme.primaryGreen,
+                    ),
+                  );
+                }
+              } catch (e) {
+                setSheetState(() {
+                  errorText = e.toString().replaceFirst('Exception: ', '');
+                  isSaving = false;
+                });
+              }
+            }
+
+            return AlertDialog(
+              title: const Text(
+                'Edit Task',
+                style: TextStyle(
+                  color: AppTheme.primaryGreen,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: titleController,
+                        decoration: const InputDecoration(
+                          labelText: 'Title',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: contentController,
+                        maxLines: 4,
+                        decoration: const InputDecoration(
+                          labelText: 'Content',
+                          hintText: 'Add details for this task...',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: assignedToUserId,
+                        decoration: const InputDecoration(
+                          labelText: 'Assigned to',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: [
+                          const DropdownMenuItem<String>(
+                            value: null,
+                            child: Text('Anyone'),
+                          ),
+                          ...assignableUsers.map(
+                            (user) => DropdownMenuItem<String>(
+                              value: user['id'],
+                              child: Text(user['name'] ?? 'User'),
+                            ),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setSheetState(() {
+                            assignedToUserId = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Bin cannot be changed.',
+                        style: TextStyle(fontSize: 12, color: AppTheme.textGray),
+                      ),
+                      if (errorText != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          errorText!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving ? null : () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isSaving ? null : submitEdit,
+                  child: isSaving
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Save Changes'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -1497,6 +1672,7 @@ class _TaskDetailDialog extends StatelessWidget {
   final VoidCallback onUnassign;
   final VoidCallback? onCheck;
   final VoidCallback? onRevert;
+  final VoidCallback? onEdit;
 
   const _TaskDetailDialog({
     required this.task,
@@ -1506,6 +1682,7 @@ class _TaskDetailDialog extends StatelessWidget {
     required this.onUnassign,
     this.onCheck,
     this.onRevert,
+    this.onEdit,
   });
 
   @override
@@ -1834,6 +2011,20 @@ class _TaskDetailDialog extends StatelessWidget {
                       foregroundColor: Colors.white,
                     ),
                     child: const Text('Accept'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              if (onEdit != null) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: onEdit,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.primaryGreen,
+                      side: const BorderSide(color: AppTheme.primaryGreen),
+                    ),
+                    child: const Text('Edit Task'),
                   ),
                 ),
                 const SizedBox(height: 8),
