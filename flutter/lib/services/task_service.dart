@@ -119,13 +119,19 @@ class TaskService {
     final user = _supabaseService.currentUser;
     if (user == null) throw Exception('Not authenticated');
 
-    // Get task to find bin_id
+    // Get task to find bin_id and owner
     final taskResponse = await _supabaseService.client
         .from('tasks')
-        .select('bin_id')
+        .select('bin_id, user_id')
         .eq('id', taskId)
         .single();
     final binId = taskResponse['bin_id'] as String?;
+    final taskOwnerId = taskResponse['user_id'] as String?;
+
+    // Task creator should not accept own task.
+    if (taskOwnerId == user.id) {
+      throw Exception('You cannot accept your own task.');
+    }
 
     await _supabaseService.client.from('tasks').update({
       'status': 'accepted',
@@ -151,13 +157,19 @@ class TaskService {
     final user = _supabaseService.currentUser;
     if (user == null) throw Exception('Not authenticated');
 
-    // Get task to find bin_id
+    // Get task to find bin_id and owner
     final taskResponse = await _supabaseService.client
         .from('tasks')
-        .select('bin_id')
+        .select('bin_id, user_id')
         .eq('id', taskId)
         .single();
     final binId = taskResponse['bin_id'] as String?;
+    final taskOwnerId = taskResponse['user_id'] as String?;
+
+    // Task creator should not complete own task.
+    if (taskOwnerId == user.id) {
+      throw Exception('You cannot complete your own task.');
+    }
 
     // Update task status and set completion_status to pending_check
     final nowUtc = DateTime.now().toUtc();
@@ -231,6 +243,9 @@ class TaskService {
   }) async {
     final user = _supabaseService.currentUser;
     if (user == null) throw Exception('Not authenticated');
+    if (assignedTo != null && assignedTo.isNotEmpty && assignedTo == user.id) {
+      throw Exception('You cannot assign the task to yourself.');
+    }
 
     final payload = <String, dynamic>{
       'bin_id': binId,
@@ -422,6 +437,10 @@ class TaskService {
 
     if (task['user_id'] != user.id) {
       throw Exception('Only the task owner can edit this task');
+    }
+
+    if (assignedTo != null && assignedTo.isNotEmpty && assignedTo == user.id) {
+      throw Exception('You cannot assign the task to yourself.');
     }
 
     final updates = <String, dynamic>{

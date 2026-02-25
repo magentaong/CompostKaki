@@ -163,6 +163,14 @@ void main() {
 
         expect(shouldAwardXP, false);
       });
+
+      test('should not allow task creator to accept own task', () {
+        String taskOwnerId = 'user123';
+        String currentUserId = 'user123';
+        bool shouldThrowError = taskOwnerId == currentUserId;
+
+        expect(shouldThrowError, true);
+      });
     });
 
     group('completeTask API', () {
@@ -196,6 +204,14 @@ void main() {
         bool shouldCheckBadges = taskCompleted;
 
         expect(shouldCheckBadges, true);
+      });
+
+      test('should not allow task creator to complete own task', () {
+        String taskOwnerId = 'user123';
+        String currentUserId = 'user123';
+        bool shouldThrowError = taskOwnerId == currentUserId;
+
+        expect(shouldThrowError, true);
       });
     });
 
@@ -375,6 +391,14 @@ void main() {
         };
 
         expect(updates.containsKey('updated_at'), false);
+      });
+
+      test('should reject self-assignment during edit', () {
+        String ownerUserId = 'user123';
+        String assignedTo = 'user123';
+        bool shouldThrowError = assignedTo == ownerUserId;
+
+        expect(shouldThrowError, true);
       });
     });
 

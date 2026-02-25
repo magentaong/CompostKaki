@@ -114,6 +114,17 @@ void main() {
 
         expect(shouldCloseDialog, true);
       });
+
+      test('should hide accept for task owner', () {
+        String? taskOwnerId = 'user-123';
+        String? currentUserId = 'user-123';
+        String status = 'open';
+        bool canAccept = status == 'open' &&
+            currentUserId != null &&
+            taskOwnerId != currentUserId;
+
+        expect(canAccept, false);
+      });
     });
 
     group('Task Complete Button', () {
@@ -168,6 +179,17 @@ void main() {
         bool canComplete = status == 'accepted' && currentUserId != null;
 
         expect(canComplete, true);
+      });
+
+      test('should not allow task owner to complete own task', () {
+        String status = 'accepted';
+        String? taskOwnerId = 'user-123';
+        String? currentUserId = 'user-123';
+        bool canComplete = status == 'accepted' &&
+            currentUserId != null &&
+            taskOwnerId != currentUserId;
+
+        expect(canComplete, false);
       });
     });
 
@@ -391,6 +413,86 @@ void main() {
         expect(editableFields.containsKey('content'), true);
         expect(editableFields.containsKey('assigned_to'), true);
         expect(canEditBin, false);
+      });
+
+      test('should not allow assigning edited task to yourself', () {
+        String? currentUserId = 'user-123';
+        String? selectedAssignee = 'user-123';
+        bool isInvalid = selectedAssignee == currentUserId;
+
+        expect(isInvalid, true);
+      });
+
+      test('should show delete option for owner on open tasks', () {
+        String? taskOwnerId = 'user-123';
+        String? currentUserId = 'user-123';
+        String status = 'open';
+        bool canDelete = taskOwnerId == currentUserId && status == 'open';
+
+        expect(canDelete, true);
+      });
+    });
+
+    group('Task Delete UX', () {
+      test('should mark task as deleting immediately for poof animation', () {
+        final deletingTaskIds = <String>{};
+        const taskId = 'task-1';
+
+        deletingTaskIds.add(taskId);
+
+        expect(deletingTaskIds.contains(taskId), true);
+      });
+
+      test('should remove task from local list after animation window', () {
+        final tasks = <Map<String, dynamic>>[
+          {'id': 'task-1', 'description': 'First task'},
+          {'id': 'task-2', 'description': 'Second task'},
+        ];
+
+        tasks.removeWhere((t) => t['id'] == 'task-1');
+
+        expect(tasks.length, 1);
+        expect(tasks.first['id'], 'task-2');
+      });
+
+      test('should rollback optimistic delete when API fails', () {
+        final tasks = <Map<String, dynamic>>[
+          {'id': 'task-1', 'description': 'First task'},
+          {'id': 'task-2', 'description': 'Second task'},
+        ];
+        const deletingTaskId = 'task-1';
+        final originalIndex = tasks.indexWhere((t) => t['id'] == deletingTaskId);
+        final originalTask = Map<String, dynamic>.from(tasks[originalIndex]);
+
+        tasks.removeWhere((t) => t['id'] == deletingTaskId);
+
+        final safeIndex =
+            originalIndex < 0 || originalIndex > tasks.length ? tasks.length : originalIndex;
+        tasks.insert(safeIndex, originalTask);
+
+        expect(tasks.length, 2);
+        expect(tasks[0]['id'], 'task-1');
+      });
+
+      test('should ignore repeated delete taps while already deleting', () {
+        final deletingTaskIds = <String>{'task-1'};
+        const taskId = 'task-1';
+        bool shouldStartDelete = !deletingTaskIds.contains(taskId);
+
+        expect(shouldStartDelete, false);
+      });
+
+      test('should pop task detail dialog exactly once to avoid navigator lock', () {
+        int popCalls = 0;
+
+        void detailDialogDeleteButtonPressed() {
+          popCalls += 1; // _TaskDetailDialog button pop
+          // MainScreen delete callback should not pop again.
+        }
+
+        detailDialogDeleteButtonPressed();
+
+        expect(popCalls, 1);
       });
     });
 

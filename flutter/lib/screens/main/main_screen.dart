@@ -43,6 +43,7 @@ class _MainScreenState extends State<MainScreen> {
   int _userLogCount = 0;
   int _selectedIndex = 0;
   String? _lastTasksRefreshToken;
+  final Set<String> _deletingTaskIds = <String>{};
 
   @override
   void initState() {
@@ -586,6 +587,8 @@ class _MainScreenState extends State<MainScreen> {
                             task: task,
                             bins: _bins,
                             onTap: () => _showTaskDetail(task),
+                            isDeleting:
+                                _deletingTaskIds.contains(task['id']?.toString()),
                           )),
                     const SizedBox(height: 24),
                   ],
@@ -614,6 +617,8 @@ class _MainScreenState extends State<MainScreen> {
                             task: task,
                             bins: _bins,
                             onTap: () => _showTaskDetail(task),
+                            isDeleting:
+                                _deletingTaskIds.contains(task['id']?.toString()),
                           )),
                     const SizedBox(height: 24),
                   ],
@@ -656,6 +661,8 @@ class _MainScreenState extends State<MainScreen> {
                             onTap: () => _showTaskDetail(task),
                             isCompleted: true,
                             isPendingCheck: true, // White background
+                            isDeleting:
+                                _deletingTaskIds.contains(task['id']?.toString()),
                           )),
                       const SizedBox(height: 12),
                     ],
@@ -668,6 +675,8 @@ class _MainScreenState extends State<MainScreen> {
                             onTap: () => _showTaskDetail(task),
                             isCompleted: true,
                             isPendingCheck: false, // Darkened green
+                            isDeleting:
+                                _deletingTaskIds.contains(task['id']?.toString()),
                           )),
                     
                     if (pendingCheckTasks.isEmpty && checkedRevertedTasks.isEmpty)
@@ -862,6 +871,57 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  Future<void> _deleteTaskWithAnimation(Map<String, dynamic> task) async {
+    final rawTaskId = task['id'];
+    final taskId = rawTaskId?.toString();
+    if (taskId == null || _deletingTaskIds.contains(taskId)) return;
+
+    final originalIndex =
+        _tasks.indexWhere((t) => t['id']?.toString() == taskId);
+    final originalTask = Map<String, dynamic>.from(task);
+
+    setState(() {
+      _deletingTaskIds.add(taskId);
+    });
+
+    // Let the card play a quick "poof" before list reflows.
+    await Future.delayed(const Duration(milliseconds: 220));
+
+    if (mounted) {
+      setState(() {
+        _tasks.removeWhere((t) => t['id']?.toString() == taskId);
+        _deletingTaskIds.remove(taskId);
+      });
+    }
+
+    try {
+      await _taskService.deleteTask(taskId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Poof! Task deleted'),
+            backgroundColor: AppTheme.primaryGreen,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          final safeIndex = originalIndex < 0 || originalIndex > _tasks.length
+              ? _tasks.length
+              : originalIndex;
+          _tasks.insert(safeIndex, originalTask);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete task: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   void _showPastHistory(BuildContext context) {
     // Get all completed tasks (not just last 30 days)
     final allCompletedTasks = _tasks
@@ -891,6 +951,8 @@ class _MainScreenState extends State<MainScreen> {
                       },
                       isCompleted: true,
                       isPendingCheck: completionStatus == 'pending_check',
+                      isDeleting:
+                          _deletingTaskIds.contains(task['id']?.toString()),
                     );
                   },
                 ),
@@ -1046,6 +1108,12 @@ class _MainScreenState extends State<MainScreen> {
                 }
               }
             : null,
+        onDelete: task['user_id'] == _taskService.currentUserId &&
+                task['status'] == 'open'
+            ? () async {
+                await _deleteTaskWithAnimation(task);
+              }
+            : null,
         onEdit: task['user_id'] == _taskService.currentUserId &&
                 task['status'] != 'completed'
             ? () async {
@@ -1089,6 +1157,12 @@ class _MainScreenState extends State<MainScreen> {
               if (title.isEmpty) {
                 setSheetState(() {
                   errorText = 'Please enter a task title.';
+                });
+                return;
+              }
+              if (assignedToUserId == _taskService.currentUserId) {
+                setSheetState(() {
+                  errorText = 'You cannot assign the task to yourself.';
                 });
                 return;
               }
@@ -1176,7 +1250,9 @@ class _MainScreenState extends State<MainScreen> {
                           ...assignableUsers.map(
                             (user) => DropdownMenuItem<String>(
                               value: user['id'],
-                              child: Text(user['name'] ?? 'User'),
+                              child: Text(
+                                '${user['name'] ?? 'User'}${user['id'] == _taskService.currentUserId ? ' (You)' : ''}',
+                              ),
                             ),
                           ),
                         ],
@@ -1672,6 +1748,7 @@ class _TaskDetailDialog extends StatelessWidget {
   final VoidCallback onUnassign;
   final VoidCallback? onCheck;
   final VoidCallback? onRevert;
+  final VoidCallback? onDelete;
   final VoidCallback? onEdit;
 
   const _TaskDetailDialog({
@@ -1682,6 +1759,7 @@ class _TaskDetailDialog extends StatelessWidget {
     required this.onUnassign,
     this.onCheck,
     this.onRevert,
+    this.onDelete,
     this.onEdit,
   });
 
@@ -1926,8 +2004,10 @@ class _TaskDetailDialog extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Any authenticated member can complete an accepted task
-              if (status == 'accepted' && currentUserId != null) ...[
+              // Any authenticated non-owner member can complete an accepted task
+              if (status == 'accepted' &&
+                  currentUserId != null &&
+                  taskPosterId != currentUserId) ...[
                 // Mark as Completed (top)
                 SizedBox(
                   width: double.infinity,
@@ -1999,7 +2079,9 @@ class _TaskDetailDialog extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
               ],
-              if (status == 'open' && acceptedBy != currentUserId) ...[
+              if (status == 'open' &&
+                  acceptedBy != currentUserId &&
+                  taskPosterId != currentUserId) ...[
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -2011,6 +2093,23 @@ class _TaskDetailDialog extends StatelessWidget {
                       foregroundColor: Colors.white,
                     ),
                     child: const Text('Accept'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              if (onDelete != null) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      onDelete!();
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red, width: 1.5),
+                    ),
+                    child: const Text('Delete Task'),
                   ),
                 ),
                 const SizedBox(height: 8),

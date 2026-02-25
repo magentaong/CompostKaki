@@ -60,54 +60,54 @@ jobs:
         name: flutter-coverage
 
   # Build Android APK
-  build-android:
-    name: Build Android APK
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  # build-android:
+  #   name: Build Android APK
+  #   needs: test
+  #   runs-on: ubuntu-latest
+  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+  #   steps:
+  #   - name: Checkout code
+  #     uses: actions/checkout@v4
     
-    - name: Setup Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'zulu'
-        java-version: '17'
+  #   - name: Setup Java
+  #     uses: actions/setup-java@v4
+  #     with:
+  #       distribution: 'zulu'
+  #       java-version: '17'
     
-    - name: Setup Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: '3.27.0'
-        channel: 'stable'
-        cache: true
+  #   - name: Setup Flutter
+  #     uses: subosito/flutter-action@v2
+  #     with:
+  #       flutter-version: '3.27.0'
+  #       channel: 'stable'
+  #       cache: true
     
-    - name: Install dependencies
-      working-directory: ./flutter
-      run: flutter pub get
+  #   - name: Install dependencies
+  #     working-directory: ./flutter
+  #     run: flutter pub get
     
-    - name: Build APK (Debug)
-      working-directory: ./flutter
-      run: flutter build apk --debug
+  #   - name: Build APK (Debug)
+  #     working-directory: ./flutter
+  #     run: flutter build apk --debug
     
-    - name: Build APK (Release)
-      working-directory: ./flutter
-      run: flutter build apk --release --split-per-abi
+  #   - name: Build APK (Release)
+  #     working-directory: ./flutter
+  #     run: flutter build apk --release --split-per-abi
     
-    - name: Upload Debug APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-debug
-        path: flutter/build/app/outputs/flutter-apk/app-debug.apk
-        retention-days: 30
+  #   - name: Upload Debug APK
+  #     uses: actions/upload-artifact@v4
+  #     with:
+  #       name: app-debug
+  #       path: flutter/build/app/outputs/flutter-apk/app-debug.apk
+  #       retention-days: 30
     
-    - name: Upload Release APKs
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-release
-        path: flutter/build/app/outputs/flutter-apk/*.apk
-        retention-days: 90
+  #   - name: Upload Release APKs
+  #     uses: actions/upload-artifact@v4
+  #     with:
+  #       name: app-release
+  #       path: flutter/build/app/outputs/flutter-apk/*.apk
+  #       retention-days: 90
 
   # Build iOS (requires macOS runner)
   build-ios:

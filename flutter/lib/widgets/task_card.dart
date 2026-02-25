@@ -7,6 +7,7 @@ class TaskCard extends StatelessWidget {
   final VoidCallback onTap;
   final bool isCompleted; // Highlight completed tasks
   final bool isPendingCheck; // If true, white background; if false, darkened green
+  final bool isDeleting; // Play delete animation before removal
 
   const TaskCard({
     super.key,
@@ -15,6 +16,7 @@ class TaskCard extends StatelessWidget {
     required this.onTap,
     this.isCompleted = false,
     this.isPendingCheck = false,
+    this.isDeleting = false,
   });
 
   Color _getUrgencyColor(String? urgency) {
@@ -123,21 +125,31 @@ class TaskCard extends StatelessWidget {
       }
     }
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      color: cardColor,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: borderSide ?? BorderSide.none,
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+      opacity: isDeleting ? 0.0 : 1.0,
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutBack,
+        scale: isDeleting ? 0.82 : 1.0,
+        child: IgnorePointer(
+          ignoring: isDeleting,
+          child: Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            color: cardColor,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: borderSide ?? BorderSide.none,
+            ),
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,7 +282,10 @@ class TaskCard extends StatelessWidget {
                   ),
                 ),
               ),
-            ],
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       ),

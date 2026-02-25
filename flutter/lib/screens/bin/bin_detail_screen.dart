@@ -1451,6 +1451,11 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                       () => errorText = 'Please describe the help you need.');
                   return;
                 }
+                if (assignedToUserId == _taskService.currentUserId) {
+                  setSheetState(
+                      () => errorText = 'You cannot assign the task to yourself.');
+                  return;
+                }
                 if (timeSensitive && dueDate == null) {
                   setSheetState(
                       () => errorText = 'Please pick a due date for time-sensitive tasks.');
@@ -1618,7 +1623,9 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                         ...assignableUsers.map(
                           (user) => DropdownMenuItem<String>(
                             value: user['id'],
-                            child: Text(user['name'] ?? 'User'),
+                            child: Text(
+                              '${user['name'] ?? 'User'}${user['id'] == _taskService.currentUserId ? ' (You)' : ''}',
+                            ),
                           ),
                         ),
                       ],
