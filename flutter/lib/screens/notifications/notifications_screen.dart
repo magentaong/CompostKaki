@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../services/notification_service.dart';
@@ -144,6 +145,40 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  Future<void> _handleNotificationTap(Map<String, dynamic> notification) async {
+    final type = notification['type'] as String?;
+    final binId = notification['bin_id']?.toString();
+
+    // Route by notification type to the most relevant screen.
+    switch (type) {
+      case 'message':
+        if (binId != null && binId.isNotEmpty) {
+          await context.push('/bin/$binId/chat');
+          return;
+        }
+        break;
+      case 'join_request':
+      case 'activity':
+      case 'bin_health':
+        if (binId != null && binId.isNotEmpty) {
+          await context.push('/bin/$binId');
+          return;
+        }
+        break;
+      case 'help_request':
+      case 'task_completed':
+      case 'task_accepted':
+      case 'task_reverted':
+        // Force refresh token so tasks tab reloads latest state.
+        final refreshToken = DateTime.now().millisecondsSinceEpoch;
+        context.go('/main?tab=tasks&refresh=$refreshToken');
+        return;
+    }
+
+    // Fallback: open home if notification doesn't include enough routing data.
+    context.go('/main');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -223,79 +258,87 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           final body = notification['body'] as String? ?? '';
                           final createdAt = notification['created_at'] as String? ?? '';
 
-                          return Container(
+                          return Material(
                             key: Key(notification['id'] as String),
                             color: isRead ? null : AppTheme.primaryGreen.withOpacity(0.05),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: _getNotificationColor(type)
-                                        .withOpacity(0.1),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    _getNotificationIcon(type),
-                                    color: _getNotificationColor(type),
-                                    size: 24,
-                                  ),
+                            child: InkWell(
+                              onTap: () => _handleNotificationTap(notification),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        title,
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: isRead
-                                              ? FontWeight.normal
-                                              : FontWeight.bold,
-                                          color: isRead
-                                              ? AppTheme.textGray
-                                              : Colors.black87,
-                                        ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: _getNotificationColor(type).withOpacity(0.1),
+                                        shape: BoxShape.circle,
                                       ),
-                                      if (body.isNotEmpty) ...[
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          body,
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: AppTheme.textGray,
-                                          ),
-                                        ),
-                                      ],
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        _formatTimestamp(createdAt),
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: AppTheme.textGray,
-                                        ),
+                                      child: Icon(
+                                        _getNotificationIcon(type),
+                                        color: _getNotificationColor(type),
+                                        size: 24,
                                       ),
-                                    ],
-                                  ),
-                                ),
-                                // Colored dot indicator for new/unread notifications
-                                if (!isRead)
-                                  Container(
-                                    width: 10,
-                                    height: 10,
-                                    margin: const EdgeInsets.only(left: 8),
-                                    decoration: const BoxDecoration(
-                                      color: AppTheme.primaryGreen,
-                                      shape: BoxShape.circle,
                                     ),
-                                  ),
-                              ],
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            title,
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: isRead
+                                                  ? FontWeight.normal
+                                                  : FontWeight.bold,
+                                              color: isRead
+                                                  ? AppTheme.textGray
+                                                  : Colors.black87,
+                                            ),
+                                          ),
+                                          if (body.isNotEmpty) ...[
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              body,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: AppTheme.textGray,
+                                              ),
+                                            ),
+                                          ],
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            _formatTimestamp(createdAt),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: AppTheme.textGray,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(
+                                      Icons.chevron_right,
+                                      color: AppTheme.textGray,
+                                      size: 20,
+                                    ),
+                                    if (!isRead)
+                                      Container(
+                                        width: 10,
+                                        height: 10,
+                                        margin: const EdgeInsets.only(left: 8),
+                                        decoration: const BoxDecoration(
+                                          color: AppTheme.primaryGreen,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
                             ),
                           );
                         },

@@ -13,7 +13,6 @@ import '../../widgets/notification_badge.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/bin_card.dart';
 import '../../widgets/task_card.dart';
-import '../notifications/notifications_screen.dart';
 import '../../widgets/compost_loading_animation.dart';
 import '../../widgets/kaki_mascot_widget.dart';
 import '../bin/add_bin_screen.dart';
@@ -702,12 +701,7 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _showNotificationsPage(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const NotificationsScreen(),
-      ),
-    );
+    context.push('/notifications');
   }
 
   void _showJoinBinDialog(BuildContext context) {
