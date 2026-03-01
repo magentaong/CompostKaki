@@ -2012,61 +2012,76 @@ class _TaskDetailDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _TaskDetailMetaChip(
-                  icon: Icons.eco_outlined,
-                  label: bin['name'] as String? ?? 'Unknown',
-                ),
-                _TaskDetailMetaChip(
-                  icon: Icons.person_outline,
-                  label: assignedToName,
-                  avatarUrl: assignedAvatarUrl,
-                ),
-                _TaskDetailMetaChip(
-                  icon: Icons.flag_outlined,
-                  label: status.toUpperCase(),
-                  backgroundColor: _statusColor(status),
-                ),
-                if (effort.trim().isNotEmpty)
-                  _TaskDetailMetaChip(
-                    icon: Icons.bolt_outlined,
-                    label: effort,
-                  ),
-              ],
+            _TaskDetailInfoRow(
+              label: 'Bin',
+              child: _TaskDetailMetaChip(
+                icon: Icons.eco_outlined,
+                label: bin['name'] as String? ?? 'Unknown',
+              ),
             ),
-            const SizedBox(height: 10),
-            Text(
-              'Posted by $firstName',
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppTheme.textGray,
+            const SizedBox(height: 8),
+            _TaskDetailInfoRow(
+              label: 'Assigned to',
+              child: _TaskDetailMetaChip(
+                icon: Icons.person_outline,
+                label: assignedToName,
+                avatarUrl: assignedAvatarUrl,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _TaskDetailInfoRow(
+              label: 'Status',
+              child: _TaskDetailMetaChip(
+                icon: Icons.flag_outlined,
+                label: status.toUpperCase(),
+                backgroundColor: _statusColor(status),
+              ),
+            ),
+            if (effort.trim().isNotEmpty) ...[
+              const SizedBox(height: 8),
+              _TaskDetailInfoRow(
+                label: 'Effort',
+                child: _TaskDetailMetaChip(
+                  icon: Icons.bolt_outlined,
+                  label: effort,
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+            _TaskDetailInfoRow(
+              label: 'Posted by',
+              child: _TaskDetailMetaChip(
+                icon: Icons.person_outline,
+                label: firstName,
+                avatarUrl: posterAvatarUrl,
               ),
             ),
             if (isTimeSensitive && timeLeft.text.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: timeLeft.color.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.schedule, size: 12, color: timeLeft.color),
-                    const SizedBox(width: 4),
-                    Text(
-                      timeLeft.text,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: timeLeft.color,
+              _TaskDetailInfoRow(
+                label: 'Time left',
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: timeLeft.color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.schedule, size: 12, color: timeLeft.color),
+                      const SizedBox(width: 4),
+                      Text(
+                        timeLeft.text,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: timeLeft.color,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -2310,6 +2325,43 @@ class _TaskDetailDialog extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TaskDetailInfoRow extends StatelessWidget {
+  final String label;
+  final Widget child;
+
+  const _TaskDetailInfoRow({
+    required this.label,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        SizedBox(
+          width: 84,
+          child: Text(
+            '$label:',
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppTheme.textGray,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: child,
           ),
         ),
       ],

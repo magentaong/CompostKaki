@@ -151,6 +151,7 @@ class TaskCard extends StatelessWidget {
       orElse: () => {'name': 'Unknown'},
     );
     final urgency = task['urgency'] as String? ?? 'Normal';
+    final effort = task['effort'] as String? ?? 'Normal';
     final isTimeSensitive = task['is_time_sensitive'] == true;
     final dueDateRaw = task['due_date'] as String?;
     final timeLeft = _getTimeLeft(dueDateRaw);
@@ -328,6 +329,10 @@ class TaskCard extends StatelessWidget {
                             icon: Icons.flag_outlined,
                             label: status.toUpperCase(),
                             backgroundColor: _statusColor(status),
+                          ),
+                          _MetaChip(
+                            icon: Icons.bolt_outlined,
+                            label: 'Effort: $effort',
                           ),
                         ],
                       ),
