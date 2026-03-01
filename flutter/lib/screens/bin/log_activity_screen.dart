@@ -280,12 +280,12 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
     final generatedTitle = firstSelectedReason.isNotEmpty
         ? firstSelectedReason
         : 'Need help getting ${missing.map(_materialLabel).join(", ").toLowerCase()}';
-    final title = taskTitleInput.trim().isEmpty
-        ? generatedTitle
-        : taskTitleInput.trim();
+    final title =
+        taskTitleInput.trim().isEmpty ? generatedTitle : taskTitleInput.trim();
 
     final contextLines = missing
-        .map((material) => '${_materialLabel(material)}: ${reasonMap[material]}')
+        .map(
+            (material) => '${_materialLabel(material)}: ${reasonMap[material]}')
         .toList();
     final extraDetails = missingDetailsInput.trim();
     if (extraDetails.isNotEmpty) {
@@ -309,8 +309,9 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
     if (!_canSubmit() || !_formKey.currentState!.validate()) return null;
 
     bool shouldCreateTask = false;
-    final missing =
-        _selectedType == 'Add Materials' ? List<String>.from(_missingMaterials) : <String>[];
+    final missing = _selectedType == 'Add Materials'
+        ? List<String>.from(_missingMaterials)
+        : <String>[];
     if (_selectedType == 'Add Materials' && missing.isNotEmpty) {
       if (!_hasRequiredMissingReasons()) {
         setState(() {
@@ -403,7 +404,8 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
           'An attached photo could not be found anymore. Please re-attach the photo and try again.',
         );
       }
-      imageUrl = await _binService.uploadLogImage(draft.imageFile!, widget.binId);
+      imageUrl =
+          await _binService.uploadLogImage(draft.imageFile!, widget.binId);
     }
 
     if (draft.createTaskForMissing && draft.missingMaterials.isNotEmpty) {
@@ -482,7 +484,8 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
         totalXpGained += result.xpGained;
       } catch (e) {
         failedDrafts.add(draft);
-        failureMessages.add('${draft.type}: ${e.toString().replaceFirst('Exception: ', '')}');
+        failureMessages.add(
+            '${draft.type}: ${e.toString().replaceFirst('Exception: ', '')}');
       }
     }
 
@@ -683,7 +686,8 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                   ? const Center(
                       child: Padding(
                         padding: EdgeInsets.all(32),
-                        child: Text('No actions available for this bin status.'),
+                        child:
+                            Text('No actions available for this bin status.'),
                       ),
                     )
                   : GridView.count(
@@ -758,7 +762,9 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                           ),
                           title: Text(draft.type),
                           subtitle: Text(
-                            draft.content.isEmpty ? 'No details' : draft.content,
+                            draft.content.isEmpty
+                                ? 'No details'
+                                : draft.content,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -864,7 +870,8 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                         ),
                         const SizedBox(height: 8),
                         ..._missingMaterials.map((material) {
-                          final options = _missingReasonOptions[material] ?? const <String>[];
+                          final options = _missingReasonOptions[material] ??
+                              const <String>[];
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 12),
                             child: Column(
@@ -875,7 +882,8 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                                   child: DropdownMenu<String>(
                                     initialSelection: _missingReasons[material],
                                     expandedInsets: EdgeInsets.zero,
-                                    label: Text('${_materialLabel(material)} reason'),
+                                    label: Text(
+                                        '${_materialLabel(material)} reason'),
                                     onSelected: (value) {
                                       setState(() {
                                         _missingReasons[material] = value;
@@ -889,12 +897,15 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                                     }).toList(),
                                   ),
                                 ),
-                                if ((_missingReasons[material] ?? '').trim().isEmpty)
+                                if ((_missingReasons[material] ?? '')
+                                    .trim()
+                                    .isEmpty)
                                   const Padding(
                                     padding: EdgeInsets.only(top: 6, left: 12),
                                     child: Text(
                                       'Please select a reason',
-                                      style: TextStyle(color: Colors.red, fontSize: 12),
+                                      style: TextStyle(
+                                          color: Colors.red, fontSize: 12),
                                     ),
                                   ),
                               ],
@@ -935,6 +946,10 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                     labelText: 'Temperature (°C)',
                     prefixIcon: Icon(Icons.thermostat),
                   ),
+                  onChanged: (_) {
+                    // Rebuild so _canSubmit reflects temperature changes immediately.
+                    setState(() {});
+                  },
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter temperature';
@@ -1016,7 +1031,8 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: _isLoading || !_canSubmit() ? null : _addCurrentToQueue,
+                    onPressed:
+                        _isLoading || !_canSubmit() ? null : _addCurrentToQueue,
                     icon: const Icon(Icons.playlist_add),
                     label: const Text('Add Activity To List'),
                   ),
@@ -1025,7 +1041,9 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _isLoading || _queuedActivities.isEmpty ? null : _submitBatch,
+                    onPressed: _isLoading || _queuedActivities.isEmpty
+                        ? null
+                        : _submitBatch,
                     child: _isLoading
                         ? const SizedBox(
                             height: 20,

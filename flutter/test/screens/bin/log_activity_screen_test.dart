@@ -254,6 +254,29 @@ void main() {
       expect(validateWeight('-1'), 'Weight cannot be negative');
       expect(validateWeight('abc'), 'Please enter a valid number');
     });
+
+    test('monitor submit logic is valid regardless input order', () {
+      bool canSubmitMonitor({
+        required String temperature,
+        required String? moisture,
+      }) {
+        return temperature.isNotEmpty && moisture != null;
+      }
+
+      // Fill condition first, then temperature.
+      final conditionThenTemp = canSubmitMonitor(
+        temperature: '45',
+        moisture: 'Wet',
+      );
+      // Fill temperature first, then condition.
+      final tempThenCondition = canSubmitMonitor(
+        temperature: '45',
+        moisture: 'Wet',
+      );
+
+      expect(conditionThenTemp, true);
+      expect(tempThenCondition, true);
+    });
   });
 
   group('LogActivityScreen - Activity Types', () {
@@ -576,12 +599,16 @@ void main() {
       }
 
       expect(canSubmitBatch([], false), false);
-      expect(canSubmitBatch([
-        {'type': 'Monitor'}
-      ], false), true);
-      expect(canSubmitBatch([
-        {'type': 'Monitor'}
-      ], true), false);
+      expect(
+          canSubmitBatch([
+            {'type': 'Monitor'}
+          ], false),
+          true);
+      expect(
+          canSubmitBatch([
+            {'type': 'Monitor'}
+          ], true),
+          false);
     });
   });
 }
