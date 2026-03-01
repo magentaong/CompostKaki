@@ -274,20 +274,25 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
     required String taskTitleInput,
     required String missingDetailsInput,
   }) async {
-    final generatedTitle =
-        'Need help getting ${missing.map(_materialLabel).join(", ").toLowerCase()}';
+    final firstSelectedReason = missing
+        .map((material) => (reasonMap[material] ?? '').trim())
+        .firstWhere((reason) => reason.isNotEmpty, orElse: () => '');
+    final generatedTitle = firstSelectedReason.isNotEmpty
+        ? firstSelectedReason
+        : 'Need help getting ${missing.map(_materialLabel).join(", ").toLowerCase()}';
     final title = taskTitleInput.trim().isEmpty
         ? generatedTitle
         : taskTitleInput.trim();
 
-    final reasons = missing
-        .map((material) => '- ${_materialLabel(material)}: ${reasonMap[material]}')
-        .join('\n');
-
+    final contextLines = missing
+        .map((material) => '${_materialLabel(material)}: ${reasonMap[material]}')
+        .toList();
     final extraDetails = missingDetailsInput.trim();
-    final description = extraDetails.isEmpty
-        ? '$title\n\n$reasons'
-        : '$title\n\n$reasons\n\nAdditional details:\n$extraDetails';
+    if (extraDetails.isNotEmpty) {
+      contextLines.add('Context: $extraDetails');
+    }
+    final detailBlock = contextLines.map((line) => '- $line').join('\n');
+    final description = '$title\n\nAdditional detail\n$detailBlock';
 
     final urgency = missing.length >= 2 ? 'High' : 'Normal';
     final effort = missing.length >= 2 ? 'High' : 'Medium';

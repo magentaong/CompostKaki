@@ -1416,7 +1416,8 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
   }
 
   Future<void> _showHelpSheet() async {
-    final descController = TextEditingController();
+    final titleController = TextEditingController();
+    final detailsController = TextEditingController();
     String urgency = 'Normal';
     String effort = 'Medium';
     bool timeSensitive = false;
@@ -1446,9 +1447,9 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
           child: StatefulBuilder(
             builder: (context, setSheetState) {
               Future<void> submit() async {
-                if (descController.text.trim().isEmpty) {
+                if (titleController.text.trim().isEmpty) {
                   setSheetState(
-                      () => errorText = 'Please describe the help you need.');
+                      () => errorText = 'Please enter a task title.');
                   return;
                 }
                 if (assignedToUserId == _taskService.currentUserId) {
@@ -1467,9 +1468,14 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                 });
                 try {
                   final effectiveUrgency = timeSensitive ? 'High' : urgency;
+                  final title = titleController.text.trim();
+                  final details = detailsController.text.trim();
+                  final description = details.isEmpty
+                      ? title
+                      : '$title\n\nAdditional detail\n- $details';
                   await _taskService.createTask(
                     binId: widget.binId,
-                    description: descController.text.trim(),
+                    description: description,
                     urgency: effectiveUrgency,
                     effort: effort,
                     isTimeSensitive: timeSensitive,
@@ -1568,10 +1574,21 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                   ),
                   const SizedBox(height: 16),
                   TextField(
-                    controller: descController,
+                    controller: titleController,
+                    maxLines: 1,
+                    decoration: const InputDecoration(
+                      labelText: 'Title',
+                      hintText: 'e.g. Need help getting browns',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: detailsController,
                     maxLines: 3,
                     decoration: const InputDecoration(
-                      labelText: 'How can the community help?',
+                      labelText: 'Additional detail',
+                      hintText: 'Context of what help is needed...',
                       border: OutlineInputBorder(),
                     ),
                   ),

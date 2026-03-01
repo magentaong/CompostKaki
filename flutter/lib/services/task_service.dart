@@ -21,7 +21,7 @@ class TaskService {
 
     final profilesResponse = await _supabaseService.client
         .from('profiles')
-        .select('id, first_name, last_name')
+        .select('id, first_name, last_name, avatar_url')
         .inFilter('id', assignedIds);
 
     final profileMap = <String, Map<String, dynamic>>{};
@@ -75,7 +75,7 @@ class TaskService {
       final tasksResponse = await _supabaseService.client
           .from('tasks')
           .select(
-              '*, profiles:user_id(id, first_name, last_name), accepted_by_profile:accepted_by(id, first_name, last_name)')
+              '*, profiles:user_id(id, first_name, last_name, avatar_url), accepted_by_profile:accepted_by(id, first_name, last_name, avatar_url)')
           .inFilter('bin_id', allBinIds)
           .order('created_at', ascending: false);
       tasks = List<Map<String, dynamic>>.from(tasksResponse);
@@ -86,7 +86,7 @@ class TaskService {
     final myTasksResponse = await _supabaseService.client
         .from('tasks')
         .select(
-            '*, profiles:user_id(id, first_name, last_name), accepted_by_profile:accepted_by(id, first_name, last_name)')
+            '*, profiles:user_id(id, first_name, last_name, avatar_url), accepted_by_profile:accepted_by(id, first_name, last_name, avatar_url)')
         .eq('user_id', user.id)
         .order('created_at', ascending: false);
 

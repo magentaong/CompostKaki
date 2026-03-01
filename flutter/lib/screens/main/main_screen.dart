@@ -21,7 +21,7 @@ import '../profile/profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
   final int? initialTab;
-  
+
   const MainScreen({super.key, this.initialTab});
 
   @override
@@ -47,7 +47,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
-    
+
     // Initialize notifications when user is authenticated
     final notificationService = context.read<NotificationService>();
     if (context.read<AuthService>().isAuthenticated) {
@@ -55,7 +55,7 @@ class _MainScreenState extends State<MainScreen> {
       // Reload badge counts to ensure we have latest data
       notificationService.reloadBadgeCounts();
     }
-    
+
     // Set initial tab if provided
     if (widget.initialTab != null) {
       _selectedIndex = widget.initialTab!;
@@ -93,7 +93,9 @@ class _MainScreenState extends State<MainScreen> {
 
     // If navigating explicitly to tasks, always refresh tasks at least once per refresh token.
     // This ensures newly created tasks appear immediately without manual pull-to-refresh.
-    if (targetTab == 1 && refreshToken != null && _lastTasksRefreshToken != refreshToken) {
+    if (targetTab == 1 &&
+        refreshToken != null &&
+        _lastTasksRefreshToken != refreshToken) {
       _lastTasksRefreshToken = refreshToken;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -125,7 +127,10 @@ class _MainScreenState extends State<MainScreen> {
             notificationService.markAsRead(type: 'task_completed');
           }
           // If switching to home tab and we have no bins loaded, reload
-          if (targetTab == 0 && _bins.isEmpty && !_isLoading && !_isLoadingBins) {
+          if (targetTab == 0 &&
+              _bins.isEmpty &&
+              !_isLoading &&
+              !_isLoadingBins) {
             _loadData();
           }
         }
@@ -221,7 +226,7 @@ class _MainScreenState extends State<MainScreen> {
     try {
       // Just reload bins - this is fast since it doesn't fetch logs
       final bins = await _binService.getUserBins();
-      
+
       if (mounted) {
         setState(() {
           _bins = bins;
@@ -325,7 +330,8 @@ class _MainScreenState extends State<MainScreen> {
             // Bell icon with notification badge (shows only new notifications since last visit)
             Consumer<NotificationService>(
               builder: (context, notificationService, _) {
-                final newNotificationsCount = notificationService.newNotificationsSinceLastVisit;
+                final newNotificationsCount =
+                    notificationService.newNotificationsSinceLastVisit;
                 return IconButton(
                   icon: NotificationBadge(
                     count: newNotificationsCount,
@@ -498,14 +504,17 @@ class _MainScreenState extends State<MainScreen> {
                   final bin = sortedBins[index];
                   final hasPendingRequest = bin['has_pending_request'] == true;
                   final binId = bin['id'] as String;
-                  
+
                   return Consumer<NotificationService>(
                     builder: (context, notificationService, _) {
                       // Use synchronous getters for reactive updates
-                      final unreadMessages = notificationService.getUnreadMessageCountForBinSync(binId);
-                      final unreadActivities = notificationService.getUnreadActivityCountForBinSync(binId);
-                      final unreadJoinRequests = notificationService.getUnreadJoinRequestCountForBinSync(binId);
-                      
+                      final unreadMessages = notificationService
+                          .getUnreadMessageCountForBinSync(binId);
+                      final unreadActivities = notificationService
+                          .getUnreadActivityCountForBinSync(binId);
+                      final unreadJoinRequests = notificationService
+                          .getUnreadJoinRequestCountForBinSync(binId);
+
                       return BinCard(
                         bin: bin,
                         onTap: () => _openBin(binId),
@@ -529,37 +538,38 @@ class _MainScreenState extends State<MainScreen> {
     final currentUserId = _taskService.currentUserId;
     final now = DateTime.now();
     final thirtyDaysAgo = now.subtract(const Duration(days: 30));
-    
+
     final newTasks = _tasks.where((t) => t['status'] == 'open').toList();
     final ongoingTasks = _tasks
         .where((t) =>
             t['status'] == 'accepted' &&
-            (t['accepted_by'] == currentUserId || t['user_id'] == currentUserId))
+            (t['accepted_by'] == currentUserId ||
+                t['user_id'] == currentUserId))
         .toList();
-    
+
     // Completed tasks from last 30 days - separate into pending and checked/reverted
-    final allCompletedTasks = _tasks
-        .where((t) {
-          if (t['status'] != 'completed') return false;
-          final completedAt = t['completed_at'] as String?;
-          if (completedAt == null) return false;
-          try {
-            final completedDate = DateTime.parse(completedAt);
-            return completedDate.isAfter(thirtyDaysAgo);
-          } catch (e) {
-            return false;
-          }
-        })
-        .toList();
-    
+    final allCompletedTasks = _tasks.where((t) {
+      if (t['status'] != 'completed') return false;
+      final completedAt = t['completed_at'] as String?;
+      if (completedAt == null) return false;
+      try {
+        final completedDate = DateTime.parse(completedAt);
+        return completedDate.isAfter(thirtyDaysAgo);
+      } catch (e) {
+        return false;
+      }
+    }).toList();
+
     // Pending check tasks (white, shown first)
     final pendingCheckTasks = allCompletedTasks
         .where((t) => t['completion_status'] == 'pending_check')
         .toList();
-    
+
     // Checked/reverted tasks (darkened green, shown second)
     final checkedRevertedTasks = allCompletedTasks
-        .where((t) => t['completion_status'] == 'checked' || t['completion_status'] == 'reverted')
+        .where((t) =>
+            t['completion_status'] == 'checked' ||
+            t['completion_status'] == 'reverted')
         .toList();
 
     return RefreshIndicator(
@@ -593,8 +603,8 @@ class _MainScreenState extends State<MainScreen> {
                             task: task,
                             bins: _bins,
                             onTap: () => _showTaskDetail(task),
-                            isDeleting:
-                                _deletingTaskIds.contains(task['id']?.toString()),
+                            isDeleting: _deletingTaskIds
+                                .contains(task['id']?.toString()),
                           )),
                     const SizedBox(height: 24),
                   ],
@@ -623,8 +633,8 @@ class _MainScreenState extends State<MainScreen> {
                             task: task,
                             bins: _bins,
                             onTap: () => _showTaskDetail(task),
-                            isDeleting:
-                                _deletingTaskIds.contains(task['id']?.toString()),
+                            isDeleting: _deletingTaskIds
+                                .contains(task['id']?.toString()),
                           )),
                     const SizedBox(height: 24),
                   ],
@@ -658,7 +668,7 @@ class _MainScreenState extends State<MainScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    
+
                     // Pending check tasks (white, shown first)
                     if (pendingCheckTasks.isNotEmpty) ...[
                       ...pendingCheckTasks.map((task) => TaskCard(
@@ -667,12 +677,12 @@ class _MainScreenState extends State<MainScreen> {
                             onTap: () => _showTaskDetail(task),
                             isCompleted: true,
                             isPendingCheck: true, // White background
-                            isDeleting:
-                                _deletingTaskIds.contains(task['id']?.toString()),
+                            isDeleting: _deletingTaskIds
+                                .contains(task['id']?.toString()),
                           )),
                       const SizedBox(height: 12),
                     ],
-                    
+
                     // Checked/reverted tasks (darkened green, shown second)
                     if (checkedRevertedTasks.isNotEmpty)
                       ...checkedRevertedTasks.map((task) => TaskCard(
@@ -681,11 +691,12 @@ class _MainScreenState extends State<MainScreen> {
                             onTap: () => _showTaskDetail(task),
                             isCompleted: true,
                             isPendingCheck: false, // Darkened green
-                            isDeleting:
-                                _deletingTaskIds.contains(task['id']?.toString()),
+                            isDeleting: _deletingTaskIds
+                                .contains(task['id']?.toString()),
                           )),
-                    
-                    if (pendingCheckTasks.isEmpty && checkedRevertedTasks.isEmpty)
+
+                    if (pendingCheckTasks.isEmpty &&
+                        checkedRevertedTasks.isEmpty)
                       const Text(
                         'No completed tasks in the last 30 days.',
                         style: TextStyle(color: AppTheme.textGray),
@@ -834,13 +845,19 @@ class _MainScreenState extends State<MainScreen> {
                 // 1. Deep link: compostkaki://bin/{uuid}
                 // 2. Web URL: https://.../bin/{uuid} or /bin/{uuid}
                 // 3. Just UUID: {uuid}
-                final deepLinkMatch = RegExp(r'compostkaki://bin/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})').firstMatch(rawValue);
+                final deepLinkMatch = RegExp(
+                        r'compostkaki://bin/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})')
+                    .firstMatch(rawValue);
                 if (deepLinkMatch != null) return deepLinkMatch.group(1);
-                
-                final urlMatch = RegExp(r'/bin/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})').firstMatch(rawValue);
+
+                final urlMatch = RegExp(
+                        r'/bin/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})')
+                    .firstMatch(rawValue);
                 if (urlMatch != null) return urlMatch.group(1);
-                
-                final uuidMatch = RegExp(r'^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$').firstMatch(rawValue);
+
+                final uuidMatch = RegExp(
+                        r'^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$')
+                    .firstMatch(rawValue);
                 if (uuidMatch != null) return uuidMatch.group(1);
               }
             }
@@ -853,7 +870,8 @@ class _MainScreenState extends State<MainScreen> {
               rethrow;
             }
             // Otherwise, wrap other errors
-            throw Exception('Failed to read QR code: ${e.toString().replaceFirst('Exception: ', '')}');
+            throw Exception(
+                'Failed to read QR code: ${e.toString().replaceFirst('Exception: ', '')}');
           }
         },
       ),
@@ -925,9 +943,8 @@ class _MainScreenState extends State<MainScreen> {
 
   void _showPastHistory(BuildContext context) {
     // Get all completed tasks (not just last 30 days)
-    final allCompletedTasks = _tasks
-        .where((t) => t['status'] == 'completed')
-        .toList();
+    final allCompletedTasks =
+        _tasks.where((t) => t['status'] == 'completed').toList();
 
     showDialog(
       context: context,
@@ -942,7 +959,8 @@ class _MainScreenState extends State<MainScreen> {
                   itemCount: allCompletedTasks.length,
                   itemBuilder: (context, index) {
                     final task = allCompletedTasks[index];
-                    final completionStatus = task['completion_status'] as String?;
+                    final completionStatus =
+                        task['completion_status'] as String?;
                     return TaskCard(
                       task: task,
                       bins: _bins,
@@ -971,7 +989,7 @@ class _MainScreenState extends State<MainScreen> {
   void _showTaskDetail(Map<String, dynamic> task) {
     // Capture parent context before showing dialog
     final parentContext = context;
-    
+
     showDialog(
       context: context,
       builder: (dialogContext) => _TaskDetailDialog(
@@ -984,7 +1002,7 @@ class _MainScreenState extends State<MainScreen> {
             xpAmount: 5, // Show immediately with expected value
             isLevelUp: false,
           );
-          
+
           final xpResult = await _taskService.acceptTask(task['id']);
           _updateLocalTask(task['id'], {
             'status': 'accepted',
@@ -1011,9 +1029,10 @@ class _MainScreenState extends State<MainScreen> {
             await Future.delayed(const Duration(milliseconds: 200));
             // Show celebration using parent context
             if (xpResult != null && parentContext.mounted) {
-              final xpGained = (xpResult['xpGained'] as int?) ?? 25; // Default to 25 for task completion
+              final xpGained = (xpResult['xpGained'] as int?) ??
+                  25; // Default to 25 for task completion
               final isLevelUp = (xpResult['levelUp'] as bool?) ?? false;
-              
+
               if (xpGained > 0) {
                 showXPFloatingAnimation(
                   parentContext,
@@ -1031,7 +1050,7 @@ class _MainScreenState extends State<MainScreen> {
             xpAmount: -5, // Show penalty immediately
             isLevelUp: false,
           );
-          
+
           final xpResult = await _taskService.unassignTask(task['id']);
           _updateLocalTask(task['id'], {
             'status': 'open',
@@ -1044,9 +1063,9 @@ class _MainScreenState extends State<MainScreen> {
             Navigator.pop(dialogContext);
           }
         },
-        onCheck: task['status'] == 'completed' && 
-                 task['completion_status'] == 'pending_check' &&
-                 task['user_id'] == _taskService.currentUserId
+        onCheck: task['status'] == 'completed' &&
+                task['completion_status'] == 'pending_check' &&
+                task['user_id'] == _taskService.currentUserId
             ? () async {
                 try {
                   await _taskService.checkTask(task['id']);
@@ -1075,9 +1094,9 @@ class _MainScreenState extends State<MainScreen> {
                 }
               }
             : null,
-        onRevert: task['status'] == 'completed' && 
-                  task['completion_status'] == 'pending_check' &&
-                  task['user_id'] == _taskService.currentUserId
+        onRevert: task['status'] == 'completed' &&
+                task['completion_status'] == 'pending_check' &&
+                task['user_id'] == _taskService.currentUserId
             ? () async {
                 try {
                   final xpResult = await _taskService.revertTask(task['id']);
@@ -1092,7 +1111,8 @@ class _MainScreenState extends State<MainScreen> {
                     _loadTasks();
                     ScaffoldMessenger.of(parentContext).showSnackBar(
                       const SnackBar(
-                        content: Text('Task reverted. XP has been subtracted from completer.'),
+                        content: Text(
+                            'Task reverted. XP has been subtracted from completer.'),
                         backgroundColor: Colors.orange,
                       ),
                     );
@@ -1110,7 +1130,7 @@ class _MainScreenState extends State<MainScreen> {
               }
             : null,
         onDelete: task['user_id'] == _taskService.currentUserId &&
-                task['status'] == 'open'
+                task['status'] != 'completed'
             ? () async {
                 await _deleteTaskWithAnimation(task);
               }
@@ -1134,9 +1154,8 @@ class _MainScreenState extends State<MainScreen> {
     final originalDescription = (task['description'] as String? ?? '').trim();
     final split = originalDescription.split('\n');
     final initialTitle = split.isNotEmpty ? split.first.trim() : '';
-    final initialContent = split.length > 1
-        ? split.sublist(1).join('\n').trim()
-        : '';
+    final initialContent =
+        split.length > 1 ? split.sublist(1).join('\n').trim() : '';
 
     final titleController = TextEditingController(text: initialTitle);
     final contentController = TextEditingController(text: initialContent);
@@ -1266,7 +1285,8 @@ class _MainScreenState extends State<MainScreen> {
                       const SizedBox(height: 8),
                       const Text(
                         'Bin cannot be changed.',
-                        style: TextStyle(fontSize: 12, color: AppTheme.textGray),
+                        style:
+                            TextStyle(fontSize: 12, color: AppTheme.textGray),
                       ),
                       if (errorText != null) ...[
                         const SizedBox(height: 8),
@@ -1281,7 +1301,8 @@ class _MainScreenState extends State<MainScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: isSaving ? null : () => Navigator.pop(dialogContext),
+                  onPressed:
+                      isSaving ? null : () => Navigator.pop(dialogContext),
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
@@ -1352,8 +1373,8 @@ class _MainScreenState extends State<MainScreen> {
           children: [
             Consumer<NotificationService>(
               builder: (context, notificationService, _) {
-                final homeBadgeCount = notificationService.unreadMessages + 
-                                      notificationService.unreadJoinRequests;
+                final homeBadgeCount = notificationService.unreadMessages +
+                    notificationService.unreadJoinRequests;
                 // Debug: Print home tab badge count
                 if (homeBadgeCount > 0) {
                   debugPrint('Home tab badge count: $homeBadgeCount '
@@ -1403,7 +1424,7 @@ class _MainScreenState extends State<MainScreen> {
     final isSelected = _selectedIndex == index;
     final color = isSelected ? AppTheme.primaryGreen : AppTheme.textGray;
     final notificationService = context.watch<NotificationService>();
-    
+
     return Expanded(
       child: InkWell(
         onTap: onTapOverride ??
@@ -1493,7 +1514,8 @@ class _MainScreenState extends State<MainScreen> {
                       subtitle: Text(bin['location'] as String? ?? ''),
                       onTap: () async {
                         Navigator.pop(sheetContext);
-                        final result = await context.push('/bin/${bin['id']}/log');
+                        final result =
+                            await context.push('/bin/${bin['id']}/log');
                         if (result == true && mounted) {
                           _refreshBinsOnly();
                         }
@@ -1718,7 +1740,9 @@ class _JoinBinDialogState extends State<_JoinBinDialog> {
                               }
                             } catch (e) {
                               setState(() {
-                                _error = e.toString().replaceFirst('Exception: ', '');
+                                _error = e
+                                    .toString()
+                                    .replaceFirst('Exception: ', '');
                               });
                             }
                           },
@@ -1780,6 +1804,115 @@ class _TaskDetailDialog extends StatelessWidget {
     this.onEdit,
   });
 
+  ({String title, String details}) _parseTaskDescription(String raw) {
+    final normalized = raw.trim();
+    if (normalized.isEmpty) {
+      return (title: 'Task', details: '');
+    }
+
+    final lines =
+        normalized.split('\n').map((line) => line.trimRight()).toList();
+    final firstNonEmptyIndex =
+        lines.indexWhere((line) => line.trim().isNotEmpty);
+    if (firstNonEmptyIndex == -1) {
+      return (title: 'Task', details: '');
+    }
+
+    final title = lines[firstNonEmptyIndex].trim();
+    var details = lines.sublist(firstNonEmptyIndex + 1).join('\n').trim();
+
+    // Normalize legacy/new task formats so dialog content avoids duplicate headings.
+    final detailParts =
+        details.split('\n').map((line) => line.trimRight()).toList();
+    if (detailParts.isNotEmpty &&
+        detailParts.first.trim().toLowerCase() == 'additional detail') {
+      detailParts.removeAt(0);
+      details = detailParts.join('\n').trim();
+    }
+
+    return (title: title, details: details);
+  }
+
+  Color _getUrgencyColor(String? urgency) {
+    switch (urgency?.toLowerCase()) {
+      case 'high':
+        return AppTheme.urgencyHigh;
+      case 'normal':
+        return AppTheme.urgencyNormal;
+      case 'low':
+      default:
+        return AppTheme.urgencyLow;
+    }
+  }
+
+  Color _getUrgencyTextColor(String? urgency) {
+    switch (urgency?.toLowerCase()) {
+      case 'high':
+        return AppTheme.urgencyHighText;
+      case 'normal':
+        return AppTheme.urgencyNormalText;
+      case 'low':
+      default:
+        return Colors.black87;
+    }
+  }
+
+  Color _statusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return AppTheme.primaryGreen.withOpacity(0.15);
+      case 'accepted':
+        return Colors.blue.withOpacity(0.14);
+      default:
+        return AppTheme.backgroundGray;
+    }
+  }
+
+  ({String text, Color color}) _getTimeLeft(String? dueDateRaw) {
+    if (dueDateRaw == null || dueDateRaw.trim().isEmpty) {
+      return (text: '', color: AppTheme.textGray);
+    }
+
+    try {
+      final due = DateTime.parse(dueDateRaw).toLocal();
+      final now = DateTime.now();
+      final diff = due.difference(now);
+      final isOverdue = diff.isNegative;
+      final absDiff = isOverdue ? now.difference(due) : diff;
+
+      final days = absDiff.inDays;
+      final hours = absDiff.inHours % 24;
+      final minutes = absDiff.inMinutes % 60;
+
+      String spanText;
+      if (days > 0) {
+        spanText = '${days}d ${hours}h';
+      } else if (absDiff.inHours > 0) {
+        spanText = '${absDiff.inHours}h ${minutes}m';
+      } else {
+        spanText = '${absDiff.inMinutes.clamp(0, 59)}m';
+      }
+
+      if (isOverdue) {
+        return (text: 'Overdue by $spanText', color: Colors.red.shade700);
+      }
+      if (absDiff.inHours <= 24) {
+        return (text: '$spanText left', color: Colors.orange.shade700);
+      }
+      return (text: '$spanText left', color: AppTheme.primaryGreen);
+    } catch (_) {
+      return (text: '', color: AppTheme.textGray);
+    }
+  }
+
+  String _initialsFromProfile(Map<String, dynamic>? profile) {
+    final first = (profile?['first_name'] as String? ?? '').trim();
+    final last = (profile?['last_name'] as String? ?? '').trim();
+    final a = first.isNotEmpty ? first[0] : 'U';
+    final b = last.isNotEmpty ? last[0] : '';
+    return '$a$b'.toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     final binId = task['bin_id'] as String?;
@@ -1788,15 +1921,19 @@ class _TaskDetailDialog extends StatelessWidget {
       orElse: () => {'name': 'Unknown'},
     );
     final description = task['description'] as String? ?? '';
+    final parsedDescription = _parseTaskDescription(description);
     final urgency = task['urgency'] as String? ?? 'Normal';
     final effort = task['effort'] as String? ?? '';
     final status = task['status'] as String? ?? 'open';
     final completionStatus = task['completion_status'] as String?;
     final profile = task['profiles'] as Map<String, dynamic>?;
+    final posterAvatarUrl = profile?['avatar_url'] as String?;
     final firstName = profile?['first_name'] as String? ?? 'Unknown';
     final taskPosterId = task['user_id'] as String?;
     final acceptedBy = task['accepted_by'];
-    final assignedToProfile = task['assigned_to_profile'] as Map<String, dynamic>?;
+    final assignedToProfile =
+        task['assigned_to_profile'] as Map<String, dynamic>?;
+    final assignedAvatarUrl = assignedToProfile?['avatar_url'] as String?;
     // Get current user ID from TaskService
     final taskService = TaskService();
     final currentUserId = taskService.currentUserId;
@@ -1805,182 +1942,184 @@ class _TaskDetailDialog extends StatelessWidget {
     final assignedToName = assignedFirstName != null && assignedLastName != null
         ? '$assignedFirstName $assignedLastName'.trim()
         : assignedFirstName ?? 'Anyone';
-    final acceptedByProfile = task['accepted_by_profile'] as Map<String, dynamic>?;
+    final acceptedByProfile =
+        task['accepted_by_profile'] as Map<String, dynamic>?;
+    final acceptedAvatarUrl = acceptedByProfile?['avatar_url'] as String?;
     final acceptedByFirstName = acceptedByProfile?['first_name'] as String?;
     final acceptedByLastName = acceptedByProfile?['last_name'] as String?;
-    final acceptedByName = acceptedByFirstName != null && acceptedByLastName != null
-        ? '$acceptedByFirstName $acceptedByLastName'.trim()
-        : acceptedByFirstName ?? 'Unknown';
+    final acceptedByName =
+        acceptedByFirstName != null && acceptedByLastName != null
+            ? '$acceptedByFirstName $acceptedByLastName'.trim()
+            : acceptedByFirstName ?? 'Unknown';
+    final isTimeSensitive = task['is_time_sensitive'] == true;
+    final dueDateRaw = task['due_date'] as String?;
+    final timeLeft = _getTimeLeft(dueDateRaw);
 
     return AlertDialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
-      title: Text(
-        description,
-        style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: AppTheme.primaryGreen,
-        ),
+      title: Row(
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: AppTheme.primaryGreen.withOpacity(0.15),
+            backgroundImage:
+                posterAvatarUrl != null && posterAvatarUrl.trim().isNotEmpty
+                    ? NetworkImage(posterAvatarUrl)
+                    : null,
+            child: (posterAvatarUrl == null || posterAvatarUrl.trim().isEmpty)
+                ? Text(
+                    _initialsFromProfile(profile),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryGreen,
+                    ),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              parsedDescription.title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primaryGreen,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: _getUrgencyColor(urgency),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              urgency,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: _getUrgencyTextColor(urgency),
+              ),
+            ),
+          ),
+        ],
       ),
       content: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Bin name with color differentiation
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
-                const Text(
-                  'Bin: ',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.textGray,
-                    fontWeight: FontWeight.w500,
-                  ),
+                _TaskDetailMetaChip(
+                  icon: Icons.eco_outlined,
+                  label: bin['name'] as String? ?? 'Unknown',
                 ),
-                Text(
-                  bin['name'] as String? ?? 'Unknown',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryGreen,
-                  ),
+                _TaskDetailMetaChip(
+                  icon: Icons.person_outline,
+                  label: assignedToName,
+                  avatarUrl: assignedAvatarUrl,
                 ),
+                _TaskDetailMetaChip(
+                  icon: Icons.flag_outlined,
+                  label: status.toUpperCase(),
+                  backgroundColor: _statusColor(status),
+                ),
+                if (effort.trim().isNotEmpty)
+                  _TaskDetailMetaChip(
+                    icon: Icons.bolt_outlined,
+                    label: effort,
+                  ),
               ],
             ),
+            const SizedBox(height: 10),
+            Text(
+              'Posted by $firstName',
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppTheme.textGray,
+              ),
+            ),
+            if (isTimeSensitive && timeLeft.text.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: timeLeft.color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.schedule, size: 12, color: timeLeft.color),
+                    const SizedBox(width: 4),
+                    Text(
+                      timeLeft.text,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: timeLeft.color,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
-            
-            // Urgency as plain text
-            Row(
-              children: [
-                const Text(
-                  'Urgency: ',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.textGray,
-                    fontWeight: FontWeight.w500,
-                  ),
+            if (parsedDescription.details.isNotEmpty) ...[
+              const Text(
+                'Additional details',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppTheme.textGray,
+                  fontWeight: FontWeight.w600,
                 ),
-                Text(
-                  urgency,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                parsedDescription.details,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.black87,
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            
-            // Effort as plain text
-            Row(
-              children: [
-                const Text(
-                  'Effort: ',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.textGray,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  effort,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            
-            // Status as plain text
-            Row(
-              children: [
-                const Text(
-                  'Status: ',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.textGray,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  status.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            
-            // Posted by
-            Row(
-              children: [
-                const Text(
-                  'Posted by: ',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.textGray,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  firstName,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Text(
-                  'Assigned to: ',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.textGray,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  assignedToName,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
-            ),
-            
-            // Taken by (only show if task is accepted)
+              ),
+              const SizedBox(height: 12),
+            ],
             if (status == 'accepted' && acceptedBy != null) ...[
               const SizedBox(height: 12),
               Row(
                 children: [
-                  const Text(
-                    'Taken by: ',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppTheme.textGray,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  CircleAvatar(
+                    radius: 10,
+                    backgroundColor: AppTheme.primaryGreen.withOpacity(0.12),
+                    backgroundImage: acceptedAvatarUrl != null &&
+                            acceptedAvatarUrl.trim().isNotEmpty
+                        ? NetworkImage(acceptedAvatarUrl)
+                        : null,
+                    child: (acceptedAvatarUrl == null ||
+                            acceptedAvatarUrl.trim().isEmpty)
+                        ? Text(
+                            acceptedByName.isNotEmpty
+                                ? acceptedByName[0].toUpperCase()
+                                : 'U',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryGreen,
+                            ),
+                          )
+                        : null,
                   ),
+                  const SizedBox(width: 6),
                   Text(
-                    acceptedByName,
+                    'Taken by $acceptedByName',
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.primaryGreen,
                     ),
@@ -1992,18 +2131,32 @@ class _TaskDetailDialog extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  const Text(
-                    'Completed by: ',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppTheme.textGray,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  CircleAvatar(
+                    radius: 10,
+                    backgroundColor: AppTheme.primaryGreen.withOpacity(0.12),
+                    backgroundImage: acceptedAvatarUrl != null &&
+                            acceptedAvatarUrl.trim().isNotEmpty
+                        ? NetworkImage(acceptedAvatarUrl)
+                        : null,
+                    child: (acceptedAvatarUrl == null ||
+                            acceptedAvatarUrl.trim().isEmpty)
+                        ? Text(
+                            acceptedByName.isNotEmpty
+                                ? acceptedByName[0].toUpperCase()
+                                : 'U',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryGreen,
+                            ),
+                          )
+                        : null,
                   ),
+                  const SizedBox(width: 6),
                   Text(
-                    acceptedByName,
+                    'Completed by $acceptedByName',
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.primaryGreen,
                     ),
@@ -2058,7 +2211,7 @@ class _TaskDetailDialog extends StatelessWidget {
                 const SizedBox(height: 8),
               ],
               // Show Checked and Revert buttons for completed tasks (only for task owner)
-              if (status == 'completed' && 
+              if (status == 'completed' &&
                   completionStatus == 'pending_check' &&
                   taskPosterId == currentUserId &&
                   onCheck != null &&
@@ -2160,6 +2313,53 @@ class _TaskDetailDialog extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _TaskDetailMetaChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color? backgroundColor;
+  final String? avatarUrl;
+
+  const _TaskDetailMetaChip({
+    required this.icon,
+    required this.label,
+    this.backgroundColor,
+    this.avatarUrl,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: backgroundColor ?? AppTheme.backgroundGray,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (avatarUrl != null && avatarUrl!.trim().isNotEmpty)
+            CircleAvatar(
+              radius: 7,
+              backgroundImage: NetworkImage(avatarUrl!),
+              backgroundColor: Colors.transparent,
+            )
+          else
+            Icon(icon, size: 12, color: AppTheme.textGray),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppTheme.textGray,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

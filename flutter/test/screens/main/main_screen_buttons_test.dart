@@ -173,7 +173,8 @@ void main() {
         expect(shouldCloseDialogFirst, true);
       });
 
-      test('should allow any authenticated member to complete accepted task', () {
+      test('should allow any authenticated member to complete accepted task',
+          () {
         String status = 'accepted';
         String? currentUserId = 'user-789';
         bool canComplete = status == 'accepted' && currentUserId != null;
@@ -366,7 +367,8 @@ void main() {
         expect(task['description'], 'Test task');
       });
 
-      test('should show edit button for task owner when task is not completed', () {
+      test('should show edit button for task owner when task is not completed',
+          () {
         String? taskOwnerId = 'user-123';
         String? currentUserId = 'user-123';
         String status = 'open';
@@ -427,7 +429,16 @@ void main() {
         String? taskOwnerId = 'user-123';
         String? currentUserId = 'user-123';
         String status = 'open';
-        bool canDelete = taskOwnerId == currentUserId && status == 'open';
+        bool canDelete = taskOwnerId == currentUserId && status != 'completed';
+
+        expect(canDelete, true);
+      });
+
+      test('should show delete option for owner on accepted tasks', () {
+        String? taskOwnerId = 'user-123';
+        String? currentUserId = 'user-123';
+        String status = 'accepted';
+        bool canDelete = taskOwnerId == currentUserId && status != 'completed';
 
         expect(canDelete, true);
       });
@@ -461,13 +472,15 @@ void main() {
           {'id': 'task-2', 'description': 'Second task'},
         ];
         const deletingTaskId = 'task-1';
-        final originalIndex = tasks.indexWhere((t) => t['id'] == deletingTaskId);
+        final originalIndex =
+            tasks.indexWhere((t) => t['id'] == deletingTaskId);
         final originalTask = Map<String, dynamic>.from(tasks[originalIndex]);
 
         tasks.removeWhere((t) => t['id'] == deletingTaskId);
 
-        final safeIndex =
-            originalIndex < 0 || originalIndex > tasks.length ? tasks.length : originalIndex;
+        final safeIndex = originalIndex < 0 || originalIndex > tasks.length
+            ? tasks.length
+            : originalIndex;
         tasks.insert(safeIndex, originalTask);
 
         expect(tasks.length, 2);
@@ -482,7 +495,8 @@ void main() {
         expect(shouldStartDelete, false);
       });
 
-      test('should pop task detail dialog exactly once to avoid navigator lock', () {
+      test('should pop task detail dialog exactly once to avoid navigator lock',
+          () {
         int popCalls = 0;
 
         void detailDialogDeleteButtonPressed() {
@@ -649,4 +663,3 @@ void main() {
     });
   });
 }
-
