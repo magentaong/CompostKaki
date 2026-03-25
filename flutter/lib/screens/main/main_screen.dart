@@ -2186,7 +2186,9 @@ class _TaskDetailDialog extends StatelessWidget {
                 ),
               ),
             ],
-            if (isTimeSensitive && timeLeft.text.isNotEmpty) ...[
+            if (isTimeSensitive &&
+                timeLeft.text.isNotEmpty &&
+                status != 'completed') ...[
               const SizedBox(height: 8),
               _TaskDetailInfoRow(
                 label: 'Time left',

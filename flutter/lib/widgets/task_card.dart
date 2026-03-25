@@ -402,7 +402,9 @@ class TaskCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      if (isTimeSensitive && timeLeft.text.isNotEmpty) ...[
+                      if (isTimeSensitive &&
+                          timeLeft.text.isNotEmpty &&
+                          status != 'completed') ...[
                         const SizedBox(height: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(

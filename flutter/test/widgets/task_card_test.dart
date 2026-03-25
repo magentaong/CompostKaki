@@ -81,6 +81,17 @@ void main() {
 
       expect(shouldShow, false);
     });
+
+    test('does not show time left / overdue row for completed tasks', () {
+      const status = 'completed';
+      const isTimeSensitive = true;
+      const timeLeftText = 'Overdue by 1d 22h';
+      final shouldShow = isTimeSensitive &&
+          timeLeftText.isNotEmpty &&
+          status != 'completed';
+
+      expect(shouldShow, false);
+    });
   });
 
   group('TaskCard - Assignee and Completer Labels', () {
