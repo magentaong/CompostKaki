@@ -385,6 +385,24 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                                     ),
                             ),
+                            const SizedBox(height: 12),
+                            OutlinedButton(
+                              onPressed: _isLoading
+                                  ? null
+                                  : () => context.go('/login'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppTheme.primaryGreen,
+                                side: const BorderSide(color: AppTheme.primaryGreen),
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: const Text(
+                                'Cancel',
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                              ),
+                            ),
                           ],
 
                           // Step 3: Password input
