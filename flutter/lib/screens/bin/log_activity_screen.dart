@@ -136,13 +136,13 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
     final status = _bin!['bin_status'] as String? ?? 'active';
 
     if (status == 'resting') {
-      // Only allow flipping when resting
-      return ['Turn Pile'];
+      // No new materials during resting; turning, watering, and monitoring are OK.
+      return ['Turn Pile', 'Add Water', 'Monitor'];
     }
 
     if (status == 'matured') {
-      // No actions allowed when matured
-      return [];
+      // Mature compost: maintenance only (no turning or new materials).
+      return ['Add Water', 'Monitor'];
     }
 
     // Active - all actions allowed
@@ -227,6 +227,19 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
     }
   }
 
+  bool _isActivityTypeQueued(String type) {
+    return _queuedActivities.any((d) => d.type == type);
+  }
+
+  /// In Multiple mode, each activity type may appear at most once in the queue.
+  bool _canAddCurrentToQueue() {
+    if (!_canSubmit()) return false;
+    final t = _selectedType;
+    if (t == null) return false;
+    if (_isActivityTypeQueued(t)) return false;
+    return true;
+  }
+
   bool _canSubmit() {
     if (_selectedType == null) return false;
     if (_selectedType == 'Add Materials') {
@@ -234,8 +247,13 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
       return _hasRequiredMissingReasons();
     }
     if (_selectedType == 'Monitor') {
-      return _temperatureController.text.isNotEmpty &&
-          _selectedMoisture != null;
+      final tempTrim = _temperatureController.text.trim();
+      final hasTemp = tempTrim.isNotEmpty;
+      final hasMoisture = _selectedMoisture != null;
+      if (!hasTemp && !hasMoisture) return false;
+      // Temperature alone must be a valid integer; if moisture is set, either-or is satisfied.
+      if (hasTemp && !hasMoisture && int.tryParse(tempTrim) == null) return false;
+      return true;
     }
     return true;
   }
@@ -453,8 +471,33 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
   }
 
   Future<void> _addCurrentToQueue() async {
+    final t = _selectedType;
+    if (t != null && _isActivityTypeQueued(t)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '"$t" is already in your list. Remove it first to add another.',
+          ),
+        ),
+      );
+      return;
+    }
+
     final draft = await _buildDraftFromCurrent();
     if (draft == null) return;
+
+    if (_isActivityTypeQueued(draft.type)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '"${draft.type}" is already in your list. Remove it first to add another.',
+          ),
+        ),
+      );
+      return;
+    }
 
     if (!mounted) return;
     setState(() {
@@ -611,7 +654,7 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Bin is matured. No actions allowed.',
+                                'Bin is matured. You can add water or monitor; turning the pile and adding materials are disabled.',
                                 style: TextStyle(color: Colors.purple[700]),
                               ),
                             ),
@@ -633,7 +676,7 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Bin is resting. Only flipping is allowed.',
+                                'Bin is resting. Adding materials is disabled; you can turn the pile, add water, or monitor.',
                                 style: TextStyle(color: Colors.orange[700]),
                               ),
                             ),
@@ -715,11 +758,26 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                           default:
                             icon = Icons.info;
                         }
+                        final alreadyQueued =
+                            _isBatchMode && _isActivityTypeQueued(type);
                         return _ActionButton(
                           label: type,
                           icon: icon,
                           isSelected: _selectedType == type,
-                          onTap: () => _selectType(type),
+                          isMuted: alreadyQueued,
+                          onTap: () {
+                            if (_isBatchMode && _isActivityTypeQueued(type)) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    '"$type" is already in your list. Remove it first to add another.',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+                            _selectType(type);
+                          },
                         );
                       }).toList(),
                     ),
@@ -951,8 +1009,15 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                     setState(() {});
                   },
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter temperature';
+                    final trimmed = value?.trim() ?? '';
+                    final hasTemp = trimmed.isNotEmpty;
+                    final hasMoisture = _selectedMoisture != null;
+                    if (!hasTemp && !hasMoisture) {
+                      return 'Enter temperature or select moisture level';
+                    }
+                    if (hasTemp && int.tryParse(trimmed) == null) {
+                      if (hasMoisture) return null;
+                      return 'Enter a valid whole number';
                     }
                     return null;
                   },
@@ -974,13 +1039,12 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                     setState(() {
                       _selectedMoisture = value;
                     });
+                    // Re-run temperature validator (either-or with moisture).
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      _formKey.currentState?.validate();
+                    });
                   },
-                  validator: (value) {
-                    if (value == null) {
-                      return 'Please select moisture level';
-                    }
-                    return null;
-                  },
+                  validator: (_) => null,
                 ),
                 const SizedBox(height: 16),
               ],
@@ -1031,8 +1095,9 @@ class _LogActivityScreenState extends State<LogActivityScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed:
-                        _isLoading || !_canSubmit() ? null : _addCurrentToQueue,
+                    onPressed: _isLoading || !_canAddCurrentToQueue()
+                        ? null
+                        : _addCurrentToQueue,
                     icon: const Icon(Icons.playlist_add),
                     label: const Text('Add Activity To List'),
                   ),
@@ -1087,44 +1152,49 @@ class _ActionButton extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool isSelected;
+  final bool isMuted;
   final VoidCallback onTap;
 
   const _ActionButton({
     required this.label,
     required this.icon,
     required this.isSelected,
+    this.isMuted = false,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        decoration: BoxDecoration(
-          color:
-              isSelected ? AppTheme.primaryGreen : AppTheme.primaryGreenLight,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 48,
-              color: isSelected ? Colors.white : AppTheme.primaryGreen,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
+    return Opacity(
+      opacity: isMuted ? 0.45 : 1.0,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          decoration: BoxDecoration(
+            color:
+                isSelected ? AppTheme.primaryGreen : AppTheme.primaryGreenLight,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 48,
                 color: isSelected ? Colors.white : AppTheme.primaryGreen,
               ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? Colors.white : AppTheme.primaryGreen,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -244,36 +244,57 @@ void main() {
         expect(allAllowed, true);
       });
 
-      test('should allow log action when status is resting', () {
-        Map<String, dynamic> bin = {'bin_status': 'resting'};
-        String action = 'log';
-        bool shouldAllow = action == 'log' || action == 'flip' || action == 'turn_pile' || action == 'Turn Pile';
+      bool restingAllows(String action) {
+        if (action == 'log') return true;
+        const allowed = {
+          'flip',
+          'turn_pile',
+          'Turn Pile',
+          'Add Water',
+          'add_water',
+          'Monitor',
+          'monitor',
+        };
+        return allowed.contains(action);
+      }
 
-        expect(shouldAllow, true);
+      test('should allow log action when status is resting', () {
+        expect(restingAllows('log'), true);
       });
 
       test('should allow Turn Pile when status is resting', () {
-        Map<String, dynamic> bin = {'bin_status': 'resting'};
-        String action = 'Turn Pile';
-        bool shouldAllow = action == 'log' || action == 'flip' || action == 'turn_pile' || action == 'Turn Pile';
-
-        expect(shouldAllow, true);
+        expect(restingAllows('Turn Pile'), true);
       });
 
-      test('should not allow monitor when status is resting', () {
-        Map<String, dynamic> bin = {'bin_status': 'resting'};
-        String action = 'monitor';
-        bool shouldAllow = action == 'log' || action == 'flip' || action == 'turn_pile' || action == 'Turn Pile';
-
-        expect(shouldAllow, false);
+      test('should allow Add Water and Monitor when status is resting', () {
+        expect(restingAllows('Add Water'), true);
+        expect(restingAllows('Monitor'), true);
       });
 
-      test('should not allow any actions when status is matured', () {
-        Map<String, dynamic> bin = {'bin_status': 'matured'};
-        String action = 'log';
-        bool shouldAllow = false; // No actions allowed when matured
+      test('should not allow Add Materials when status is resting', () {
+        expect(restingAllows('Add Materials'), false);
+      });
 
-        expect(shouldAllow, false);
+      bool maturedAllows(String action) {
+        if (action == 'log') return true;
+        const allowed = {
+          'Add Water',
+          'add_water',
+          'Monitor',
+          'monitor',
+        };
+        return allowed.contains(action);
+      }
+
+      test('should allow log, add water, and monitor when status is matured', () {
+        expect(maturedAllows('log'), true);
+        expect(maturedAllows('Add Water'), true);
+        expect(maturedAllows('Monitor'), true);
+      });
+
+      test('should not allow turn pile or add materials when status is matured', () {
+        expect(maturedAllows('Turn Pile'), false);
+        expect(maturedAllows('Add Materials'), false);
       });
 
       test('should default to active if bin_status is null', () {
@@ -284,19 +305,11 @@ void main() {
       });
 
       test('should handle flip action alias', () {
-        Map<String, dynamic> bin = {'bin_status': 'resting'};
-        String action = 'flip';
-        bool shouldAllow = action == 'log' || action == 'flip' || action == 'turn_pile' || action == 'Turn Pile';
-
-        expect(shouldAllow, true);
+        expect(restingAllows('flip'), true);
       });
 
       test('should handle turn_pile action alias', () {
-        Map<String, dynamic> bin = {'bin_status': 'resting'};
-        String action = 'turn_pile';
-        bool shouldAllow = action == 'log' || action == 'flip' || action == 'turn_pile' || action == 'Turn Pile';
-
-        expect(shouldAllow, true);
+        expect(restingAllows('turn_pile'), true);
       });
     });
 

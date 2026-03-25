@@ -816,10 +816,12 @@ class _BinChatConversationScreenState extends State<BinChatConversationScreen> {
     }
   }
 
-  String _getChatTitle() {
-    if (_isDisposing) return 'Group Chat';
-    final binName = _bin?['name'] as String? ?? 'Bin';
-    return '$binName Group Chat';
+  String _binNameForAppBar() {
+    if (_isDisposing) return 'Chat';
+    final raw = _bin?['name'];
+    final name = raw is String ? raw.trim() : '';
+    if (name.isNotEmpty) return name;
+    return 'Chat';
   }
 
   @override
@@ -842,9 +844,26 @@ class _BinChatConversationScreenState extends State<BinChatConversationScreen> {
             }
           },
         ),
-        title: Text(_getChatTitle()),
+        centerTitle: true,
+        title: Text(
+          _binNameForAppBar(),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         backgroundColor: AppTheme.primaryGreen,
         foregroundColor: Colors.white,
+        // Theme AppBar title is primaryGreen on white; without this, title stays green on teal.
+        titleTextStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Column(
         children: [

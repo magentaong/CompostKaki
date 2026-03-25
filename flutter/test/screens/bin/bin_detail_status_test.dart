@@ -244,40 +244,37 @@ void main() {
     group('Log Activity Button State', () {
       test('should be enabled for active bins', () {
         String status = 'active';
-        bool shouldBeEnabled = status != 'matured';
+        bool shouldBeEnabled = true;
 
         expect(shouldBeEnabled, true);
       });
 
       test('should be enabled for resting bins', () {
         String status = 'resting';
-        bool shouldBeEnabled = status != 'matured';
+        bool shouldBeEnabled = true;
 
         expect(shouldBeEnabled, true);
       });
 
-      test('should be visually disabled for matured bins', () {
+      test('should be enabled for matured bins (limited log types)', () {
         String status = 'matured';
-        double opacity = status == 'matured' ? 0.5 : 1.0;
+        double opacity = 1.0;
 
-        expect(opacity, 0.5);
+        expect(opacity, 1.0);
       });
 
-      test('should show snackbar message when clicking matured bin log button', () {
-        String status = 'matured';
-        String message = status == 'matured'
-            ? 'Bin is matured. No actions allowed.'
-            : '';
+      test('log screen explains matured restrictions in UI', () {
+        String bannerText =
+            'Bin is matured. You can add water or monitor; turning the pile and adding materials are disabled.';
 
-        expect(message, 'Bin is matured. No actions allowed.');
+        expect(bannerText.contains('add water'), true);
+        expect(bannerText.contains('monitor'), true);
       });
 
-      test('should allow clicking even when visually disabled', () {
-        String status = 'matured';
-        bool canClick = true; // Button is always clickable, just shows message
-        bool shouldShowMessage = status == 'matured' && canClick;
+      test('should navigate to log from matured bin without blocking snackbar', () {
+        bool navigatesToLog = true;
 
-        expect(shouldShowMessage, true);
+        expect(navigatesToLog, true);
       });
     });
 

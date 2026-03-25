@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'supabase_service.dart';
+import '../utils/notification_navigation.dart';
 
 /// Service for managing notifications (badges and push notifications)
 class NotificationService extends ChangeNotifier {
@@ -166,6 +168,12 @@ class NotificationService extends ChangeNotifier {
 
       // Handle background messages (when app is in background)
       FirebaseMessaging.onMessageOpenedApp.listen(_handleBackgroundMessage);
+
+      // Terminated app opened by tapping a notification
+      final initialMessage = await _firebaseMessaging.getInitialMessage();
+      if (initialMessage != null) {
+        _handleBackgroundMessage(initialMessage);
+      }
     } catch (e) {
       print('Error initializing FCM: $e');
       // Don't throw - allow app to continue without push notifications
@@ -694,12 +702,23 @@ class NotificationService extends ChangeNotifier {
     // You can show an in-app notification here if needed
   }
 
-  /// Handle background message (app opened from notification)
+  /// Handle notification that opened the app from background or (via
+  /// [getInitialMessage]) from terminated state.
   void _handleBackgroundMessage(RemoteMessage message) {
     print('Background message opened: ${message.notification?.title}');
-    // Reload badge counts
     _loadBadgeCounts();
-    // Navigate to relevant screen based on message data
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _navigateFromRemoteMessage(message);
+    });
+  }
+
+  void _navigateFromRemoteMessage(RemoteMessage message) {
+    final data = message.data;
+    navigateFromNotificationPayload(
+      type: data['type'],
+      binId: data['bin_id'],
+      pushOntoStack: false,
+    );
   }
 
   /// Cleanup: unsubscribe from realtime

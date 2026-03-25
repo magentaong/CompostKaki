@@ -255,27 +255,45 @@ void main() {
       expect(validateWeight('abc'), 'Please enter a valid number');
     });
 
-    test('monitor submit logic is valid regardless input order', () {
+    test('monitor submit allows temperature or moisture (either-or)', () {
       bool canSubmitMonitor({
         required String temperature,
         required String? moisture,
       }) {
-        return temperature.isNotEmpty && moisture != null;
+        final tempTrim = temperature.trim();
+        final hasTemp = tempTrim.isNotEmpty;
+        final hasMoisture = moisture != null;
+        if (!hasTemp && !hasMoisture) return false;
+        if (hasTemp && !hasMoisture && int.tryParse(tempTrim) == null) {
+          return false;
+        }
+        return true;
       }
 
-      // Fill condition first, then temperature.
-      final conditionThenTemp = canSubmitMonitor(
-        temperature: '45',
-        moisture: 'Wet',
+      expect(
+        canSubmitMonitor(temperature: '45', moisture: 'Wet'),
+        true,
       );
-      // Fill temperature first, then condition.
-      final tempThenCondition = canSubmitMonitor(
-        temperature: '45',
-        moisture: 'Wet',
+      expect(
+        canSubmitMonitor(temperature: '45', moisture: null),
+        true,
       );
-
-      expect(conditionThenTemp, true);
-      expect(tempThenCondition, true);
+      expect(
+        canSubmitMonitor(temperature: '', moisture: 'Wet'),
+        true,
+      );
+      expect(
+        canSubmitMonitor(temperature: '', moisture: null),
+        false,
+      );
+      expect(
+        canSubmitMonitor(temperature: 'abc', moisture: null),
+        false,
+      );
+      expect(
+        canSubmitMonitor(temperature: 'abc', moisture: 'Dry'),
+        true,
+      );
     });
   });
 
@@ -519,6 +537,20 @@ void main() {
       expect(originalQueue.length, 4);
       expect(nextQueue, ['b', 'd']);
       expect(nextQueue.length, 2);
+    });
+
+    test('batch queue allows each activity type at most once', () {
+      bool canEnqueue(List<String> queuedTypes, String nextType) {
+        return !queuedTypes.contains(nextType);
+      }
+
+      final queue = <String>[];
+      expect(canEnqueue(queue, 'Add Water'), true);
+      queue.add('Add Water');
+      expect(canEnqueue(queue, 'Add Water'), false);
+      expect(canEnqueue(queue, 'Monitor'), true);
+      queue.add('Monitor');
+      expect(canEnqueue(queue, 'Monitor'), false);
     });
 
     test('reports batch summary for partial failures', () {

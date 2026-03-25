@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../services/notification_service.dart';
 import '../../services/supabase_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/notification_navigation.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -146,37 +146,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _handleNotificationTap(Map<String, dynamic> notification) async {
-    final type = notification['type'] as String?;
-    final binId = notification['bin_id']?.toString();
-
-    // Route by notification type to the most relevant screen.
-    switch (type) {
-      case 'message':
-        if (binId != null && binId.isNotEmpty) {
-          await context.push('/bin/$binId/chat');
-          return;
-        }
-        break;
-      case 'join_request':
-      case 'activity':
-      case 'bin_health':
-        if (binId != null && binId.isNotEmpty) {
-          await context.push('/bin/$binId');
-          return;
-        }
-        break;
-      case 'help_request':
-      case 'task_completed':
-      case 'task_accepted':
-      case 'task_reverted':
-        // Force refresh token so tasks tab reloads latest state.
-        final refreshToken = DateTime.now().millisecondsSinceEpoch;
-        context.go('/main?tab=tasks&refresh=$refreshToken');
-        return;
-    }
-
-    // Fallback: open home if notification doesn't include enough routing data.
-    context.go('/main');
+    navigateFromNotificationPayload(
+      type: notification['type'] as String?,
+      binId: notification['bin_id']?.toString(),
+      pushOntoStack: true,
+    );
   }
 
   @override

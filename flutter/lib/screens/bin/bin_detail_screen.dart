@@ -27,7 +27,14 @@ DateTime _getSingaporeTime() {
 class BinDetailScreen extends StatefulWidget {
   final String binId;
 
-  const BinDetailScreen({super.key, required this.binId});
+  /// When set (0 = Members, 1 = Requests), opens Manage Bin on that tab after load if user is owner.
+  final int? managePanelInitialTabIndex;
+
+  const BinDetailScreen({
+    super.key,
+    required this.binId,
+    this.managePanelInitialTabIndex,
+  });
 
   @override
   State<BinDetailScreen> createState() => _BinDetailScreenState();
@@ -53,6 +60,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
   bool _isUploadingImage = false;
   bool _isOwner = false;
   bool _hasUpdates = false;
+  bool _openedManagePanelFromIntent = false;
   bool _hasCustomImage(String? image) {
     if (image == null) return false;
     final trimmed = image.trim();
@@ -93,6 +101,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
           _isOwner = isOwner;
           _isLoading = false;
         });
+        _maybeOpenManagePanelFromIntent();
       }
     } catch (e) {
       if (mounted) {
@@ -952,7 +961,23 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
     );
   }
 
-  Future<void> _showAdminPanel(BuildContext context) async {
+  void _maybeOpenManagePanelFromIntent() {
+    if (_openedManagePanelFromIntent) return;
+    final tab = widget.managePanelInitialTabIndex;
+    if (tab == null) return;
+    if (!_isOwner) return;
+    _openedManagePanelFromIntent = true;
+    final initialTabIndex = tab.clamp(0, 1);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _showAdminPanel(context, initialTabIndex: initialTabIndex);
+    });
+  }
+
+  Future<void> _showAdminPanel(
+    BuildContext context, {
+    int initialTabIndex = 0,
+  }) async {
     if (!_isOwner) return;
 
     List<Map<String, dynamic>> members = [];
@@ -1163,6 +1188,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                               )
                             : DefaultTabController(
                                 length: 2,
+                                initialIndex: initialTabIndex.clamp(0, 1),
                                 child: Column(
                                   children: [
                                     Consumer<NotificationService>(
@@ -2034,23 +2060,9 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                             width: double.infinity,
                             child: Builder(
                               builder: (context) {
-                                final binStatus = _bin?['bin_status'] as String? ?? 'active';
-                                // Disable button only when matured (no actions allowed)
-                                final isDisabled = binStatus == 'matured';
-                                
-                                return Opacity(
-                                  opacity: isDisabled ? 0.5 : 1.0,
-                                  child: ElevatedButton.icon(
-                                    onPressed: isDisabled ? () {
-                                      // Show message even when disabled
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Bin is matured. No actions allowed.'),
-                                        ),
-                                      );
-                                    } : () async {
-                                      // For matured bins, this shouldn't be called (button is disabled)
-                                      // For resting bins, allow opening the log screen (only Turn Pile will be available)
+                                return ElevatedButton.icon(
+                                    onPressed: () async {
+                                      // Resting: no Add Materials. Matured: only Add Water / Monitor.
                                       final result =
                                           await context.push('/bin/${widget.binId}/log');
                                       if (result == true) {
@@ -2063,8 +2075,7 @@ class _BinDetailScreenState extends State<BinDetailScreen> {
                                     style: ElevatedButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(vertical: 8),
                                     ),
-                                  ),
-                                );
+                                  );
                               },
                             ),
                           ),

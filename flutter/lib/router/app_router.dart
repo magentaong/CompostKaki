@@ -94,7 +94,17 @@ class AppRouter {
         path: '/bin/:id',
         builder: (context, state) {
           final binId = state.pathParameters['id']!;
-          return BinDetailScreen(binId: binId);
+          final manage = state.uri.queryParameters['manage'];
+          int? manageTab;
+          if (manage == 'requests') {
+            manageTab = 1;
+          } else if (manage == 'members') {
+            manageTab = 0;
+          }
+          return BinDetailScreen(
+            binId: binId,
+            managePanelInitialTabIndex: manageTab,
+          );
         },
       ),
       GoRoute(

@@ -549,15 +549,29 @@ class BinService {
     if (status == 'active') return true;
 
     if (status == 'resting') {
-      // Only allow flipping when resting
-      // Allow 'log' action to open the screen, but only 'Turn Pile' will be available
+      // Allow 'log' to open the screen; allow turn / water / monitor, not Add Materials.
       if (action == 'log') return true;
-      return action == 'flip' || action == 'turn_pile' || action == 'Turn Pile';
+      const allowed = {
+        'flip',
+        'turn_pile',
+        'Turn Pile',
+        'Add Water',
+        'add_water',
+        'Monitor',
+        'monitor',
+      };
+      return allowed.contains(action);
     }
 
     if (status == 'matured') {
-      // No actions allowed when matured
-      return false;
+      if (action == 'log') return true;
+      const allowed = {
+        'Add Water',
+        'add_water',
+        'Monitor',
+        'monitor',
+      };
+      return allowed.contains(action);
     }
 
     return false;

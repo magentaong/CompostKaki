@@ -54,79 +54,78 @@ void main() {
     });
 
     group('_allowedActivityTypes for Resting Status', () {
-      test('should return only Turn Pile for resting bins', () {
-        String status = 'resting';
-        List<String> allowedTypes = status == 'resting'
-            ? ['Turn Pile']
-            : [];
+      final restingTypes = ['Turn Pile', 'Add Water', 'Monitor'];
 
-        expect(allowedTypes.length, 1);
+      test('should return turn, water, and monitor for resting bins (not materials)', () {
+        String status = 'resting';
+        List<String> allowedTypes = status == 'resting' ? restingTypes : [];
+
+        expect(allowedTypes.length, 3);
         expect(allowedTypes.contains('Turn Pile'), true);
+        expect(allowedTypes.contains('Add Water'), true);
+        expect(allowedTypes.contains('Monitor'), true);
       });
 
       test('should not include Add Materials for resting bins', () {
         String status = 'resting';
-        List<String> allowedTypes = status == 'resting'
-            ? ['Turn Pile']
-            : [];
+        List<String> allowedTypes = status == 'resting' ? restingTypes : [];
 
         expect(allowedTypes.contains('Add Materials'), false);
       });
 
-      test('should not include Add Water for resting bins', () {
+      test('should include Add Water for resting bins', () {
         String status = 'resting';
-        List<String> allowedTypes = status == 'resting'
-            ? ['Turn Pile']
-            : [];
+        List<String> allowedTypes = status == 'resting' ? restingTypes : [];
 
-        expect(allowedTypes.contains('Add Water'), false);
+        expect(allowedTypes.contains('Add Water'), true);
       });
 
-      test('should not include Monitor for resting bins', () {
+      test('should include Monitor for resting bins', () {
         String status = 'resting';
-        List<String> allowedTypes = status == 'resting'
-            ? ['Turn Pile']
-            : [];
+        List<String> allowedTypes = status == 'resting' ? restingTypes : [];
 
-        expect(allowedTypes.contains('Monitor'), false);
+        expect(allowedTypes.contains('Monitor'), true);
       });
 
-      test('should allow only flipping action when resting', () {
+      test('should allow turn pile, add water, and monitor when resting', () {
         String status = 'resting';
-        String action = 'Turn Pile';
-        bool isAllowed = status == 'resting' && action == 'Turn Pile';
-
-        expect(isAllowed, true);
+        for (final action in restingTypes) {
+          expect(status == 'resting' && restingTypes.contains(action), true);
+        }
       });
     });
 
     group('_allowedActivityTypes for Matured Status', () {
-      test('should return empty list for matured bins', () {
-        String status = 'matured';
-        List<String> allowedTypes = status == 'matured'
-            ? []
-            : [];
+      final maturedTypes = ['Add Water', 'Monitor'];
 
-        expect(allowedTypes.length, 0);
+      test('should return add water and monitor for matured bins', () {
+        String status = 'matured';
+        List<String> allowedTypes = status == 'matured' ? maturedTypes : [];
+
+        expect(allowedTypes.length, 2);
+        expect(allowedTypes.contains('Add Water'), true);
+        expect(allowedTypes.contains('Monitor'), true);
       });
 
-      test('should not include any activity types for matured bins', () {
+      test('should not include turn pile or add materials for matured bins', () {
         String status = 'matured';
         List<String> allowedTypes = status == 'matured'
-            ? []
+            ? maturedTypes
             : ['Turn Pile', 'Add Materials', 'Add Water', 'Monitor'];
 
-        expect(allowedTypes.isEmpty, true);
+        expect(allowedTypes.contains('Turn Pile'), false);
+        expect(allowedTypes.contains('Add Materials'), false);
       });
 
-      test('should prevent all actions when matured', () {
+      test('should only allow water and monitor when matured', () {
         String status = 'matured';
         List<String> allActions = ['Turn Pile', 'Add Materials', 'Add Water', 'Monitor'];
-        List<String> allowedTypes = status == 'matured' ? [] : allActions;
+        List<String> allowedTypes = status == 'matured' ? maturedTypes : allActions;
 
-        for (String action in allActions) {
-          expect(allowedTypes.contains(action), false);
-        }
+        expect(allowedTypes.contains('Add Water'), true);
+        expect(allowedTypes.contains('Monitor'), true);
+        expect(allowedTypes.contains('Turn Pile'), false);
+        expect(allowedTypes.contains('Add Materials'), false);
       });
     });
 
@@ -146,7 +145,7 @@ void main() {
         List<String> allowedTypes = status == 'active'
             ? ['Turn Pile', 'Add Materials', 'Add Water', 'Monitor']
             : status == 'resting'
-                ? ['Turn Pile']
+                ? ['Turn Pile', 'Add Water', 'Monitor']
                 : [];
 
         expect(allowedTypes.length, 4);
@@ -168,43 +167,47 @@ void main() {
         String status = 'resting';
         List<String> allTypes = ['Turn Pile', 'Add Materials', 'Add Water', 'Monitor'];
         List<String> allowedTypes = status == 'resting'
-            ? ['Turn Pile']
+            ? ['Turn Pile', 'Add Water', 'Monitor']
             : status == 'matured'
-                ? []
+                ? ['Add Water', 'Monitor']
                 : allTypes;
 
-        expect(allowedTypes.length, 1);
-        expect(allowedTypes, ['Turn Pile']);
+        expect(allowedTypes.length, 3);
+        expect(allowedTypes.contains('Add Materials'), false);
       });
 
       test('should disable unavailable activity types', () {
         String status = 'resting';
         List<String> allTypes = ['Turn Pile', 'Add Materials', 'Add Water', 'Monitor'];
-        List<String> allowedTypes = status == 'resting' ? ['Turn Pile'] : allTypes;
+        List<String> allowedTypes =
+            status == 'resting' ? ['Turn Pile', 'Add Water', 'Monitor'] : allTypes;
 
         for (String type in allTypes) {
           bool isEnabled = allowedTypes.contains(type);
-          if (type == 'Turn Pile') {
-            expect(isEnabled, true);
-          } else {
+          if (type == 'Add Materials') {
             expect(isEnabled, false);
+          } else {
+            expect(isEnabled, true);
           }
         }
       });
 
-      test('should show empty dropdown for matured bins', () {
+      test('should show only water and monitor for matured bins', () {
         String status = 'matured';
-        List<String> allowedTypes = status == 'matured' ? [] : ['Turn Pile'];
+        List<String> allowedTypes =
+            status == 'matured' ? ['Add Water', 'Monitor'] : ['Turn Pile'];
 
-        expect(allowedTypes.isEmpty, true);
+        expect(allowedTypes.length, 2);
+        expect(allowedTypes.contains('Add Materials'), false);
       });
     });
 
     group('Form Submission with Status Restrictions', () {
       test('should prevent submission of non-allowed activity types', () {
         String status = 'resting';
-        String selectedType = 'Monitor';
-        List<String> allowedTypes = status == 'resting' ? ['Turn Pile'] : [];
+        String selectedType = 'Add Materials';
+        List<String> allowedTypes =
+            status == 'resting' ? ['Turn Pile', 'Add Water', 'Monitor'] : [];
         bool canSubmit = allowedTypes.contains(selectedType);
 
         expect(canSubmit, false);
@@ -212,20 +215,32 @@ void main() {
 
       test('should allow submission of allowed activity types', () {
         String status = 'resting';
-        String selectedType = 'Turn Pile';
-        List<String> allowedTypes = status == 'resting' ? ['Turn Pile'] : [];
+        String selectedType = 'Monitor';
+        List<String> allowedTypes =
+            status == 'resting' ? ['Turn Pile', 'Add Water', 'Monitor'] : [];
         bool canSubmit = allowedTypes.contains(selectedType);
 
         expect(canSubmit, true);
       });
 
-      test('should prevent all submissions for matured bins', () {
+      test('should prevent turn pile submission for matured bins', () {
         String status = 'matured';
         String selectedType = 'Turn Pile';
-        List<String> allowedTypes = status == 'matured' ? [] : ['Turn Pile'];
+        List<String> allowedTypes =
+            status == 'matured' ? ['Add Water', 'Monitor'] : ['Turn Pile'];
         bool canSubmit = allowedTypes.contains(selectedType);
 
         expect(canSubmit, false);
+      });
+
+      test('should allow monitor submission for matured bins', () {
+        String status = 'matured';
+        String selectedType = 'Monitor';
+        List<String> allowedTypes =
+            status == 'matured' ? ['Add Water', 'Monitor'] : [];
+        bool canSubmit = allowedTypes.contains(selectedType);
+
+        expect(canSubmit, true);
       });
     });
 
@@ -237,23 +252,35 @@ void main() {
             ? ['Turn Pile', 'Add Materials', 'Add Water', 'Monitor']
             : [];
         List<String> newTypes = newStatus == 'resting'
-            ? ['Turn Pile']
+            ? ['Turn Pile', 'Add Water', 'Monitor']
             : [];
 
         expect(initialTypes.length, 4);
-        expect(newTypes.length, 1);
+        expect(newTypes.length, 3);
       });
 
-      test('should clear selected type when status changes to matured', () {
-        String previousStatus = 'active';
+      test('should clear selected type when changing to matured if not allowed', () {
         String newStatus = 'matured';
-        String? selectedType = 'Monitor';
-        List<String> allowedTypes = newStatus == 'matured' ? [] : ['Turn Pile'];
+        String? selectedType = 'Turn Pile';
+        List<String> allowedTypes =
+            newStatus == 'matured' ? ['Add Water', 'Monitor'] : ['Turn Pile'];
         if (!allowedTypes.contains(selectedType)) {
           selectedType = null;
         }
 
         expect(selectedType, null);
+      });
+
+      test('should keep monitor when status changes to matured', () {
+        String newStatus = 'matured';
+        String? selectedType = 'Monitor';
+        List<String> allowedTypes =
+            newStatus == 'matured' ? ['Add Water', 'Monitor'] : [];
+        if (!allowedTypes.contains(selectedType)) {
+          selectedType = null;
+        }
+
+        expect(selectedType, 'Monitor');
       });
     });
 
@@ -263,9 +290,9 @@ void main() {
         List<String> allowedTypes = status == 'active'
             ? ['Turn Pile', 'Add Materials', 'Add Water', 'Monitor']
             : status == 'resting'
-                ? ['Turn Pile']
+                ? ['Turn Pile', 'Add Water', 'Monitor']
                 : status == 'matured'
-                    ? []
+                    ? ['Add Water', 'Monitor']
                     : ['Turn Pile', 'Add Materials', 'Add Water', 'Monitor']; // Default
 
         expect(allowedTypes.length, 4);
