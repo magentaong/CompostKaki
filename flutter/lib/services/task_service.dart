@@ -137,6 +137,8 @@ class TaskService {
       'status': 'accepted',
       'accepted_by': user.id,
       'accepted_at': DateTime.now().toIso8601String(),
+      // Picking up a previously reverted task: no longer in "reverted" completion state
+      'completion_status': null,
     }).eq('id', taskId);
 
     // Award XP for accepting task
@@ -178,6 +180,9 @@ class TaskService {
       'completion_status': 'pending_check',
       'accepted_by': user.id, // Track who actually completed the task
       'completed_at': nowUtc.toIso8601String(),
+      // New completion attempt: clear previous owner feedback from revert
+      'revert_reason': null,
+      'reverted_at': null,
     }).eq('id', taskId);
 
     // Award XP for completing task
@@ -356,9 +361,14 @@ class TaskService {
   }
 
   // Revert task (owner rejects completion, subtracts XP from completer)
-  Future<Map<String, dynamic>?> revertTask(String taskId) async {
+  Future<Map<String, dynamic>?> revertTask(String taskId, String reason) async {
     final user = _supabaseService.currentUser;
     if (user == null) throw Exception('Not authenticated');
+
+    final trimmed = reason.trim();
+    if (trimmed.isEmpty) {
+      throw Exception('Please provide a reason why the task was not done properly');
+    }
 
     // Get task details
     final taskResponse = await _supabaseService.client
@@ -404,6 +414,7 @@ class TaskService {
       'status': 'open',
       'completion_status': 'reverted',
       'reverted_at': nowUtc.toIso8601String(),
+      'revert_reason': trimmed,
       'accepted_by': null, // Clear accepted_by so task can be taken again
       'accepted_at': null,
     }).eq('id', taskId);

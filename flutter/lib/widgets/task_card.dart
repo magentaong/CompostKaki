@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../utils/task_datetime_format.dart';
 
 class TaskCard extends StatelessWidget {
   final Map<String, dynamic> task;
@@ -179,6 +180,16 @@ class TaskCard extends StatelessWidget {
             ? '$acceptedByFirstName $acceptedByLastName'.trim()
             : acceptedByFirstName ?? 'Unknown';
 
+    final postedAtStr = formatTaskTimestamp(task['created_at'] as String?);
+    final completedAtStr = formatTaskTimestamp(task['completed_at'] as String?);
+    final revertReasonRaw = task['revert_reason'];
+    final revertReason = revertReasonRaw is String
+        ? revertReasonRaw.trim()
+        : (revertReasonRaw?.toString() ?? '').trim();
+    final revertedAtStr = formatTaskTimestamp(task['reverted_at'] as String?);
+    final showOwnerRevertFeedback = revertReason.isNotEmpty &&
+        (status == 'open' || status == 'accepted');
+
     // Determine card color based on completion status
     Color? cardColor;
     BorderSide? borderSide;
@@ -274,6 +285,16 @@ class TaskCard extends StatelessWidget {
                                     color: AppTheme.textGray,
                                   ),
                                 ),
+                                if (postedAtStr != null) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Posted $postedAtStr',
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: AppTheme.textGray,
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -307,6 +328,51 @@ class TaskCard extends StatelessWidget {
                           style: const TextStyle(
                             fontSize: 12,
                             color: AppTheme.textGray,
+                          ),
+                        ),
+                      ],
+                      if (showOwnerRevertFeedback) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.orange.shade200),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Owner: work not accepted',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.orange.shade900,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                revertReason,
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              if (revertedAtStr != null) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Noted $revertedAtStr',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: AppTheme.textGray,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                       ],
@@ -429,6 +495,16 @@ class TaskCard extends StatelessWidget {
                             ),
                           ],
                         ),
+                        if (completedAtStr != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Completed $completedAtStr',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: AppTheme.textGray,
+                            ),
+                          ),
+                        ],
                       ],
                     ],
                   ),

@@ -13,6 +13,7 @@ import '../../widgets/notification_badge.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/bin_card.dart';
 import '../../widgets/task_card.dart';
+import '../../utils/task_datetime_format.dart';
 import '../../widgets/compost_loading_animation.dart';
 import '../../widgets/kaki_mascot_widget.dart';
 import '../bin/add_bin_screen.dart';
@@ -497,7 +498,7 @@ class _MainScreenState extends State<MainScreen> {
                 onCreateBin: _openAddBin,
               ),
             )
-          else
+          else ...[
             SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
@@ -529,6 +530,13 @@ class _MainScreenState extends State<MainScreen> {
                 childCount: sortedBins.length,
               ),
             ),
+            // Space so the extended "Log Activity" FAB does not cover the last bin
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: MediaQuery.paddingOf(context).bottom + 96,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1007,6 +1015,7 @@ class _MainScreenState extends State<MainScreen> {
           _updateLocalTask(task['id'], {
             'status': 'accepted',
             'accepted_by': _taskService.currentUserId,
+            'completion_status': null,
           });
           if (mounted) {
             _loadTasks();
@@ -1020,6 +1029,9 @@ class _MainScreenState extends State<MainScreen> {
           _updateLocalTask(task['id'], {
             'status': 'completed',
             'accepted_by': _taskService.currentUserId,
+            'completed_at': DateTime.now().toUtc().toIso8601String(),
+            'revert_reason': null,
+            'reverted_at': null,
           });
           if (mounted) {
             _loadTasks();
@@ -1097,13 +1109,15 @@ class _MainScreenState extends State<MainScreen> {
         onRevert: task['status'] == 'completed' &&
                 task['completion_status'] == 'pending_check' &&
                 task['user_id'] == _taskService.currentUserId
-            ? () async {
+            ? (String reason) async {
                 try {
-                  final xpResult = await _taskService.revertTask(task['id']);
+                  final xpResult =
+                      await _taskService.revertTask(task['id'], reason);
                   _updateLocalTask(task['id'], {
                     'status': 'open',
                     'completion_status': 'reverted',
                     'reverted_at': DateTime.now().toUtc().toIso8601String(),
+                    'revert_reason': reason,
                     'accepted_by': null,
                     'accepted_at': null,
                   });
@@ -1781,6 +1795,99 @@ class _JoinBinDialogState extends State<_JoinBinDialog> {
   }
 }
 
+Future<String?> _showTaskRevertReasonDialog(BuildContext context) async {
+  return showDialog<String>(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => const _TaskRevertReasonDialog(),
+  );
+}
+
+/// Owns [TextEditingController] so it is disposed after the route is torn down,
+/// not in the same synchronous completion as [Navigator.pop] (avoids framework assertions).
+class _TaskRevertReasonDialog extends StatefulWidget {
+  const _TaskRevertReasonDialog();
+
+  @override
+  State<_TaskRevertReasonDialog> createState() =>
+      _TaskRevertReasonDialogState();
+}
+
+class _TaskRevertReasonDialogState extends State<_TaskRevertReasonDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      title: const Text('Not done properly'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Explain why the completion was not satisfactory. '
+              'This will be visible to members until someone completes the task again.',
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _controller,
+              maxLines: 5,
+              maxLength: 500,
+              decoration: const InputDecoration(
+                hintText: 'Enter your reason…',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            final t = _controller.text.trim();
+            if (t.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Please enter a reason'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+              return;
+            }
+            Navigator.pop(context, t);
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.primaryGreen,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('Submit'),
+        ),
+      ],
+    );
+  }
+}
+
 class _TaskDetailDialog extends StatelessWidget {
   final Map<String, dynamic> task;
   final List<Map<String, dynamic>> bins;
@@ -1788,7 +1895,7 @@ class _TaskDetailDialog extends StatelessWidget {
   final VoidCallback onComplete;
   final VoidCallback onUnassign;
   final VoidCallback? onCheck;
-  final VoidCallback? onRevert;
+  final Future<void> Function(String reason)? onRevert;
   final VoidCallback? onDelete;
   final VoidCallback? onEdit;
 
@@ -1954,6 +2061,15 @@ class _TaskDetailDialog extends StatelessWidget {
     final isTimeSensitive = task['is_time_sensitive'] == true;
     final dueDateRaw = task['due_date'] as String?;
     final timeLeft = _getTimeLeft(dueDateRaw);
+    final postedAtStr = formatTaskTimestamp(task['created_at'] as String?);
+    final completedAtStr = formatTaskTimestamp(task['completed_at'] as String?);
+    final revertReasonRaw = task['revert_reason'];
+    final revertReason = revertReasonRaw is String
+        ? revertReasonRaw.trim()
+        : (revertReasonRaw?.toString() ?? '').trim();
+    final revertedAtStr = formatTaskTimestamp(task['reverted_at'] as String?);
+    final showOwnerRevertFeedback = revertReason.isNotEmpty &&
+        (status == 'open' || status == 'accepted');
 
     return AlertDialog(
       shape: RoundedRectangleBorder(
@@ -2056,6 +2172,20 @@ class _TaskDetailDialog extends StatelessWidget {
                 avatarUrl: posterAvatarUrl,
               ),
             ),
+            if (postedAtStr != null) ...[
+              const SizedBox(height: 8),
+              _TaskDetailInfoRow(
+                label: 'Posted at',
+                child: Text(
+                  postedAtStr,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+            ],
             if (isTimeSensitive && timeLeft.text.isNotEmpty) ...[
               const SizedBox(height: 8),
               _TaskDetailInfoRow(
@@ -2082,6 +2212,55 @@ class _TaskDetailDialog extends StatelessWidget {
                       ),
                     ],
                   ),
+                ),
+              ),
+            ],
+            if (showOwnerRevertFeedback) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline,
+                            size: 18, color: Colors.orange.shade800),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Owner feedback (previous completion)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.orange.shade900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      revertReason,
+                      style: const TextStyle(fontSize: 14, color: Colors.black87),
+                    ),
+                    if (revertedAtStr != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Noted $revertedAtStr',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.textGray,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],
@@ -2178,6 +2357,16 @@ class _TaskDetailDialog extends StatelessWidget {
                   ),
                 ],
               ),
+              if (completedAtStr != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Completed at $completedAtStr',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.textGray,
+                  ),
+                ),
+              ],
             ],
           ],
         ),
@@ -2251,9 +2440,13 @@ class _TaskDetailDialog extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
-                    onPressed: () {
+                    onPressed: () async {
+                      final reason =
+                          await _showTaskRevertReasonDialog(context);
+                      if (reason == null || reason.trim().isEmpty) return;
+                      if (!context.mounted) return;
                       Navigator.pop(context);
-                      onRevert!();
+                      await onRevert!(reason.trim());
                     },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
