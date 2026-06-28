@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getUserByEmail } from '@/lib/getUserByEmail'
 
 // Verify OTP code and create recovery session
 export const runtime = 'nodejs' // Ensure Node.js runtime, not Edge
@@ -235,29 +236,71 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate recovery link using Supabase admin API
+    // Confirm auth user exists (listUsers is paginated — must search all pages)
+    let authUser
+    try {
+      authUser = await getUserByEmail(supabase, emailNorm)
+    } catch (lookupError: any) {
+      console.error('🔐 [VERIFY OTP] getUserByEmail failed:', lookupError?.message)
+      return NextResponse.json(
+        { error: 'Failed to create recovery session' },
+        { status: 500 }
+      )
+    }
+
+    if (!authUser?.email) {
+      return NextResponse.json(
+        { error: 'Invalid OTP code' },
+        { status: 400 }
+      )
+    }
+
+    // Generate recovery link using Supabase admin API (use canonical auth email)
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: 'recovery',
-      email: emailNorm,
+      email: authUser.email,
+      options: {
+        redirectTo: 'https://compostkaki.vercel.app/reset-password',
+      },
     })
 
     if (linkError || !linkData) {
       console.error('🔐 [VERIFY OTP] generateLink failed:', linkError?.message)
-      // Don't mark OTP as used — user can retry after fixing account issues
+      const message = linkError?.message?.toLowerCase() ?? ''
       const isMissingUser =
-        linkError?.message?.toLowerCase().includes('user not found') ||
-        linkError?.message?.toLowerCase().includes('no user')
+        message.includes('user not found') ||
+        message.includes('no user') ||
+        message.includes('not found')
       return NextResponse.json(
         { error: isMissingUser ? 'Invalid OTP code' : 'Failed to create recovery session' },
         { status: isMissingUser ? 400 : 500 }
       )
     }
 
-    // Extract token from the recovery link
-    const recoveryUrl = new URL(linkData.properties.action_link)
-    const recoveryToken = recoveryUrl.searchParams.get('token')
+    const tokenHash =
+      linkData.properties?.hashed_token ??
+      (() => {
+        try {
+          const recoveryUrl = new URL(linkData.properties.action_link)
+          return recoveryUrl.searchParams.get('token_hash')
+        } catch {
+          return null
+        }
+      })()
 
-    if (!recoveryToken) {
+    const recoveryToken = tokenHash
+      ? null
+      : (() => {
+          try {
+            const recoveryUrl = new URL(linkData.properties.action_link)
+            return recoveryUrl.searchParams.get('token')
+          } catch {
+            return null
+          }
+        })()
+
+    if (!tokenHash && !recoveryToken) {
+      console.error('🔐 [VERIFY OTP] No token_hash or token in generateLink response')
       return NextResponse.json(
         { error: 'Failed to extract recovery token' },
         { status: 500 }
@@ -266,11 +309,16 @@ export async function POST(request: NextRequest) {
 
     // Verify the recovery token to get session
     const anonSupabase = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-    const { data: verifyData, error: verifyError } = await anonSupabase.auth.verifyOtp({
-      token: recoveryToken,
-      type: 'recovery',
-      email: emailNorm,
-    } as any)
+    const { data: verifyData, error: verifyError } = tokenHash
+      ? await anonSupabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: 'recovery',
+        })
+      : await anonSupabase.auth.verifyOtp({
+          token: recoveryToken!,
+          type: 'recovery',
+          email: authUser.email,
+        } as any)
 
     if (verifyError || !verifyData.session) {
       console.error('🔐 [VERIFY OTP] verifyOtp failed:', verifyError?.message)
