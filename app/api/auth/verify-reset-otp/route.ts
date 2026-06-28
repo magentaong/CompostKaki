@@ -225,26 +225,6 @@ export async function POST(request: NextRequest) {
       created_at: otpData.created_at
     })
 
-    // Now check if user actually exists before creating recovery session
-    // This prevents creating sessions for non-existent users
-    const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers()
-    const userExists = usersData?.users?.some(user => 
-      user.email?.toLowerCase().trim() === emailNorm
-    ) ?? false
-
-    if (!userExists) {
-      // User doesn't exist - mark the OTP as used and return error
-      await supabase
-        .from('password_reset_otps')
-        .update({ used_at: new Date().toISOString() })
-        .eq('id', otpData.id)
-      
-      return NextResponse.json(
-        { error: 'Invalid OTP code' }, // Generic error for security
-        { status: 400 }
-      )
-    }
-
     // OTP expiration is already checked in the query above
     // But double-check just in case
     const expiresAt = new Date(otpData.expires_at)
@@ -262,9 +242,14 @@ export async function POST(request: NextRequest) {
     })
 
     if (linkError || !linkData) {
+      console.error('🔐 [VERIFY OTP] generateLink failed:', linkError?.message)
+      // Don't mark OTP as used — user can retry after fixing account issues
+      const isMissingUser =
+        linkError?.message?.toLowerCase().includes('user not found') ||
+        linkError?.message?.toLowerCase().includes('no user')
       return NextResponse.json(
-        { error: 'Failed to create recovery session' },
-        { status: 500 }
+        { error: isMissingUser ? 'Invalid OTP code' : 'Failed to create recovery session' },
+        { status: isMissingUser ? 400 : 500 }
       )
     }
 
@@ -288,6 +273,7 @@ export async function POST(request: NextRequest) {
     } as any)
 
     if (verifyError || !verifyData.session) {
+      console.error('🔐 [VERIFY OTP] verifyOtp failed:', verifyError?.message)
       return NextResponse.json(
         { error: 'Failed to verify recovery token' },
         { status: 500 }
