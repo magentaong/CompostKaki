@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getUserByEmail } from '@/lib/getUserByEmail';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,12 +13,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing email" }, { status: 400 });
   }
 
-  const { data, error } = await supabase.auth.admin.listUsers();
-
-  if (error) {
+  try {
+    const user = await getUserByEmail(supabase, email);
+    return NextResponse.json({ exists: user !== null });
+  } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  const exists = data.users.some(user => user.email === email); 
-  
-  return NextResponse.json({ exists });
 }
