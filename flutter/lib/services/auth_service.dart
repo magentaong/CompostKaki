@@ -9,11 +9,7 @@ import 'supabase_service.dart';
 class AuthService extends ChangeNotifier {
   final SupabaseService _supabaseService = SupabaseService();
 
-  // Debug builds hit your local Next.js server (phone must be on the same Wi‑Fi).
-  // Change the IP if `ipconfig` shows a different Wi‑Fi address.
-  static const String _apiBaseUrl = kDebugMode
-      ? 'http://192.168.0.7:3000'
-      : 'https://compostkaki.vercel.app';
+  static const String _apiBaseUrl = 'https://compostkaki.vercel.app';
 
   User? get currentUser => _supabaseService.currentUser;
   bool get isAuthenticated => _supabaseService.isAuthenticated;
