@@ -69,7 +69,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _successMessage = 'OTP code sent to your email. Please check your inbox.';
+          _successMessage = 'If an account exists with this email, we\'ve sent an OTP code. Please check your inbox.';
           _currentStep = ResetPasswordStep.otp;
         });
       }

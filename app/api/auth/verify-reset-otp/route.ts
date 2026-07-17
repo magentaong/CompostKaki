@@ -253,24 +253,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Extract token from the recovery link
-    const recoveryUrl = new URL(linkData.properties.action_link)
-    const recoveryToken = recoveryUrl.searchParams.get('token')
+    // Verify the recovery token to get session.
+    // Use the hashed_token with token_hash: the `token` query param in the
+    // action_link is already hashed, so passing it as `token` + email fails
+    // with otp_expired.
+    const hashedToken = linkData.properties.hashed_token
 
-    if (!recoveryToken) {
+    if (!hashedToken) {
       return NextResponse.json(
         { error: 'Failed to extract recovery token' },
         { status: 500 }
       )
     }
 
-    // Verify the recovery token to get session
     const anonSupabase = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
     const { data: verifyData, error: verifyError } = await anonSupabase.auth.verifyOtp({
-      token: recoveryToken,
+      token_hash: hashedToken,
       type: 'recovery',
-      email: emailNorm,
-    } as any)
+    })
 
     if (verifyError || !verifyData.session) {
       console.error('🔐 [VERIFY OTP] verifyOtp failed:', verifyError?.message)

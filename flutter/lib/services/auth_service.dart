@@ -9,6 +9,12 @@ import 'supabase_service.dart';
 class AuthService extends ChangeNotifier {
   final SupabaseService _supabaseService = SupabaseService();
 
+  // Debug builds hit your local Next.js server (phone must be on the same Wi‑Fi).
+  // Change the IP if `ipconfig` shows a different Wi‑Fi address.
+  static const String _apiBaseUrl = kDebugMode
+      ? 'http://192.168.0.7:3000'
+      : 'https://compostkaki.vercel.app';
+
   User? get currentUser => _supabaseService.currentUser;
   bool get isAuthenticated => _supabaseService.isAuthenticated;
 
@@ -131,7 +137,7 @@ class AuthService extends ChangeNotifier {
       
       // Call custom backend API to send OTP code
       final response = await http.post(
-        Uri.parse('https://compostkaki.vercel.app/api/auth/send-reset-otp'),
+        Uri.parse('$_apiBaseUrl/api/auth/send-reset-otp'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email}),
       );
@@ -188,7 +194,7 @@ class AuthService extends ChangeNotifier {
       
       // Call custom backend API to verify OTP and get session tokens
       final response = await http.post(
-        Uri.parse('https://compostkaki.vercel.app/api/auth/verify-reset-otp'),
+        Uri.parse('$_apiBaseUrl/api/auth/verify-reset-otp'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': email,
@@ -209,10 +215,9 @@ class AuthService extends ChangeNotifier {
         throw Exception('Failed to get session tokens. Please try again.');
       }
 
-      // Set session using access token
-      // Supabase Flutter setSession accepts access token string
-      // The refresh token is stored automatically by Supabase
-      await _supabaseService.client.auth.setSession(accessToken);
+      // setSession in supabase_flutter expects the REFRESH token
+      // (it exchanges it for a fresh access token)
+      await _supabaseService.client.auth.setSession(refreshToken);
 
       // Verify session was created
       final currentSession = _supabaseService.client.auth.currentSession;
@@ -290,10 +295,9 @@ class AuthService extends ChangeNotifier {
       
       final supabase = _supabaseService.client;
       
-      // Try to set session using access token
-      // Supabase Flutter's setSession accepts a string (access token)
-      // The refresh token should be handled automatically by Supabase
-      final response = await supabase.auth.setSession(accessToken);
+      // setSession in supabase_flutter expects the REFRESH token
+      // (it exchanges it for a fresh access token)
+      final response = await supabase.auth.setSession(refreshToken);
       
       print('🔐 [AUTH SERVICE] setSession response - hasSession: ${response.session != null}');
       
@@ -398,12 +402,7 @@ class AuthService extends ChangeNotifier {
     final session = _supabaseService.session;
     if (session == null) throw Exception('No active session');
 
-    // API base URL - Update this to match your Next.js deployment URL
-    // For production: 'https://compostkaki.vercel.app' (or your domain)
-    // For development: 'http://localhost:3000' or 'http://YOUR_LOCAL_IP:3000'
-    const apiBaseUrl = 'https://compostkaki.vercel.app';
-
-    final url = Uri.parse('$apiBaseUrl/api/user/delete');
+    final url = Uri.parse('$_apiBaseUrl/api/user/delete');
 
     try {
       // Use POST instead of DELETE for better compatibility

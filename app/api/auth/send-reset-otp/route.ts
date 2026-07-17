@@ -103,11 +103,20 @@ export async function POST(request: NextRequest) {
     const sendGridApiKey = process.env.SENDGRID_API_KEY
     if (!sendGridApiKey) {
       console.error('📧 [SEND OTP] SENDGRID_API_KEY not configured')
-      // Fallback: Still store OTP, but log error
+      // In development (local testing without SendGrid), skip email and
+      // print the OTP to the server console so the flow can be tested end-to-end.
+      if (process.env.NODE_ENV === 'development') {
+        console.log('\n==================================================')
+        console.log(`🔑 [DEV OTP] ${normalizedEmail} -> ${otpCode}`)
+        console.log('==================================================\n')
+        return NextResponse.json({
+          success: true,
+          message: 'DEV MODE: OTP generated (email skipped). Check the server terminal for the code.',
+          otp: otpCode,
+        })
+      }
       return NextResponse.json({
         error: 'Email service not configured. Please add SENDGRID_API_KEY to Vercel environment variables.',
-        // In development, return OTP for testing
-        ...(process.env.NODE_ENV === 'development' && { otp: otpCode })
       }, { status: 500 })
     }
     console.log('📧 [SEND OTP] SendGrid API key found, sending email...')
@@ -194,7 +203,7 @@ If you didn't request this, please ignore this email.`
     console.log('📧 [SEND OTP] Email sent successfully via SendGrid')
     return NextResponse.json({
       success: true,
-      message: 'OTP code sent to your email. Please check your inbox.',
+      message: 'If an account exists with this email, an OTP code has been sent. Please check your inbox.',
       // In development, you might want to return the OTP for testing
       // Remove this in production!
       ...(process.env.NODE_ENV === 'development' && { otp: otpCode })

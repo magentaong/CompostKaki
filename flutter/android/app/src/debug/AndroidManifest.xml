@@ -4,4 +4,6 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Allow HTTP to local Next.js during debug password-reset testing -->
+    <application android:usesCleartextTraffic="true" />
 </manifest>
