@@ -120,8 +120,7 @@ class AuthService extends ChangeNotifier {
     return _supabaseService.client.storage.from('avatars').getPublicUrl(fileName);
   }
 
-  // Request password reset OTP - sends OTP code to email
-  // Uses signInWithOtp with recovery type to send OTP code (not link)
+  // Request password reset OTP - sends OTP code to email via custom backend API
   Future<void> requestPasswordResetOTP(String email) async {
     try {
       // Validate email format first
@@ -130,7 +129,7 @@ class AuthService extends ChangeNotifier {
       }
 
       print('🔐 [AUTH SERVICE] Requesting password reset OTP for: $email');
-      
+
       // Call custom backend API to send OTP code
       final response = await http.post(
         Uri.parse('$_apiBaseUrl/api/auth/send-reset-otp'),
@@ -145,7 +144,6 @@ class AuthService extends ChangeNotifier {
             final errorData = jsonDecode(response.body) as Map<String, dynamic>;
             errorMessage = errorData['error'] ?? errorMessage;
           } catch (e) {
-            // If response is not valid JSON, use the raw body or status code
             errorMessage = 'Failed to send OTP (Status: ${response.statusCode})';
             if (response.body.isNotEmpty) {
               errorMessage += ': ${response.body}';
@@ -157,25 +155,12 @@ class AuthService extends ChangeNotifier {
         throw Exception(errorMessage);
       }
 
-      // Parse success response
-      if (response.body.isNotEmpty) {
-        try {
-          final data = jsonDecode(response.body) as Map<String, dynamic>;
-          print('✅ [AUTH SERVICE] Password reset OTP sent successfully: ${data['message'] ?? 'Success'}');
-        } catch (e) {
-          // Response is not JSON, but status is 200, so assume success
-          print('✅ [AUTH SERVICE] Password reset OTP sent successfully');
-        }
-      } else {
-        print('✅ [AUTH SERVICE] Password reset OTP sent successfully');
-      }
-      
-      // Note: Supabase always returns success even if email doesn't exist (for security)
+      print('✅ [AUTH SERVICE] Password reset OTP sent successfully');
+      // Note: backend returns success even if the email doesn't exist
+      // (prevents email enumeration)
     } on AuthException catch (e) {
-      // Handle Supabase auth-specific errors
       throw Exception('Failed to send OTP: ${e.message}');
     } catch (e) {
-      // Handle other errors (network, etc.)
       if (e.toString().contains('network') || e.toString().contains('timeout')) {
         throw Exception('Network error. Please check your connection and try again.');
       }
@@ -187,7 +172,7 @@ class AuthService extends ChangeNotifier {
   Future<void> verifyPasswordResetOTP(String email, String otpCode) async {
     try {
       print('🔐 [AUTH SERVICE] Verifying OTP code for: $email');
-      
+
       // Call custom backend API to verify OTP and get session tokens
       final response = await http.post(
         Uri.parse('$_apiBaseUrl/api/auth/verify-reset-otp'),
@@ -224,9 +209,7 @@ class AuthService extends ChangeNotifier {
 
       print('✅ [AUTH SERVICE] OTP verified successfully, recovery session created');
       print('🔐 [AUTH SERVICE] Session user: ${currentSession.user.email}');
-      print('🔐 [AUTH SERVICE] Session expires at: ${currentSession.expiresAt}');
-      
-      // Notify listeners
+
       notifyListeners();
     } catch (e) {
       if (e.toString().contains('network') || e.toString().contains('timeout')) {
