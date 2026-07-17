@@ -248,7 +248,13 @@ export async function POST(request: NextRequest) {
         linkError?.message?.toLowerCase().includes('user not found') ||
         linkError?.message?.toLowerCase().includes('no user')
       return NextResponse.json(
-        { error: isMissingUser ? 'Invalid OTP code' : 'Failed to create recovery session' },
+        {
+          error: isMissingUser ? 'Invalid OTP code' : 'Failed to create recovery session',
+          // Temporary debug detail to diagnose production generateLink failures
+          details: linkError?.message,
+          code: (linkError as any)?.code,
+          status_code: (linkError as any)?.status,
+        },
         { status: isMissingUser ? 400 : 500 }
       )
     }
