@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import {CardContent} from "@/components/ui/card"
+import { Leaf } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { supabase } from "@/lib/supabaseClient"
@@ -60,6 +60,14 @@ export default function CompostKaki() {
   const [emailExists, setEmailExists] = useState<boolean | null>(null);
 
   const router = useRouter();
+
+  // Safe internal redirect target passed via ?next= (e.g. /admin).
+  const getNextPath = () => {
+    if (typeof window === 'undefined') return null;
+    const next = new URLSearchParams(window.location.search).get('next');
+    if (next && next.startsWith('/') && !next.startsWith('//')) return next;
+    return null;
+  };
 
   // CRITICAL: Check for password reset token OR errors IMMEDIATELY on page load
   // This runs BEFORE anything else renders
@@ -126,7 +134,7 @@ export default function CompostKaki() {
     }
     
     supabase.auth.getUser().then(({ data }) => {
-      if (data.user) router.replace('/main');
+      if (data.user) router.replace(getNextPath() || '/main');
     });
   }, [router]);
 
@@ -182,7 +190,7 @@ export default function CompostKaki() {
         });
       }
       setIsLoading(false);
-      if (!error) router.push("/main")
+      if (!error) router.push(getNextPath() || "/main")
     }
 
     const handleSignIn = async () => {
@@ -191,7 +199,7 @@ export default function CompostKaki() {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) setAuthError(error.message)
       setIsLoading(false)
-      if (!error) router.push("/main")
+      if (!error) router.push(getNextPath() || "/main")
     }
 
     const handleSignOut = async () => {
@@ -292,75 +300,156 @@ export default function CompostKaki() {
 
   if (!session) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#E6FFF3] to-[#F3F3F3]">
-        <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8 flex flex-col items-center">
-          <img src="/favicon.ico" alt="Logo" className="w-8 h-8 mb-2" />
-          <h1 className="text-3xl font-bold text-[#00796B] mb-2">CompostKaki</h1>
-          <div className="text-[#00796B] text-base mb-6 font-medium">Grow your community, one compost at a time!</div>
-          
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#E6FFF3] via-[#F3FBF5] to-[#F3F3F3] px-4 py-10">
+        <div className="w-full max-w-md">
+          <div className="rounded-2xl border border-black/5 bg-white p-8 shadow-xl sm:p-10">
+            <div className="flex flex-col items-center text-center">
+              <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-[#00796B] shadow-sm">
+                <Leaf className="size-7 text-white" />
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight text-[#00796B]">
+                CompostKaki
+              </h1>
+              <p className="mt-1 text-sm text-gray-500">
+                {step === "signup"
+                  ? "Create your account to get started"
+                  : "Grow your community, one compost at a time"}
+              </p>
+            </div>
 
-          <CardContent>
-            {(step === "email" || step === "signin") && (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  step === "email" ? handleEmailCheck() : handleSignIn();
-                }}
-                className="space-y-4 w-full"
-              >
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    autoFocus
-                  />
-                </div>
+            <div className="mt-8">
+              {(step === "email" || step === "signin") && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    step === "email" ? handleEmailCheck() : handleSignIn();
+                  }}
+                  className="space-y-4"
+                >
+                  <div className="space-y-1.5">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      required
+                      autoFocus
+                      className="h-11"
+                    />
+                  </div>
 
-                {step === "signin" && (
-                  <div
-                    className={`transition-all duration-300 overflow-hidden ${
-                      step === "signin" ? "max-h-32 opacity-100" : "max-h-0 opacity-0"
-                    }`}
+                  {step === "signin" && (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="password">Password</Label>
+                      <Input
+                        id="password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Enter your password"
+                        required
+                        className="h-11"
+                      />
+                    </div>
+                  )}
+
+                  {authError && (
+                    <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+                      {authError}
+                    </div>
+                  )}
+
+                  <Button
+                    type="submit"
+                    className="h-11 w-full bg-[#00796B] text-base font-semibold text-white transition hover:bg-[#005A4B]"
+                    disabled={isLoading}
                   >
-                    <Label htmlFor="password" className="block mt-2">Password</Label>
+                    {isLoading
+                      ? step === "email"
+                        ? "Checking..."
+                        : "Signing in..."
+                      : step === "email"
+                        ? "Continue"
+                        : "Sign In"}
+                  </Button>
+
+                  {step === "signin" && (
+                    <button
+                      type="button"
+                      className="w-full text-center text-sm text-gray-500 transition hover:text-[#00796B]"
+                      onClick={() => {
+                        setStep("email");
+                        setPassword("");
+                        setAuthError("");
+                      }}
+                    >
+                      ← Back to email
+                    </button>
+                  )}
+                </form>
+              )}
+
+              {step === "signup" && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSignUp();
+                  }}
+                  className="space-y-4"
+                >
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="firstName">First name</Label>
+                      <Input
+                        id="firstName"
+                        placeholder="Jane"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        required
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="lastName">Last name</Label>
+                      <Input
+                        id="lastName"
+                        placeholder="Tan"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        required
+                        className="h-11"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="password">Password</Label>
                     <Input
                       id="password"
                       type="password"
+                      placeholder="Create a password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
+                      className="h-11"
                     />
                   </div>
-                )}
-
-                {authError && (
-                  <div className="text-sm text-red-600 bg-red-50 px-2 py-1 rounded">
-                    {authError}
-                  </div>
-                )}
-
-                <Button
-                  type="submit"
-                  className="w-full bg-[#00796B] text-white hover:bg-[#005A4B] transition font-semibold"
-                  disabled={isLoading}
-                >
-                  {isLoading
-                    ? step === "email"
-                      ? "Checking..."
-                      : "Signing in..."
-                    : step === "email"
-                      ? "Continue"
-                      : "Sign In"}
-                </Button>
-
-                {step === "signin" && (
+                  {authError && (
+                    <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+                      {authError}
+                    </div>
+                  )}
+                  <Button
+                    type="submit"
+                    className="h-11 w-full bg-[#00796B] text-base font-semibold text-white transition hover:bg-[#005A4B]"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Signing up..." : "Sign Up"}
+                  </Button>
                   <button
                     type="button"
-                    className="mt-2 text-sm text-[#00796B] underline"
+                    className="w-full text-center text-sm text-gray-500 transition hover:text-[#00796B]"
                     onClick={() => {
                       setStep("email");
                       setPassword("");
@@ -369,67 +458,19 @@ export default function CompostKaki() {
                   >
                     ← Back to email
                   </button>
-                )}
-              </form>
-            )}
+                </form>
+              )}
+            </div>
 
-            {step === "signup" && (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSignUp();
-                }}
-                className="space-y-4 w-full"
+            <div className="mt-8 border-t border-gray-100 pt-5 text-center">
+              <a
+                href="/admin"
+                className="text-xs font-medium text-gray-400 transition hover:text-[#00796B]"
               >
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="First Name"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    required
-                  />
-                  <Input
-                    placeholder="Last Name"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                {authError && <div className="text-sm text-red-600">{authError}</div>}
-                <Button
-                  type="submit"
-                  className="w-full bg-[#00796B] text-white hover:bg-[#005A4B]"
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Signing up..." : "Sign Up"}
-                </Button>
-                <button
-                  type="button"
-                  className="mt-2 text-sm text-[#00796B] underline"
-                  onClick={() => {
-                    setStep("email");
-                    setPassword("");
-                    setAuthError("");
-                  }}
-                >
-                  ← Back to email
-                </button>
-              </form>
-            )}
-          </CardContent>
-
-
-
+                Admin portal →
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     )
